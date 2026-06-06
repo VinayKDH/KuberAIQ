@@ -1,0 +1,43 @@
+"""SQLAlchemy Unit of Work — coordinates repositories and transaction boundaries."""
+from __future__ import annotations
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.application.ports.repositories import UnitOfWork
+from app.infrastructure.db.repositories.audit_repository import SqlAlchemyAuditRepository
+from app.infrastructure.db.repositories.company_repository import SqlAlchemyCompanyRepository
+from app.infrastructure.db.repositories.customer_repository import SqlAlchemyCustomerRepository
+from app.infrastructure.db.repositories.invoice_repository import SqlAlchemyInvoiceRepository
+from app.infrastructure.db.repositories.payment_repository import SqlAlchemyPaymentRepository
+from app.infrastructure.db.repositories.reminder_repository import SqlAlchemyReminderRepository
+from app.infrastructure.db.repositories.user_repository import SqlAlchemyUserRepository
+
+
+class SqlAlchemyUnitOfWork(UnitOfWork):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+        self.customers = SqlAlchemyCustomerRepository(session)
+        self.invoices = SqlAlchemyInvoiceRepository(session)
+        self.payments = SqlAlchemyPaymentRepository(session)
+        self.reminders = SqlAlchemyReminderRepository(session)
+        self.audit = SqlAlchemyAuditRepository(session)
+        self.companies = SqlAlchemyCompanyRepository(session)
+        self.users = SqlAlchemyUserRepository(session)
+
+    async def __aenter__(self) -> SqlAlchemyUnitOfWork:
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        try:
+            if exc_type:
+                await self.rollback()
+            else:
+                await self.commit()
+        finally:
+            await self._session.close()
+
+    async def commit(self) -> None:
+        await self._session.commit()
+
+    async def rollback(self) -> None:
+        await self._session.rollback()

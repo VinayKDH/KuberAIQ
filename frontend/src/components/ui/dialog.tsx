@@ -1,0 +1,127 @@
+"use client";
+
+import * as React from "react";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+interface DialogContextValue {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+
+const DialogContext = React.createContext<DialogContextValue | null>(null);
+
+function useDialog() {
+  const ctx = React.useContext(DialogContext);
+  if (!ctx) throw new Error("Dialog components must be used within Dialog");
+  return ctx;
+}
+
+interface DialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children: React.ReactNode;
+}
+
+function Dialog({ open: controlledOpen, onOpenChange, children }: DialogProps) {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = React.useCallback(
+    (value: boolean) => {
+      setInternalOpen(value);
+      onOpenChange?.(value);
+    },
+    [onOpenChange],
+  );
+
+  return (
+    <DialogContext.Provider value={{ open, setOpen }}>{children}</DialogContext.Provider>
+  );
+}
+
+function DialogTrigger({
+  children,
+  asChild,
+}: {
+  children: React.ReactElement;
+  asChild?: boolean;
+}) {
+  const { setOpen } = useDialog();
+  if (asChild && React.isValidElement(children)) {
+    const childProps = children.props as { onClick?: (e: React.MouseEvent) => void };
+    return React.cloneElement(children, {
+      onClick: (e: React.MouseEvent) => {
+        childProps.onClick?.(e);
+        setOpen(true);
+      },
+    } as React.HTMLAttributes<HTMLElement>);
+  }
+  return (
+    <button type="button" onClick={() => setOpen(true)}>
+      {children}
+    </button>
+  );
+}
+
+function DialogContent({
+  className,
+  children,
+}: React.HTMLAttributes<HTMLDivElement>) {
+  const { open, setOpen } = useDialog();
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    if (open) document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, setOpen]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="fixed inset-0 bg-black/80"
+        onClick={() => setOpen(false)}
+        aria-hidden
+      />
+      <div
+        role="dialog"
+        aria-modal
+        className={cn(
+          "relative z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
+          className,
+        )}
+      >
+        {children}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-4 top-4"
+          onClick={() => setOpen(false)}
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
+  );
+}
+
+function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h2 className={cn("text-lg font-semibold leading-none tracking-tight", className)} {...props} />;
+}
+
+function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn("text-sm text-muted-foreground", className)} {...props} />;
+}
+
+export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription };
