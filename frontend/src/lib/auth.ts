@@ -5,7 +5,9 @@ export interface AuthUser {
   email: string;
   full_name: string;
   role: string;
-  company_id: string;
+  company_id: string | null;
+  needs_payment?: boolean;
+  needs_onboarding?: boolean;
 }
 
 export interface AuthTokens {
@@ -13,7 +15,13 @@ export interface AuthTokens {
   refresh_token?: string;
   token_type: string;
   expires_in: number;
+  needs_payment?: boolean;
+  needs_onboarding?: boolean;
   user: AuthUser;
+}
+
+export function isMockBillingEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_USE_MOCK_BILLING !== "false";
 }
 
 export function getStoredUser(): AuthUser | null {

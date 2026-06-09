@@ -35,10 +35,32 @@ class SqlAlchemyUserRepository:
         model = result.scalar_one_or_none()
         return self._to_record(model) if model else None
 
+    async def get_by_entra_oid(self, entra_oid: str) -> UserRecord | None:
+        stmt = select(UserModel).where(
+            UserModel.entra_oid == entra_oid,
+            UserModel.deleted_at.is_(None),
+            UserModel.is_active.is_(True),
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_record(model) if model else None
+
+    async def get_by_google_sub(self, google_sub: str) -> UserRecord | None:
+        stmt = select(UserModel).where(
+            UserModel.google_sub == google_sub,
+            UserModel.deleted_at.is_(None),
+            UserModel.is_active.is_(True),
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_record(model) if model else None
+
     async def create(self, record: UserRecord) -> UserRecord:
         model = UserModel(
             id=record.id,
             company_id=record.company_id,
+            entra_oid=record.entra_oid,
+            google_sub=record.google_sub,
             email=record.email.lower(),
             full_name=record.full_name,
             role=record.role,
@@ -47,11 +69,29 @@ class SqlAlchemyUserRepository:
         await self._session.flush()
         return self._to_record(model)
 
+    async def link_google_sub(self, user_id: uuid.UUID, google_sub: str) -> UserRecord:
+        stmt = select(UserModel).where(UserModel.id == user_id, UserModel.deleted_at.is_(None))
+        result = await self._session.execute(stmt)
+        model = result.scalar_one()
+        model.google_sub = google_sub
+        await self._session.flush()
+        return self._to_record(model)
+
+    async def assign_company(self, user_id: uuid.UUID, company_id: uuid.UUID) -> UserRecord:
+        stmt = select(UserModel).where(UserModel.id == user_id, UserModel.deleted_at.is_(None))
+        result = await self._session.execute(stmt)
+        model = result.scalar_one()
+        model.company_id = company_id
+        await self._session.flush()
+        return self._to_record(model)
+
     @staticmethod
     def _to_record(model: UserModel) -> UserRecord:
         return UserRecord(
             id=model.id,
             company_id=model.company_id,
+            entra_oid=model.entra_oid,
+            google_sub=model.google_sub,
             email=model.email,
             full_name=model.full_name,
             role=UserRole(model.role),

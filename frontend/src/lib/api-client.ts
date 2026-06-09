@@ -1,7 +1,7 @@
-import { STORAGE_KEYS } from "@/lib/constants";
+import { clearSession } from "@/lib/auth";
+import { API_NETWORK_ERROR, STORAGE_KEYS } from "@/lib/constants";
+import { resolveApiBase } from "@/lib/api-url";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
 const API_PREFIX = "/api/v1";
 
 export class ApiError extends Error {
@@ -16,11 +16,39 @@ export class ApiError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  constructor(message: string = API_NETWORK_ERROR) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   page: number;
   page_size: number;
   total: number;
+}
+
+function isFetchNetworkError(err: unknown): boolean {
+  if (!(err instanceof TypeError)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg === "failed to fetch" ||
+    msg.includes("networkerror") ||
+    msg.includes("load failed") ||
+    msg.includes("network request failed")
+  );
+}
+
+export function formatApiError(err: unknown, fallback = "Request failed"): string {
+  if (err instanceof NetworkError || err instanceof ApiError) {
+    return err.message;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return fallback;
 }
 
 function getAccessToken(): string | null {
@@ -47,7 +75,14 @@ type RequestOptions = Omit<RequestInit, "body"> & {
 };
 
 function buildUrl(path: string, params?: RequestOptions["params"]): string {
-  const url = new URL(`${API_BASE}${API_PREFIX}${path}`);
+  const base = resolveApiBase();
+  const pathWithPrefix = `${API_PREFIX}${path}`;
+  const url = base
+    ? new URL(pathWithPrefix, `${base}/`)
+    : new URL(
+        pathWithPrefix,
+        typeof window !== "undefined" ? window.location.origin : "http://localhost:3000",
+      );
   if (params) {
     Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
@@ -56,6 +91,20 @@ function buildUrl(path: string, params?: RequestOptions["params"]): string {
     });
   }
   return url.toString();
+}
+
+async function fetchWithNetworkGuard(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (err) {
+    if (isFetchNetworkError(err)) {
+      throw new NetworkError();
+    }
+    throw err;
+  }
 }
 
 export async function apiClient<T>(
@@ -72,7 +121,7 @@ export async function apiClient<T>(
     ...customHeaders,
   };
 
-  const response = await fetch(buildUrl(path, params), {
+  const response = await fetchWithNetworkGuard(buildUrl(path, params), {
     ...rest,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -85,6 +134,9 @@ export async function apiClient<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      clearSession();
+    }
     const error = data?.error;
     throw new ApiError(
       error?.message ?? response.statusText ?? "Request failed",
@@ -95,4 +147,39 @@ export async function apiClient<T>(
   }
 
   return data as T;
+}
+
+export async function downloadBlob(
+  path: string,
+  fallbackFilename: string,
+  params?: Record<string, string | number | boolean | undefined | null>,
+): Promise<void> {
+  const token = getAccessToken();
+  const response = await fetchWithNetworkGuard(buildUrl(path, params), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 && token) {
+      clearSession();
+    }
+    const data = await response.json().catch(() => null);
+    const error = data?.error;
+    throw new ApiError(
+      error?.message ?? response.statusText ?? "Download failed",
+      response.status,
+      error?.code,
+      error?.details,
+    );
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition");
+  const filenameMatch = disposition?.match(/filename="([^"]+)"/);
+  const filename = filenameMatch?.[1] ?? fallbackFilename;
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }

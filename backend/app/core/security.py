@@ -15,7 +15,7 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def create_access_token(*, user_id: str, company_id: str, role: str) -> str:
+def create_access_token(*, user_id: str, company_id: str | None, role: str) -> str:
     expire = _now() + timedelta(minutes=ACCESS_TOKEN_TTL_MINUTES)
     payload = {
         "sub": user_id,

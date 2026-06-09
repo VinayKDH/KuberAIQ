@@ -20,6 +20,12 @@ async def test_router_collections_intent():
 
 
 @pytest.mark.asyncio
+async def test_router_unpaid_intent():
+    result = await route_message({"message": "Show unpaid invoices"})
+    assert result["route"] == AiRoute.COLLECTIONS
+
+
+@pytest.mark.asyncio
 async def test_router_dashboard_intent():
     result = await route_message({"message": "What is my revenue this month?"})
     assert result["route"] == AiRoute.DASHBOARD

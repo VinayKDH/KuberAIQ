@@ -39,5 +39,5 @@ def configure_logging() -> None:
     )
 
 
-def get_logger(name: str = "vyaparai") -> structlog.stdlib.BoundLogger:
+def get_logger(name: str = "kuberaiq") -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)

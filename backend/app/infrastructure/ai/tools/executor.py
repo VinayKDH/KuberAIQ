@@ -18,6 +18,13 @@ class ToolExecutor:
         customer_svc = self._services["customer"]
         return (await customer_svc.search(company_id, query, 1, 5))[0]
 
+    async def find_product(self, company_id: uuid.UUID, query: str):
+        product_svc = self._services.get("product")
+        if not product_svc or not query:
+            return None
+        products, _ = await product_svc.search(company_id, query, 1, 1)
+        return products[0] if products else None
+
     async def create_invoice(
         self, company_id: uuid.UUID, user_id: uuid.UUID, preview: dict
     ) -> dict:
@@ -66,3 +73,32 @@ class ToolExecutor:
             ),
         )
         return {"customer_id": str(customer.id), "name": customer.name}
+
+    async def list_overdue(self, company_id: uuid.UUID) -> list[dict]:
+        collection = self._services["collection"]
+        return await collection.list_overdue(company_id)
+
+    async def bulk_reminder_preview(self, company_id: uuid.UUID) -> dict:
+        collection = self._services["collection"]
+        preview = await collection.bulk_preview(company_id)
+        return {
+            "count": preview["count"],
+            "total_outstanding": float(preview["total_outstanding"]),
+        }
+
+    async def bulk_send_reminders(
+        self, company_id: uuid.UUID, user_id: uuid.UUID
+    ) -> list:
+        collection = self._services["collection"]
+        return await collection.bulk_send(
+            company_id=company_id,
+            actor_id=user_id,
+        )
+
+    async def get_dashboard_summary(self, company_id: uuid.UUID) -> dict:
+        from datetime import date
+
+        dashboard = self._services["dashboard"]
+        today = date.today()
+        from_date = date(today.year, 4, 1) if today.month >= 4 else date(today.year - 1, 4, 1)
+        return await dashboard.summary(company_id, from_date, today)

@@ -9,11 +9,11 @@ graph TB
     subgraph Edge
         FD["Azure Front Door Premium\n(WAF, TLS, CDN, routing)"]
     end
-    subgraph Net["VNet (rg-vyaparai-prod)"]
+    subgraph Net["VNet (rg-kuberaiq-prod)"]
         subgraph Compute
             ASP["App Service Plan (P1v3, autoscale 2-10)"]
-            API["App Service: vyaparai-api\n(FastAPI, container)"]
-            WEB["Azure Static Web App / App Service: vyaparai-web\n(Next.js)"]
+            API["App Service: kuberaiq-api-prod\n(FastAPI, container)"]
+            WEB["Azure Static Web App / App Service: kuberaiq-web-prod\n(Next.js)"]
         end
         PE1["Private Endpoint → PostgreSQL"]
         PE2["Private Endpoint → Blob"]
@@ -84,9 +84,9 @@ graph TB
 
 | Env | Resource group | Scale | Data |
 | --- | --- | --- | --- |
-| dev | rg-vyaparai-dev | 1 instance, basic SKUs | synthetic |
-| staging | rg-vyaparai-stg | 2 instances, prod-like | anonymised |
-| production | rg-vyaparai-prod | autoscale 2-10, HA | live (India region) |
+| dev | rg-kuberaiq-dev | 1 instance, basic SKUs | synthetic |
+| staging | rg-kuberaiq-stg | 2 instances, prod-like | anonymised |
+| production | rg-kuberaiq-prod | autoscale 2-10, HA | live (India region) |
 
 ## 11.5 Monitoring strategy
 

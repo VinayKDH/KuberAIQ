@@ -5,11 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import UnitOfWork
 from app.infrastructure.db.repositories.audit_repository import SqlAlchemyAuditRepository
+from app.infrastructure.db.repositories.compliance_repository import SqlAlchemyComplianceRepository
 from app.infrastructure.db.repositories.company_repository import SqlAlchemyCompanyRepository
 from app.infrastructure.db.repositories.customer_repository import SqlAlchemyCustomerRepository
 from app.infrastructure.db.repositories.invoice_repository import SqlAlchemyInvoiceRepository
 from app.infrastructure.db.repositories.payment_repository import SqlAlchemyPaymentRepository
+from app.infrastructure.db.repositories.product_repository import SqlAlchemyProductRepository
+from app.infrastructure.db.repositories.quotation_repository import SqlAlchemyQuotationRepository
 from app.infrastructure.db.repositories.reminder_repository import SqlAlchemyReminderRepository
+from app.infrastructure.db.repositories.subscription_repository import SqlAlchemySubscriptionRepository
 from app.infrastructure.db.repositories.user_repository import SqlAlchemyUserRepository
 
 
@@ -18,11 +22,15 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self._session = session
         self.customers = SqlAlchemyCustomerRepository(session)
         self.invoices = SqlAlchemyInvoiceRepository(session)
+        self.products = SqlAlchemyProductRepository(session)
+        self.quotations = SqlAlchemyQuotationRepository(session)
         self.payments = SqlAlchemyPaymentRepository(session)
         self.reminders = SqlAlchemyReminderRepository(session)
         self.audit = SqlAlchemyAuditRepository(session)
         self.companies = SqlAlchemyCompanyRepository(session)
         self.users = SqlAlchemyUserRepository(session)
+        self.subscriptions = SqlAlchemySubscriptionRepository(session)
+        self.compliance = SqlAlchemyComplianceRepository(session)
 
     async def __aenter__(self) -> SqlAlchemyUnitOfWork:
         return self

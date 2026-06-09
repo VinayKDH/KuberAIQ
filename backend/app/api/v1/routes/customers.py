@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 
-from app.api.deps import AuthContext, get_auth_context, get_client_ip, get_container, require_roles
+from app.api.deps import AuthContext, get_tenant_context, get_client_ip, get_container, require_roles
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.customer import (
     CreateCustomerRequest,
@@ -50,9 +50,20 @@ async def create_customer(
     return _to_response(customer)
 
 
+@router.get("/check-phone")
+async def check_phone(
+    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+    phone: str = Query(..., min_length=10, max_length=13),
+) -> dict:
+    async with container.uow_factory() as uow:
+        existing = await uow.customers.find_by_phone(auth.company_id, phone.strip())
+    return {"exists": existing is not None, "customer_id": str(existing.id) if existing else None}
+
+
 @router.get("", response_model=PaginatedResponse[CustomerResponse])
 async def list_customers(
-    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
     container: Annotated[Container, Depends(get_container)],
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -70,7 +81,7 @@ async def list_customers(
 @router.get("/{customer_id}", response_model=CustomerResponse)
 async def get_customer(
     customer_id: uuid.UUID,
-    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
     container: Annotated[Container, Depends(get_container)],
 ) -> CustomerResponse:
     customer = await container.customer_service.get(auth.company_id, customer_id)
@@ -114,7 +125,7 @@ async def delete_customer(
 @router.get("/{customer_id}/history", response_model=CustomerHistoryResponse)
 async def customer_history(
     customer_id: uuid.UUID,
-    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
     container: Annotated[Container, Depends(get_container)],
 ) -> CustomerHistoryResponse:
     history = await container.customer_service.history(auth.company_id, customer_id)
@@ -124,4 +135,20 @@ async def customer_history(
         total_paid=history["total_paid"],
         outstanding=history["outstanding"],
         aging=history["aging"],
+    )
+
+
+@router.get("/{customer_id}/statement.pdf")
+async def download_customer_statement(
+    customer_id: uuid.UUID,
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> Response:
+    data, filename = await container.customer_service.download_statement_bytes(
+        auth.company_id, customer_id
+    )
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

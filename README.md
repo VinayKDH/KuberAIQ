@@ -1,8 +1,8 @@
-# VyaparAI
+# KuberAIQ
 
 > **AI Business Manager for Indian MSMEs**
 
-VyaparAI is a production-grade SaaS platform that gives Indian MSME (Micro, Small & Medium Enterprise) owners an AI-powered business copilot. Owners run their day-to-day operations — invoicing, collections, GST, cash flow, customers — through **natural language** over **WhatsApp**, a **web dashboard**, and **voice**.
+KuberAIQ is a production-grade SaaS platform that gives Indian MSME (Micro, Small & Medium Enterprise) owners an AI-powered business copilot. Owners run their day-to-day operations — invoicing, collections, GST, cash flow, customers — through **natural language** over **WhatsApp**, a **web dashboard**, and **voice**.
 
 ```
 "Create invoice for ABC Traders for 50 bags cement."
@@ -16,7 +16,7 @@ VyaparAI is a production-grade SaaS platform that gives Indian MSME (Micro, Smal
 ## Monorepo layout
 
 ```
-VyaparAI/
+KuberAIQ/
 ├── docs/                # Deliverables 1–15: PRD, requirements, architecture, schema, specs, roadmap
 ├── backend/             # FastAPI service (Clean Architecture + DDD)
 ├── frontend/            # Next.js 14 (App Router) + TypeScript + Tailwind + shadcn/ui
@@ -72,8 +72,8 @@ Clean Architecture · Domain-Driven Design · SOLID · Repository Pattern · Ser
 
 ```bash
 # 1. Database (one-time)
-psql -U postgres -c "CREATE USER vyaparai WITH PASSWORD 'vyaparai';" 2>/dev/null || true
-psql -U postgres -c "CREATE DATABASE vyaparai OWNER vyaparai;" 2>/dev/null || true
+psql -U postgres -c "CREATE USER kuberaiq WITH PASSWORD 'kuberaiq';" 2>/dev/null || true
+psql -U postgres -c "CREATE DATABASE kuberaiq OWNER kuberaiq;" 2>/dev/null || true
 
 # 2. Env + migrations
 cp backend/.env.example backend/.env
@@ -92,7 +92,7 @@ cd ../frontend && npm install && npm run dev       # frontend
 | --- | --- |
 | Frontend | http://localhost:3000 |
 | Backend / Swagger | http://localhost:8000/docs |
-| Demo login email | `owner@demo.vyaparai.com` |
+| Demo login email | `owner@demo.kuberaiq.com` |
 
 ### Option B — Docker Compose
 
@@ -102,7 +102,7 @@ cp frontend/.env.example frontend/.env.local
 docker compose up --build
 ```
 
-Backend → http://localhost:8000 · Frontend → http://localhost:3000 · Postgres → `localhost:5432` (user/pass/db: `vyaparai`)
+Backend → http://localhost:8000 · Frontend → http://localhost:3000 · Postgres → `localhost:5432` (user/pass/db: `kuberaiq`)
 
 External services (Azure OpenAI, Blob, WhatsApp, Entra ID) are **mocked by default** so the
 platform runs locally with zero cloud credentials. Flip the toggles in `.env` to use the real
@@ -122,4 +122,4 @@ and `backend/.env.example` for the full list of toggles.
 
 ## License
 
-Proprietary — © VyaparAI. All rights reserved.
+Proprietary — © KuberAIQ. All rights reserved.

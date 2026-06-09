@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from app.application.ports.pdf import PdfGeneratorPort
 from app.application.ports.repositories import UnitOfWork
-from app.core.constants import AuditAction, EntityType, ErrorCode
+from app.application.ports.storage import StoragePort
+from app.core.constants import AuditAction, BLOB_STATEMENT_PREFIX, EntityType, ErrorCode
 from app.core.errors import ConflictError, NotFoundError, ValidationAppError
 from app.domain.entities.customer import Customer
 from app.domain.enums import InvoiceStatus
@@ -37,8 +39,10 @@ class UpdateCustomerInput:
 
 
 class CustomerService:
-    def __init__(self, uow_factory) -> None:
+    def __init__(self, uow_factory, storage: StoragePort | None = None, pdf: PdfGeneratorPort | None = None) -> None:
         self._uow_factory = uow_factory
+        self._storage = storage
+        self._pdf = pdf
 
     async def create(
         self,
@@ -205,3 +209,70 @@ class CustomerService:
                 "outstanding": outstanding,
                 "aging": aging,
             }
+
+    async def download_statement_bytes(
+        self, company_id: uuid.UUID, customer_id: uuid.UUID
+    ) -> tuple[bytes, str]:
+        if not self._pdf or not self._storage:
+            raise NotFoundError("Statement generation is not configured")
+
+        history = await self.history(company_id, customer_id)
+        customer = history["customer"]
+        async with self._uow_factory() as uow:
+            company = await uow.companies.get_by_id(company_id)
+            if not company:
+                raise NotFoundError("Company not found")
+
+            invoice_lookup = {inv.id: inv for inv in history["invoices"]}
+            payment_rows = []
+            for payment in history["payments"]:
+                invoice = invoice_lookup.get(payment.invoice_id)
+                payment_rows.append(
+                    {
+                        "paid_on": str(payment.paid_on),
+                        "invoice_number": invoice.invoice_number if invoice else None,
+                        "method": str(payment.method),
+                        "reference": payment.reference,
+                        "amount": float(payment.amount),
+                    }
+                )
+
+            pdf_data = await self._pdf.generate_statement_pdf(
+                company={
+                    "legal_name": company.legal_name,
+                    "gstin": company.gstin,
+                    "state_code": company.state_code,
+                    "address": company.address,
+                },
+                customer={
+                    "name": customer.name,
+                    "gstin": customer.gstin.value if customer.gstin else None,
+                    "phone": customer.phone.value,
+                    "email": customer.email,
+                    "billing_address": customer.billing_address,
+                },
+                summary={
+                    "total_billed": float(history["total_billed"]),
+                    "total_paid": float(history["total_paid"]),
+                    "outstanding": float(history["outstanding"]),
+                    "aging": {bucket: float(amount) for bucket, amount in history["aging"].items()},
+                },
+                invoices=[
+                    {
+                        "issue_date": str(inv.issue_date),
+                        "due_date": str(inv.due_date),
+                        "invoice_number": inv.invoice_number,
+                        "status": str(inv.status),
+                        "grand_total": float(inv.grand_total.amount),
+                        "amount_due": float(inv.amount_due.amount),
+                    }
+                    for inv in history["invoices"]
+                ],
+                payments=payment_rows,
+            )
+
+        safe_name = "".join(ch if ch.isalnum() else "-" for ch in customer.name).strip("-") or "customer"
+        filename = f"{safe_name}-statement.pdf"
+        path = f"{BLOB_STATEMENT_PREFIX}/{company_id}/{customer_id}.pdf"
+        await self._storage.upload(path, pdf_data, "application/pdf")
+        return pdf_data, filename

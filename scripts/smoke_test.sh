@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# End-to-end API smoke test for local VyaparAI stack.
+# End-to-end API smoke test for local KuberAIQ stack.
 set -euo pipefail
 
 BASE="${BASE_URL:-http://localhost:8000}"
-DEMO_EMAIL="${DEMO_EMAIL:-owner@demo.vyaparai.com}"
+DEMO_EMAIL="${DEMO_EMAIL:-owner@demo.kuberaiq.com}"
 UNIQUE_PHONE=$(python3 -c "import random; print(f'9{random.randint(100000000, 999999999)}')")
 
 echo "==> Health"
@@ -37,7 +37,7 @@ echo "==> Dashboard"
 curl -sf "$BASE/api/v1/dashboard?from=2026-04-01&to=2026-06-30" -H "$AUTH" | grep -q '"revenue"'
 
 echo "==> Collections overdue"
-curl -sf "$BASE/api/v1/collections/overdue" -H "$AUTH" | python3 -c "import sys,json; json.load(sys.stdin)"
+curl -sf "$BASE/api/v1/collections/overdue" -H "$AUTH" | grep -q '"items"'
 
 echo "==> AI chat"
 curl -sf -X POST "$BASE/api/v1/ai/chat" -H "$AUTH" -H "Content-Type: application/json" \

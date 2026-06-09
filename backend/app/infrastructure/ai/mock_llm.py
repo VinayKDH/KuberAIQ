@@ -1,49 +1,94 @@
-"""Deterministic LLM stub for local development."""
+"""Deterministic LLM stub for local development and production fallback."""
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
 from app.core.constants import AiRoute
+from app.infrastructure.ai.intent_classifier import classify_route
 
 
 class MockLlm:
     async def classify_intent(self, message: str) -> dict[str, Any]:
-        lower = message.lower()
-        if any(w in lower for w in ("overdue", "reminder", "collect", "payment due")):
-            return {"route": AiRoute.COLLECTIONS, "confidence": 0.85}
-        if re.search(r"\binvoice\b|\bbill\b|cement|bags", lower):
-            return {"route": AiRoute.INVOICE, "confidence": 0.9}
-        if any(w in lower for w in ("revenue", "dashboard", "cashflow", "aging")):
-            return {"route": AiRoute.DASHBOARD, "confidence": 0.85}
-        if any(w in lower for w in ("customer", "trader", "client")):
-            return {"route": AiRoute.CUSTOMER, "confidence": 0.8}
-        return {"route": AiRoute.CLARIFY, "confidence": 0.5}
+        return classify_route(message)
 
     async def extract_entities(self, message: str, intent: str) -> dict[str, Any]:
         entities: dict[str, Any] = {}
-        if intent == AiRoute.INVOICE:
-            qty_match = re.search(r"(\d+)\s*(bags?|nos|units?)", message, re.I)
-            price_match = re.search(r"(?:at|@|₹|rs\.?)\s*(\d+)", message, re.I)
-            gst_match = re.search(r"(\d+)%\s*gst", message, re.I)
-            name_match = re.search(
-                r"(?:invoice|bill)\s+([A-Za-z][A-Za-z\s]+?)(?:\s+for|\s+at|$)",
+        if intent in {AiRoute.INVOICE, "invoice"}:
+            qty_match = re.search(
+                r"(\d+(?:\.\d+)?)\s*(bags?|kg|kgs?|nos|units?|pcs?|liters?|ltr)",
                 message,
                 re.I,
             )
+            price_match = re.search(
+                r"(?:at|@|₹|rs\.?|rate)\s*(\d+(?:\.\d+)?)",
+                message,
+                re.I,
+            )
+            gst_match = re.search(r"(\d+(?:\.\d+)?)%\s*gst", message, re.I)
+            name_match = re.search(
+                r"(?:invoice|bill)\s+(?:for\s+)?([A-Za-z][A-Za-z0-9\s.&'-]+?)"
+                r"(?:\s+for\s+\d|\s+with\s+|\s+at\s|@|\s+\d+\s*(?:kg|bags?)|$)",
+                message,
+                re.I,
+            )
+            for_customer_match = re.search(
+                r"\bfor\s+([A-Za-z][A-Za-z0-9\s.&'-]{2,}?)(?:\s+for\s+\d|\s+with\s+|\s+at\s|@|$)",
+                message,
+                re.I,
+            )
+            product_match = re.search(
+                r"(?:with|of)\s+(\d+(?:\.\d+)?)?\s*(bags?|kg|kgs?|nos|units?|pcs?)?\s*"
+                r"([A-Za-z][A-Za-z\s]+?)(?:\s+at\s|@|$)",
+                message,
+                re.I,
+            )
+            description = "Item"
+            if product_match and product_match.group(3):
+                description = product_match.group(3).strip().title()
+            elif re.search(r"paneer", message, re.I):
+                description = "Paneer"
+            elif re.search(r"khoya", message, re.I):
+                description = "Khoya"
+            elif re.search(r"cement", message, re.I):
+                description = "OPC 53 Grade Cement"
+
+            customer_name = None
+            if name_match:
+                customer_name = name_match.group(1).strip()
+            elif for_customer_match:
+                customer_name = for_customer_match.group(1).strip()
+
             entities = {
-                "customer_name": name_match.group(1).strip() if name_match else None,
-                "quantity": int(qty_match.group(1)) if qty_match else None,
-                "unit": qty_match.group(2).upper() if qty_match else "BAG",
+                "customer_name": customer_name,
+                "quantity": float(qty_match.group(1)) if qty_match else None,
+                "unit": (qty_match.group(2) if qty_match else "NOS").upper(),
                 "unit_price": float(price_match.group(1)) if price_match else None,
-                "gst_rate": float(gst_match.group(1)) if gst_match else 18.0,
-                "description": "OPC 53 Grade Cement",
+                "gst_rate": float(gst_match.group(1)) if gst_match else None,
+                "description": description,
             }
-        elif intent == AiRoute.CUSTOMER:
-            name_match = re.search(r"(?:create|add)\s+customer\s+(.+)", message, re.I)
-            entities = {"name": name_match.group(1).strip() if name_match else None}
+        elif intent in {AiRoute.CUSTOMER, "customer"}:
+            name_match = re.search(
+                r"(?:create|add|new)\s+customer\s+(.+?)(?:\s+\d{10}|$)",
+                message,
+                re.I,
+            )
+            find_match = re.search(
+                r"(?:find|search|lookup|show)\s+customer\s+(.+)$",
+                message,
+                re.I,
+            )
+            phone_match = re.search(r"(\d{10})", message)
+            entities = {
+                "name": (
+                    (name_match.group(1).strip() if name_match else None)
+                    or (find_match.group(1).strip() if find_match else None)
+                ),
+                "phone": phone_match.group(1) if phone_match else None,
+            }
         return entities
 
     async def generate_text(self, system: str, user: str) -> str:
+        import json
+
         return json.dumps({"message": f"Mock response for: {user[:80]}"})

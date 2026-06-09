@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import AuthContext, get_auth_context, get_container
+from app.api.deps import AuthContext, get_tenant_context, get_container
 from app.api.schemas.ai import ChatRequest, ChatResponse, ConfirmRequest, SuggestedAction
 from app.core.container import Container
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     body: ChatRequest,
-    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
     container: Annotated[Container, Depends(get_container)],
 ) -> ChatResponse:
     result = await container.ai_service.chat(
@@ -25,6 +25,7 @@ async def chat(
         session_id=body.session_id,
         channel=body.channel,
         confirmed=body.confirmed,
+        pending_action=body.pending_action,
     )
     return ChatResponse(
         session_id=result["session_id"],
@@ -40,7 +41,7 @@ async def chat(
 @router.post("/confirm", response_model=ChatResponse)
 async def confirm_action(
     body: ConfirmRequest,
-    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
     container: Annotated[Container, Depends(get_container)],
 ) -> ChatResponse:
     result = await container.ai_service.confirm(
@@ -54,14 +55,16 @@ async def confirm_action(
         intent=result["intent"],
         message=result["message"],
         requires_confirmation=result["requires_confirmation"],
+        pending_action=result.get("pending_action"),
         data=result.get("data"),
+        suggested_actions=[SuggestedAction(**a) for a in result.get("suggested_actions", [])],
     )
 
 
 @router.get("/sessions/{session_id}")
 async def get_session(
     session_id: str,
-    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
     container: Annotated[Container, Depends(get_container)],
 ) -> dict:
     session = container.ai_service.get_session(session_id)

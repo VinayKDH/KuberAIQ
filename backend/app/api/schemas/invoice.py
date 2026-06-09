@@ -1,12 +1,12 @@
 """Invoice API schemas."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from app.domain.enums import InvoiceStatus
+from app.domain.enums import DocumentType, InvoiceStatus
 
 
 class InvoiceItemRequest(BaseModel):
@@ -16,6 +16,7 @@ class InvoiceItemRequest(BaseModel):
     gst_rate: Decimal = Field(ge=0, le=28)
     hsn_sac: str | None = None
     unit: str = "NOS"
+    product_id: str | None = None
 
 
 class CreateInvoiceRequest(BaseModel):
@@ -48,11 +49,17 @@ class InvoiceItemResponse(BaseModel):
     line_total: Decimal
 
 
+class InvoiceCustomerSummary(BaseModel):
+    id: str
+    name: str
+
+
 class InvoiceResponse(BaseModel):
     id: str
     invoice_number: str | None = None
     status: InvoiceStatus
     customer_id: str
+    customer: InvoiceCustomerSummary | None = None
     issue_date: date
     due_date: date
     items: list[InvoiceItemResponse]
@@ -67,10 +74,34 @@ class InvoiceResponse(BaseModel):
     amount_due: Decimal
     place_of_supply: str | None = None
     pdf_blob_path: str | None = None
+    irn: str | None = None
+    irn_generated_at: datetime | None = None
+    document_type: DocumentType = DocumentType.INVOICE
+    original_invoice_id: str | None = None
+    credit_reason: str | None = None
+
+
+class CreateCreditNoteRequest(BaseModel):
+    reason: str = Field(min_length=1)
+    items: list[InvoiceItemRequest] | None = None
+
+
+class CreditNoteResponse(BaseModel):
+    id: str
+    invoice_number: str | None = None
+    status: InvoiceStatus
+    issue_date: date
+    grand_total: Decimal
+    credit_reason: str | None = None
+    original_invoice_id: str
 
 
 class CancelInvoiceRequest(BaseModel):
     reason: str = Field(min_length=1)
+
+
+class RegisterIrnRequest(BaseModel):
+    irn: str = Field(min_length=10, max_length=64)
 
 
 class PdfResponse(BaseModel):

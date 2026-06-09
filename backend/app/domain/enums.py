@@ -52,3 +52,32 @@ class ReminderStatus(StrEnum):
     SENT = "SENT"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
+
+
+class DocumentType(StrEnum):
+    INVOICE = "INVOICE"
+    CREDIT_NOTE = "CREDIT_NOTE"
+
+
+class SubscriptionStatus(StrEnum):
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+
+    @property
+    def allows_onboarding(self) -> bool:
+        return self is SubscriptionStatus.ACTIVE
+
+
+class QuotationStatus(StrEnum):
+    DRAFT = "DRAFT"
+    SENT = "SENT"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+    CONVERTED = "CONVERTED"
+
+    @property
+    def is_editable(self) -> bool:
+        return self is QuotationStatus.DRAFT

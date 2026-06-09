@@ -1,4 +1,4 @@
-# Backup Strategy — VyaparAI
+# Backup Strategy — KuberAIQ
 
 This document defines backup and recovery for PostgreSQL and blob storage. See also
 [docs/11-azure-architecture.md](../docs/11-azure-architecture.md) §11.7.
@@ -32,9 +32,9 @@ Configured in `infra/bicep/main.bicep`:
 ```bash
 # Example: restore to a new server (replace placeholders)
 az postgres flexible-server restore \
-  --resource-group rg-vyaparai-prod \
-  --name vyaparai-pg-restored \
-  --source-server vyaparai-pg-prod \
+  --resource-group rg-kuberaiq-prod \
+  --name kuberaiq-pg-restored \
+  --source-server kuberaiq-pg-<nameSuffix> \
   --restore-time "2026-06-01T10:00:00Z"
 ```
 

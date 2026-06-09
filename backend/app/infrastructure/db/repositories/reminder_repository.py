@@ -25,6 +25,7 @@ class SqlAlchemyReminderRepository:
             channel=reminder.channel,
             status=reminder.status,
             message=reminder.message,
+            trigger=reminder.trigger,
             sent_by=reminder.sent_by,
         )
         self._session.add(model)
@@ -73,6 +74,19 @@ class SqlAlchemyReminderRepository:
         model = result.scalar_one_or_none()
         return self._to_record(model) if model else None
 
+    async def has_sent_trigger(self, invoice_id: uuid.UUID, trigger: str) -> bool:
+        stmt = (
+            select(ReminderModel.id)
+            .where(
+                ReminderModel.invoice_id == invoice_id,
+                ReminderModel.trigger == trigger,
+                ReminderModel.status == ReminderStatus.SENT,
+            )
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     @staticmethod
     def _to_record(model: ReminderModel) -> ReminderRecord:
         record = ReminderRecord(
@@ -83,9 +97,11 @@ class SqlAlchemyReminderRepository:
             channel=ReminderChannel(model.channel),
             message=model.message,
             sent_by=model.sent_by,
+            trigger=model.trigger,
         )
         record.status = ReminderStatus(model.status)
         record.provider_message_id = model.provider_message_id
         record.error = model.error
         record.sent_at = model.sent_at
+        record.trigger = model.trigger
         return record

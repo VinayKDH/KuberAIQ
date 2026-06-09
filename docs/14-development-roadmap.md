@@ -4,7 +4,7 @@
 
 ```mermaid
 gantt
-    title VyaparAI delivery roadmap
+    title KuberAIQ delivery roadmap
     dateFormat  YYYY-MM-DD
     axisFormat  %b
     section Phase 1 — MVP

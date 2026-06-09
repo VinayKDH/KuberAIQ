@@ -15,7 +15,7 @@ collapses to a bottom nav / sheet on small screens). Currency INR, dates IST.
 ```
 ┌───────────────────────────────────────────────┐
 │                                                 │
-│                ▢  VyaparAI                       │
+│                ▢  KuberAIQ                       │
 │        AI Business Manager for MSMEs            │
 │                                                 │
 │   ┌─────────────────────────────────────────┐  │
@@ -30,7 +30,7 @@ collapses to a bottom nav / sheet on small screens). Currency INR, dates IST.
 
 ```
 ┌──────────┬──────────────────────────────────────────────┐
-│ VyaparAI │  Dashboard         [search]   🔔  🌗  Ramesh ▾ │
+│ KuberAIQ │  Dashboard         [search]   🔔  🌗  Ramesh ▾ │
 │          ├──────────────────────────────────────────────┤
 │ ▣ Dash   │                                              │
 │ ⬚ Invoices│              < page content >                │

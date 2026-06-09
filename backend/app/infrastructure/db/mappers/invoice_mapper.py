@@ -20,6 +20,7 @@ class InvoiceMapper:
                 unit=item.unit,
                 unit_price=Money.of(item.unit_price),
                 gst_rate=item.gst_rate,
+                product_id=item.product_id,
                 taxable_amount=Money.of(item.taxable_amount),
                 cgst_amount=Money.of(item.cgst_amount),
                 sgst_amount=Money.of(item.sgst_amount),
@@ -41,6 +42,11 @@ class InvoiceMapper:
             cancel_reason=model.cancel_reason,
             pdf_blob_path=model.pdf_blob_path,
             created_by=model.created_by,
+            irn=model.irn,
+            irn_generated_at=model.irn_generated_at,
+            document_type=model.document_type,
+            original_invoice_id=model.original_invoice_id,
+            credit_reason=model.credit_reason,
             taxable_amount=Money.of(model.taxable_amount),
             cgst_amount=Money.of(model.cgst_amount),
             sgst_amount=Money.of(model.sgst_amount),
@@ -75,6 +81,11 @@ class InvoiceMapper:
             cancel_reason=entity.cancel_reason,
             pdf_blob_path=entity.pdf_blob_path,
             created_by=entity.created_by,
+            irn=entity.irn,
+            irn_generated_at=entity.irn_generated_at,
+            document_type=entity.document_type,
+            original_invoice_id=entity.original_invoice_id,
+            credit_reason=entity.credit_reason,
         )
         model.items = [InvoiceMapper._item_to_model(entity.id, item) for item in entity.items]
         return model
@@ -99,6 +110,11 @@ class InvoiceMapper:
         model.place_of_supply = entity.place_of_supply
         model.cancel_reason = entity.cancel_reason
         model.pdf_blob_path = entity.pdf_blob_path
+        model.irn = entity.irn
+        model.irn_generated_at = entity.irn_generated_at
+        model.document_type = entity.document_type
+        model.original_invoice_id = entity.original_invoice_id
+        model.credit_reason = entity.credit_reason
 
         existing_by_line = {item.line_no: item for item in model.items}
         entity_line_nos = {item.line_no for item in entity.items}
@@ -112,6 +128,7 @@ class InvoiceMapper:
             if existing is not None:
                 existing.description = item.description
                 existing.hsn_sac = item.hsn_sac
+                existing.product_id = item.product_id
                 existing.quantity = item.quantity
                 existing.unit = item.unit
                 existing.unit_price = item.unit_price.amount
@@ -120,6 +137,7 @@ class InvoiceMapper:
                 existing.cgst_amount = item.cgst_amount.amount
                 existing.sgst_amount = item.sgst_amount.amount
                 existing.igst_amount = item.igst_amount.amount
+                existing.product_id = item.product_id
                 existing.line_total = item.line_total.amount
             else:
                 model.items.append(InvoiceMapper._item_to_model(entity.id, item))
@@ -131,6 +149,7 @@ class InvoiceMapper:
             line_no=item.line_no,
             description=item.description,
             hsn_sac=item.hsn_sac,
+            product_id=item.product_id,
             quantity=item.quantity,
             unit=item.unit,
             unit_price=item.unit_price.amount,

@@ -1,0 +1,166 @@
+"use client";
+
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { lookupHsnGst } from "@/features/products/api";
+import type { Product } from "@/features/products/types";
+import { GST_RATES, INVOICE_UNITS, PRODUCT_FORM } from "@/lib/constants";
+
+export interface ProductFormValues {
+  name: string;
+  description: string;
+  hsnSac: string;
+  unit: string;
+  defaultPrice: string;
+  gstRate: string;
+}
+
+export function productToFormValues(product: Product): ProductFormValues {
+  return {
+    name: product.name,
+    description: product.description ?? "",
+    hsnSac: product.hsn_sac ?? "",
+    unit: product.unit,
+    defaultPrice: String(product.default_price),
+    gstRate: String(product.gst_rate),
+  };
+}
+
+export function productFormToPayload(values: ProductFormValues) {
+  return {
+    name: values.name.trim(),
+    description: values.description.trim() || null,
+    hsn_sac: values.hsnSac.trim() || null,
+    unit: values.unit,
+    default_price: Number(values.defaultPrice),
+    gst_rate: Number(values.gstRate),
+  };
+}
+
+export function validateProductForm(values: ProductFormValues): string | null {
+  if (!values.name.trim()) return "Product name is required";
+  if (!values.defaultPrice || Number(values.defaultPrice) < 0) return "Enter a valid price";
+  return null;
+}
+
+interface ProductFormFieldsProps {
+  values: ProductFormValues;
+  onChange: (field: keyof ProductFormValues, value: string) => void;
+}
+
+export function ProductFormFields({ values, onChange }: ProductFormFieldsProps) {
+  const [gstAutoFilled, setGstAutoFilled] = useState(false);
+
+  const applyLookup = (hsn_sac?: string | null, gst_rate?: number | string | null) => {
+    if (hsn_sac && !values.hsnSac.trim()) {
+      onChange("hsnSac", hsn_sac);
+    }
+    if (gst_rate != null && gst_rate !== "") {
+      onChange("gstRate", String(gst_rate));
+      setGstAutoFilled(true);
+    }
+  };
+
+  const handleHsnBlur = async () => {
+    const hsn = values.hsnSac.trim();
+    if (!hsn) return;
+    try {
+      const result = await lookupHsnGst({ hsn_sac: hsn });
+      if (result.gst_rate != null && result.gst_rate !== "") {
+        onChange("gstRate", String(result.gst_rate));
+        setGstAutoFilled(true);
+      }
+    } catch {
+      /* lookup is best-effort */
+    }
+  };
+
+  const handleNameBlur = async () => {
+    if (values.hsnSac.trim() || !values.name.trim()) return;
+    try {
+      const result = await lookupHsnGst({ name: values.name.trim() });
+      applyLookup(result.hsn_sac, result.gst_rate);
+    } catch {
+      /* lookup is best-effort */
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="product-name">{PRODUCT_FORM.NAME}</Label>
+        <Input
+          id="product-name"
+          value={values.name}
+          onChange={(e) => onChange("name", e.target.value)}
+          onBlur={handleNameBlur}
+          placeholder="OPC 53 Grade Cement"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="product-description">{PRODUCT_FORM.DESCRIPTION_FIELD}</Label>
+        <Textarea
+          id="product-description"
+          value={values.description}
+          onChange={(e) => onChange("description", e.target.value)}
+          rows={2}
+        />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="product-hsn">{PRODUCT_FORM.HSN_SAC}</Label>
+          <Input
+            id="product-hsn"
+            value={values.hsnSac}
+            onChange={(e) => {
+              setGstAutoFilled(false);
+              onChange("hsnSac", e.target.value);
+            }}
+            onBlur={handleHsnBlur}
+            placeholder="2523"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="product-unit">{PRODUCT_FORM.UNIT}</Label>
+          <Select
+            id="product-unit"
+            options={INVOICE_UNITS.map((u) => ({ value: u, label: u }))}
+            value={values.unit}
+            onValueChange={(v) => onChange("unit", v)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="product-price">{PRODUCT_FORM.DEFAULT_PRICE}</Label>
+          <Input
+            id="product-price"
+            type="number"
+            min="0"
+            step="0.01"
+            value={values.defaultPrice}
+            onChange={(e) => onChange("defaultPrice", e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="product-gst">{PRODUCT_FORM.GST_RATE}</Label>
+          <Select
+            id="product-gst"
+            options={GST_RATES.map((r) => ({ value: String(r), label: `${r}%` }))}
+            value={values.gstRate}
+            onValueChange={(v) => {
+              setGstAutoFilled(false);
+              onChange("gstRate", v);
+            }}
+          />
+          {gstAutoFilled && (
+            <p className="text-xs text-muted-foreground">{PRODUCT_FORM.GST_AUTO_FILLED}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

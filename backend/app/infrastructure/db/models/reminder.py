@@ -33,6 +33,7 @@ class ReminderModel(Base):
         default=ReminderStatus.PENDING,
     )
     message: Mapped[str] = mapped_column(Text, nullable=False)
+    trigger: Mapped[str | None] = mapped_column(String(30))
     provider_message_id: Mapped[str | None] = mapped_column(String(120))
     error: Mapped[str | None] = mapped_column(Text)
     sent_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)

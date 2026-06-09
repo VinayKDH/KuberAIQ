@@ -33,6 +33,18 @@ class SqlAlchemyPaymentRepository:
         await self._session.flush()
         return self._to_record(model)
 
+    async def get_by_id(
+        self, company_id: uuid.UUID, payment_id: uuid.UUID
+    ) -> PaymentRecord | None:
+        stmt = select(PaymentModel).where(
+            PaymentModel.id == payment_id,
+            PaymentModel.company_id == company_id,
+            PaymentModel.deleted_at.is_(None),
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_record(model) if model else None
+
     async def list_by_invoice(self, invoice_id: uuid.UUID) -> list[PaymentRecord]:
         stmt = select(PaymentModel).where(
             PaymentModel.invoice_id == invoice_id,

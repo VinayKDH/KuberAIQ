@@ -8,7 +8,7 @@ from decimal import Decimal
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.enums import InvoiceStatus
+from app.domain.enums import DocumentType, InvoiceStatus
 from app.infrastructure.db.base import Base
 
 
@@ -42,12 +42,22 @@ class InvoiceModel(Base):
     place_of_supply: Mapped[str | None] = mapped_column(String(2))
     cancel_reason: Mapped[str | None] = mapped_column(Text)
     pdf_blob_path: Mapped[str | None] = mapped_column(String(400))
+    irn: Mapped[str | None] = mapped_column(String(64))
+    irn_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    document_type: Mapped[DocumentType] = mapped_column(
+        Enum(DocumentType, name="document_type", native_enum=False),
+        default=DocumentType.INVOICE,
+    )
+    original_invoice_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("invoices.id")
+    )
+    credit_reason: Mapped[str | None] = mapped_column(Text)
 
     items: Mapped[list["InvoiceItemModel"]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan", order_by="InvoiceItemModel.line_no"
@@ -73,5 +83,6 @@ class InvoiceItemModel(Base):
     sgst_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
     igst_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
     line_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    product_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("products.id"))
 
     invoice: Mapped[InvoiceModel] = relationship(back_populates="items")

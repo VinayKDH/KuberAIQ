@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -12,9 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
 import { useCustomers } from "@/features/customers/hooks";
 import { useDebounce } from "@/hooks/use-debounce";
-import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { DEFAULT_PAGE_SIZE, ROUTES } from "@/lib/constants";
 import { formatDate, formatPhone, maskGstin } from "@/lib/format";
 
 export default function CustomersPage() {
@@ -28,9 +30,12 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Customers</h2>
-        <p className="text-muted-foreground">Manage your customer directory</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Customers</h2>
+          <p className="text-muted-foreground">Manage your customer directory</p>
+        </div>
+        <AddCustomerDialog />
       </div>
 
       <div className="relative max-w-sm">
@@ -79,12 +84,18 @@ export default function CustomersPage() {
               </TableRow>
             )}
             {data?.items.map((customer) => (
-              <TableRow key={customer.id}>
-                <TableCell className="font-medium">{customer.name}</TableCell>
+              <TableRow key={customer.id} className="hover:bg-muted/50">
+                <TableCell className="font-medium">
+                  <Link href={ROUTES.CUSTOMER_DETAIL(customer.id)} className="hover:underline">
+                    {customer.name}
+                  </Link>
+                </TableCell>
                 <TableCell>{formatPhone(customer.phone)}</TableCell>
                 <TableCell>{customer.email ?? "—"}</TableCell>
                 <TableCell>{customer.gstin ? maskGstin(customer.gstin) : "—"}</TableCell>
-                <TableCell>{formatDate(customer.created_at)}</TableCell>
+                <TableCell>
+                  {customer.created_at ? formatDate(customer.created_at) : "—"}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -1,6 +1,6 @@
 # 1. Product Requirements Document (PRD)
 
-**Product:** VyaparAI — AI Business Manager for Indian MSMEs
+**Product:** KuberAIQ — AI Business Manager for Indian MSMEs
 **Version:** 1.0 (Phase 1 MVP)
 **Owner:** Principal Product Manager
 **Status:** Approved for build

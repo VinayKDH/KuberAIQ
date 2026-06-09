@@ -4,10 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bot,
+  ClipboardList,
   FileText,
   IndianRupee,
   LayoutDashboard,
+  Package,
   Settings,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { APP_NAME, NAV_ITEMS, ROUTES } from "@/lib/constants";
@@ -16,9 +19,12 @@ import { cn } from "@/lib/utils";
 const iconMap = {
   LayoutDashboard,
   FileText,
+  ClipboardList,
+  Package,
   Users,
   IndianRupee,
   Bot,
+  ShieldCheck,
   Settings,
 } as const;
 
@@ -34,7 +40,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
         <Link href={ROUTES.DASHBOARD} className="flex items-center gap-2 font-semibold" onClick={onNavigate}>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
-            V
+            K
           </div>
           <span>{APP_NAME}</span>
         </Link>

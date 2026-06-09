@@ -6,6 +6,7 @@ import { Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -19,6 +20,7 @@ import { useInvoices } from "@/features/invoices/hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   DEFAULT_PAGE_SIZE,
+  INVOICE_STATUS_FILTER_OPTIONS,
   INVOICE_STATUS_LABELS,
   INVOICE_STATUS_VARIANTS,
   ROUTES,
@@ -27,9 +29,11 @@ import { formatDate, formatINR } from "@/lib/format";
 
 export default function InvoicesPage() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const debouncedSearch = useDebounce(search);
   const { data, isLoading, isError, error } = useInvoices({
     q: debouncedSearch || undefined,
+    status: statusFilter || undefined,
     page: 1,
     page_size: DEFAULT_PAGE_SIZE,
     sort: "-issue_date",
@@ -50,13 +54,22 @@ export default function InvoicesPage() {
         </Link>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search invoices…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search invoices…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select
+          className="w-full sm:w-48"
+          options={[...INVOICE_STATUS_FILTER_OPTIONS]}
+          value={statusFilter}
+          onValueChange={setStatusFilter}
+          aria-label="Filter by status"
         />
       </div>
 
@@ -97,9 +110,13 @@ export default function InvoicesPage() {
               </TableRow>
             )}
             {data?.items.map((invoice) => (
-              <TableRow key={invoice.id}>
-                <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                <TableCell>{invoice.customer.name}</TableCell>
+              <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
+                <TableCell className="font-medium">
+                  <Link href={ROUTES.INVOICE_DETAIL(invoice.id)} className="hover:underline">
+                    {invoice.invoice_number ?? "Draft"}
+                  </Link>
+                </TableCell>
+                <TableCell>{invoice.customer?.name ?? "—"}</TableCell>
                 <TableCell>{formatDate(invoice.issue_date)}</TableCell>
                 <TableCell>{formatDate(invoice.due_date)}</TableCell>
                 <TableCell>

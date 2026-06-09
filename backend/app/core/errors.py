@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.core.constants import ErrorCode
 
@@ -92,6 +93,24 @@ def register_exception_handlers(app: FastAPI) -> None:
             content=_envelope(
                 ErrorCode.VALIDATION_ERROR, "Request validation failed", details, request
             ),
+        )
+
+    @app.exception_handler(IntegrityError)
+    async def _integrity_handler(request: Request, exc: IntegrityError) -> JSONResponse:
+        message = str(exc.orig) if exc.orig else str(exc)
+        if "gstin" in message.lower():
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=_envelope(
+                    ErrorCode.GSTIN_CONFLICT,
+                    "This GSTIN is already registered to another business",
+                    [],
+                    request,
+                ),
+            )
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=_envelope(ErrorCode.CONFLICT, "A conflicting record already exists", [], request),
         )
 
     @app.exception_handler(Exception)

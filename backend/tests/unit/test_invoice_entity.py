@@ -81,3 +81,14 @@ def test_cannot_cancel_with_payments() -> None:
     inv.apply_payment(Money.of(100))
     with pytest.raises(InvoiceHasPayments):
         inv.cancel("Too late")
+
+
+def test_reverse_payment_restores_outstanding() -> None:
+    inv = _draft_invoice()
+    inv.issue(number="INV/2026-27/0001", fy="2026-27")
+    partial = Money.of(100)
+    inv.apply_payment(partial)
+    assert inv.status == InvoiceStatus.PARTIALLY_PAID
+    inv.reverse_payment(partial, today=date(2026, 6, 10))
+    assert inv.amount_paid.is_zero
+    assert inv.status == InvoiceStatus.ISSUED

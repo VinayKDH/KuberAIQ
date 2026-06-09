@@ -5,13 +5,13 @@ import uuid
 from datetime import date, timedelta
 from decimal import Decimal
 
-from app.core.constants import DEFAULT_DUE_DAYS, AiIntent
+from app.core.constants import AI_CLARIFY_SUGGESTED_ACTIONS, DEFAULT_DUE_DAYS, AiIntent
 from app.infrastructure.ai.mock_llm import MockLlm
 from app.infrastructure.ai.tools.executor import ToolExecutor
 
 
 async def run_invoice_agent(state: dict) -> dict:
-    llm = MockLlm()
+    llm = state.get("llm") or MockLlm()
     entities = await llm.extract_entities(state["message"], "invoice")
     services = state.get("services", {})
     executor = ToolExecutor(services)
@@ -22,11 +22,14 @@ async def run_invoice_agent(state: dict) -> dict:
         return {
             "response": {
                 "intent": AiIntent.CLARIFY,
-                "message": "Which customer should I invoice?",
+                "message": (
+                    "Which customer should I invoice? "
+                    "Example: Invoice Manu Paneer for 10 kg paneer at 200"
+                ),
                 "requires_confirmation": False,
                 "pending_action": None,
                 "data": None,
-                "suggested_actions": [],
+                "suggested_actions": list(AI_CLARIFY_SUGGESTED_ACTIONS),
             }
         }
 
@@ -35,17 +38,27 @@ async def run_invoice_agent(state: dict) -> dict:
         return {
             "response": {
                 "intent": AiIntent.CLARIFY,
-                "message": f"I couldn't find '{customer_name}'. Create them first?",
+                "message": f"I couldn't find '{customer_name}'. Create the customer first?",
                 "requires_confirmation": False,
                 "pending_action": None,
                 "data": None,
-                "suggested_actions": [],
+                "suggested_actions": [
+                    {
+                        "label": f"Add {customer_name}",
+                        "value": f"Add customer {customer_name} 9000000000",
+                    },
+                    {"label": "Find customers", "value": f"find customer {customer_name}"},
+                ],
             }
         }
     customer = customers[0]
     qty = entities.get("quantity") or 1
     price = entities.get("unit_price") or 0
-    gst_rate = entities.get("gst_rate") or 18
+    product = await executor.find_product(company_id, entities.get("description", ""))
+    gst_rate = entities.get("gst_rate") or (float(product.gst_rate) if product else 18)
+    hsn_sac = product.hsn_sac if product else None
+    unit = entities.get("unit") or (product.unit if product else "NOS")
+    description = product.name if product else entities.get("description", "Item")
     today = date.today()
     preview = {
         "customer_id": str(customer.id),
@@ -55,11 +68,13 @@ async def run_invoice_agent(state: dict) -> dict:
         "status": "ISSUED",
         "items": [
             {
-                "description": entities.get("description", "Item"),
+                "description": description,
                 "quantity": Decimal(str(qty)),
-                "unit_price": Decimal(str(price)),
+                "unit_price": Decimal(str(price or (product.default_price if product else 0))),
                 "gst_rate": Decimal(str(gst_rate)),
-                "unit": entities.get("unit", "NOS"),
+                "hsn_sac": hsn_sac,
+                "unit": unit,
+                "product_id": str(product.id) if product else None,
             }
         ],
     }
@@ -86,8 +101,8 @@ async def run_invoice_agent(state: dict) -> dict:
             "pending_action": {"type": AiIntent.CREATE_INVOICE, "preview": preview},
             "data": None,
             "suggested_actions": [
-                {"label": "Confirm", "value": "yes"},
-                {"label": "Cancel", "value": "no"},
+                {"label": "Confirm", "value": "confirm"},
+                {"label": "Cancel", "value": "cancel"},
             ],
         }
     }

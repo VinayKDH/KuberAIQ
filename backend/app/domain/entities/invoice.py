@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from app.core.constants import DEFAULT_UNIT
-from app.domain.enums import InvoiceStatus
+from app.domain.enums import DocumentType, InvoiceStatus
 from app.domain.exceptions import (
     InvalidStateTransition,
     InvoiceHasPayments,
@@ -27,6 +27,7 @@ class InvoiceItem:
     line_no: int
     hsn_sac: str | None = None
     unit: str = DEFAULT_UNIT
+    product_id: uuid.UUID | None = None
     taxable_amount: Money = field(default_factory=Money.zero)
     cgst_amount: Money = field(default_factory=Money.zero)
     sgst_amount: Money = field(default_factory=Money.zero)
@@ -52,6 +53,11 @@ class Invoice:
     cancel_reason: str | None = None
     pdf_blob_path: str | None = None
     created_by: uuid.UUID | None = None
+    irn: str | None = None
+    irn_generated_at: datetime | None = None
+    document_type: DocumentType = DocumentType.INVOICE
+    original_invoice_id: uuid.UUID | None = None
+    credit_reason: str | None = None
 
     taxable_amount: Money = field(default_factory=Money.zero)
     cgst_amount: Money = field(default_factory=Money.zero)
@@ -64,6 +70,8 @@ class Invoice:
 
     @property
     def amount_due(self) -> Money:
+        if self.document_type != DocumentType.INVOICE:
+            return Money.zero()
         return self.grand_total - self.amount_paid
 
     # --- behaviour ---------------------------------------------------------
@@ -120,10 +128,27 @@ class Invoice:
         if amount.amount > self.amount_due.amount:
             raise PaymentExceedsDue("Payment exceeds the outstanding balance")
         self.amount_paid = self.amount_paid + amount
+        self._sync_status_after_payment_change()
+
+    def reverse_payment(self, amount: Money, *, today: date) -> None:
+        if self.status is InvoiceStatus.CANCELLED:
+            raise InvalidStateTransition("Cannot reverse payment on a cancelled invoice")
+        if amount.is_negative or amount.is_zero:
+            raise ValueError("Reversal amount must be positive")
+        if amount.amount > self.amount_paid.amount:
+            raise PaymentExceedsDue("Reversal exceeds recorded payments")
+        self.amount_paid = self.amount_paid - amount
+        self._sync_status_after_payment_change(today=today)
+
+    def _sync_status_after_payment_change(self, *, today: date | None = None) -> None:
         if self.amount_due.is_zero:
             self.status = InvoiceStatus.PAID
-        else:
+        elif not self.amount_paid.is_zero:
             self.status = InvoiceStatus.PARTIALLY_PAID
+        elif today and self.due_date < today:
+            self.status = InvoiceStatus.OVERDUE
+        else:
+            self.status = InvoiceStatus.ISSUED
 
     def mark_overdue_if_due(self, today: date) -> bool:
         if self.status in {InvoiceStatus.ISSUED, InvoiceStatus.PARTIALLY_PAID} and (
@@ -132,3 +157,25 @@ class Invoice:
             self.status = InvoiceStatus.OVERDUE
             return True
         return False
+
+    def apply_credit(self, amount: Money) -> None:
+        """Reduce outstanding when a credit note is issued against this invoice."""
+        if self.document_type != DocumentType.INVOICE:
+            raise InvalidStateTransition("Credits can only be applied to tax invoices")
+        if self.status in {InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED, InvoiceStatus.PAID}:
+            raise InvalidStateTransition(f"Cannot apply credit to a {self.status} invoice")
+        if amount.is_negative or amount.is_zero:
+            raise ValueError("Credit amount must be positive")
+        if amount.amount > self.amount_due.amount:
+            raise PaymentExceedsDue("Credit exceeds the outstanding balance")
+        self.amount_paid = self.amount_paid + amount
+        self._sync_status_after_payment_change()
+
+    def register_irn(self, irn: str, *, generated_at: datetime | None = None) -> None:
+        if self.status in {InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED}:
+            raise InvalidStateTransition("Cannot register IRN on draft or cancelled invoices")
+        cleaned = irn.strip().upper()
+        if len(cleaned) < 10:
+            raise ValueError("IRN must be at least 10 characters")
+        self.irn = cleaned
+        self.irn_generated_at = generated_at or datetime.now(timezone.utc)

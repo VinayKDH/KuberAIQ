@@ -1,14 +1,14 @@
 @description('Environment name (dev, staging, prod)')
-param environmentName string = 'prod'
+param environmentName string = 'dev'
 
-@description('Azure region')
+@description('Azure region for compute, storage, and networking')
 param location string = resourceGroup().location
 
-@description('API App Service name')
-param apiAppName string = 'vyaparai-api'
+@description('Azure region for PostgreSQL (may differ when subscription has regional quotas)')
+param postgresLocation string = 'centralindia'
 
-@description('Web App Service name')
-param webAppName string = 'vyaparai-web'
+@description('Short unique suffix for globally unique resource names')
+param nameSuffix string = uniqueString(resourceGroup().id)
 
 @description('PostgreSQL admin login')
 @secure()
@@ -18,18 +18,50 @@ param postgresAdminLogin string
 @secure()
 param postgresAdminPassword string
 
-@description('PostgreSQL server name (must be globally unique)')
-param postgresServerName string = 'vyaparai-pg-${environmentName}'
+@description('JWT signing secret')
+@secure()
+param jwtSecret string
 
-@description('Storage account name (3-24 lowercase alphanumeric, globally unique)')
-param storageAccountName string = 'vyaparai${uniqueString(resourceGroup().id)}'
+@description('Azure OpenAI API key (set via deploy script or CI secret)')
+@secure()
+param openaiApiKey string
 
-@description('Key Vault name (3-24 alphanumeric, globally unique)')
-param keyVaultName string = 'kv-vyaparai-${environmentName}'
+@description('WhatsApp verify token')
+param whatsappVerifyToken string = 'kuberaiq-verify'
 
-var appServicePlanName = 'asp-vyaparai-${environmentName}'
-var postgresDbName = 'vyaparai'
+@description('Google OAuth client ID (Web application)')
+param googleClientId string = ''
+
+@description('Google OAuth client secret')
+@secure()
+param googleClientSecret string = ''
+
+@description('Microsoft Entra tenant ID')
+param entraTenantId string = ''
+
+@description('Microsoft Entra application client ID')
+param entraClientId string = ''
+
+@description('Microsoft Entra client secret')
+@secure()
+param entraClientSecret string = ''
+
+@description('Public hostname for the Next.js web app (must be globally unique)')
+param webAppHostName string = environmentName == 'prod' ? 'kuberaiq-web-prod' : 'kuberaiq-web-${environmentName}'
+
+@description('Public hostname for the FastAPI app (must be globally unique)')
+param apiAppHostName string = environmentName == 'prod' ? 'kuberaiq-api-prod' : 'kuberaiq-api-${environmentName}'
+
+var appServicePlanName = 'asp-kuberaiq-${environmentName}'
+var postgresDbName = 'kuberaiq'
 var blobContainerName = 'invoices'
+var apiAppName = apiAppHostName
+var webAppName = webAppHostName
+var postgresServerName = 'kuberaiq-pg-${nameSuffix}'
+var storageAccountName = 'kuberaiq${nameSuffix}'
+var keyVaultName = 'kv-kuberaiq-${take(nameSuffix, 8)}'
+var acrName = 'kuberaiq${take(nameSuffix, 10)}'
+var databaseUrl = 'postgresql+asyncpg://${postgresAdminLogin}:${postgresAdminPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/${postgresDbName}?ssl=require'
 
 // --- App Service Plan (Linux) ---
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
@@ -43,6 +75,19 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   kind: 'linux'
   properties: {
     reserved: true
+  }
+}
+
+// --- Container Registry ---
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
+  name: acrName
+  location: location
+  sku: {
+    name: environmentName == 'prod' ? 'Standard' : 'Basic'
+  }
+  properties: {
+    adminUserEnabled: false
+    publicNetworkAccess: 'Enabled'
   }
 }
 
@@ -60,6 +105,38 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enableSoftDelete: true
     softDeleteRetentionInDays: 90
     enablePurgeProtection: true
+  }
+}
+
+resource databaseUrlSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'database-url'
+  properties: {
+    value: databaseUrl
+  }
+}
+
+resource jwtSecretKv 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'jwt-secret'
+  properties: {
+    value: jwtSecret
+  }
+}
+
+resource blobConnectionSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'blob-connection-string'
+  properties: {
+    value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+  }
+}
+
+resource openaiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'openai-api-key'
+  properties: {
+    value: openaiApiKey
   }
 }
 
@@ -105,7 +182,7 @@ resource invoicesContainer 'Microsoft.Storage/storageAccounts/blobServices/conta
 // --- PostgreSQL Flexible Server ---
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-preview' = {
   name: postgresServerName
-  location: location
+  location: postgresLocation
   sku: {
     name: environmentName == 'prod' ? 'Standard_D2s_v3' : 'Standard_B1ms'
     tier: environmentName == 'prod' ? 'GeneralPurpose' : 'Burstable'
@@ -122,7 +199,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-pr
       geoRedundantBackup: environmentName == 'prod' ? 'Enabled' : 'Disabled'
     }
     highAvailability: {
-      mode: environmentName == 'prod' ? 'ZoneRedundant' : 'Disabled'
+      mode: 'Disabled'
     }
   }
 }
@@ -136,9 +213,27 @@ resource postgresDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-12
   }
 }
 
-// --- Application Insights (referenced by App Service settings) ---
+resource postgresFirewallAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-12-01-preview' = {
+  parent: postgresServer
+  name: 'AllowAzureServices'
+  properties: {
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '0.0.0.0'
+  }
+}
+
+resource postgresPgcrypto 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-12-01-preview' = {
+  parent: postgresServer
+  name: 'azure.extensions'
+  properties: {
+    value: 'pgcrypto'
+    source: 'user-override'
+  }
+}
+
+// --- Monitoring ---
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: 'law-vyaparai-${environmentName}'
+  name: 'law-kuberaiq-${environmentName}'
   location: location
   properties: {
     sku: {
@@ -149,7 +244,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 }
 
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: 'appi-vyaparai-${environmentName}'
+  name: 'appi-kuberaiq-${environmentName}'
   location: location
   kind: 'web'
   properties: {
@@ -171,55 +266,31 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOCKER|${apiAppName}:latest'
-      alwaysOn: true
+      linuxFxVersion: 'DOCKER|${acr.properties.loginServer}/kuberaiq-api:latest'
+      acrUseManagedIdentityCreds: true
+      alwaysOn: environmentName != 'dev'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       appSettings: [
-        {
-          name: 'ENVIRONMENT'
-          value: environmentName
-        }
-        {
-          name: 'USE_MOCK_LLM'
-          value: 'false'
-        }
-        {
-          name: 'USE_MOCK_BLOB'
-          value: 'false'
-        }
-        {
-          name: 'USE_MOCK_WHATSAPP'
-          value: 'false'
-        }
-        {
-          name: 'USE_MOCK_AUTH'
-          value: 'false'
-        }
-        {
-          name: 'AZURE_BLOB_CONTAINER'
-          value: blobContainerName
-        }
-        {
-          name: 'DATABASE_URL'
-          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/database-url/)'
-        }
-        {
-          name: 'JWT_SECRET'
-          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/jwt-secret/)'
-        }
-        {
-          name: 'AZURE_BLOB_CONNECTION_STRING'
-          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/blob-connection-string/)'
-        }
-        {
-          name: 'AZURE_OPENAI_API_KEY'
-          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/openai-api-key/)'
-        }
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appInsights.properties.ConnectionString
-        }
+        { name: 'ENVIRONMENT', value: environmentName }
+        { name: 'USE_MOCK_LLM', value: environmentName == 'prod' ? 'false' : 'true' }
+        { name: 'USE_MOCK_BLOB', value: environmentName == 'prod' ? 'false' : 'true' }
+        { name: 'USE_MOCK_WHATSAPP', value: environmentName == 'prod' ? 'false' : 'true' }
+        { name: 'USE_MOCK_AUTH', value: environmentName == 'prod' ? 'false' : 'true' }
+        { name: 'AZURE_BLOB_CONTAINER', value: blobContainerName }
+        { name: 'WEBSITES_PORT', value: '8000' }
+        { name: 'DATABASE_URL', value: '@Microsoft.KeyVault(SecretUri=${databaseUrlSecret.properties.secretUriWithVersion})' }
+        { name: 'JWT_SECRET', value: '@Microsoft.KeyVault(SecretUri=${jwtSecretKv.properties.secretUriWithVersion})' }
+        { name: 'AZURE_BLOB_CONNECTION_STRING', value: '@Microsoft.KeyVault(SecretUri=${blobConnectionSecret.properties.secretUriWithVersion})' }
+        { name: 'AZURE_OPENAI_API_KEY', value: '@Microsoft.KeyVault(SecretUri=${openaiKeySecret.properties.secretUriWithVersion})' }
+        { name: 'WHATSAPP_VERIFY_TOKEN', value: whatsappVerifyToken }
+        { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
+        { name: 'CORS_ORIGINS', value: '["https://${webAppName}.azurewebsites.net"]' }
+        { name: 'GOOGLE_CLIENT_ID', value: googleClientId }
+        { name: 'GOOGLE_CLIENT_SECRET', value: googleClientSecret }
+        { name: 'ENTRA_TENANT_ID', value: entraTenantId }
+        { name: 'ENTRA_CLIENT_ID', value: entraClientId }
+        { name: 'ENTRA_CLIENT_SECRET', value: entraClientSecret }
       ]
     }
   }
@@ -236,30 +307,67 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOCKER|${webAppName}:latest'
-      alwaysOn: true
+      linuxFxVersion: 'DOCKER|${acr.properties.loginServer}/kuberaiq-web:latest'
+      acrUseManagedIdentityCreds: true
+      alwaysOn: environmentName != 'dev'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       appSettings: [
-        {
-          name: 'NEXT_PUBLIC_API_URL'
-          value: 'https://${apiAppName}.azurewebsites.net'
-        }
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appInsights.properties.ConnectionString
-        }
+        { name: 'NEXT_PUBLIC_API_URL', value: 'https://${apiAppName}.azurewebsites.net' }
+        { name: 'NEXT_PUBLIC_USE_MOCK_AUTH', value: environmentName == 'prod' ? 'false' : 'true' }
+        { name: 'NEXT_PUBLIC_GOOGLE_CLIENT_ID', value: googleClientId }
+        { name: 'NEXT_PUBLIC_GOOGLE_REDIRECT_URI', value: 'https://${webAppName}.azurewebsites.net/auth/callback' }
+        { name: 'NEXT_PUBLIC_ENTRA_CLIENT_ID', value: entraClientId }
+        { name: 'NEXT_PUBLIC_ENTRA_TENANT_ID', value: entraTenantId }
+        { name: 'NEXT_PUBLIC_ENTRA_REDIRECT_URI', value: 'https://${webAppName}.azurewebsites.net/auth/callback' }
+        { name: 'WEBSITES_PORT', value: '3000' }
+        { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
       ]
     }
   }
 }
 
+// --- RBAC: API → Key Vault Secrets User ---
+resource apiKvRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, apiApp.id, 'kv-secrets-user')
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+    principalId: apiApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// --- RBAC: Apps → ACR Pull ---
+resource apiAcrRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, apiApp.id, 'acr-pull')
+  scope: acr
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+    principalId: apiApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource webAcrRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, webApp.id, 'acr-pull')
+  scope: acr
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+    principalId: webApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // --- Outputs ---
+output apiAppName string = apiApp.name
+output webAppName string = webApp.name
 output apiAppUrl string = 'https://${apiApp.properties.defaultHostName}'
 output webAppUrl string = 'https://${webApp.properties.defaultHostName}'
+output acrLoginServer string = acr.properties.loginServer
+output acrName string = acr.name
 output keyVaultUri string = keyVault.properties.vaultUri
 output keyVaultName string = keyVault.name
 output storageAccountName string = storageAccount.name
 output postgresServerFqdn string = postgresServer.properties.fullyQualifiedDomainName
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
-output apiManagedIdentityPrincipalId string = apiApp.identity.principalId

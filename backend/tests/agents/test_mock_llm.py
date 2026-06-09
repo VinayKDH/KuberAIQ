@@ -31,3 +31,14 @@ async def test_mock_llm_extracts_invoice_entities() -> None:
     )
     assert entities["quantity"] == 50
     assert entities["unit_price"] == 350.0
+
+
+@pytest.mark.asyncio
+async def test_mock_llm_extracts_customer_entities() -> None:
+    llm = MockLlm()
+    entities = await llm.extract_entities(
+        "Add customer Raj Traders 9876543210",
+        AiRoute.CUSTOMER,
+    )
+    assert entities["name"] == "Raj Traders"
+    assert entities["phone"] == "9876543210"

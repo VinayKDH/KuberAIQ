@@ -13,6 +13,7 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
     channel: str = "web"
     confirmed: bool = False
+    pending_action: dict[str, Any] | None = None
 
 
 class SuggestedAction(BaseModel):

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.domain.entities.invoice import Invoice
-from app.domain.enums import InvoiceStatus
+from app.domain.enums import DocumentType, InvoiceStatus
 from app.domain.services.invoice_numbering import format_invoice_number
 from app.infrastructure.db.mappers.invoice_mapper import InvoiceMapper
 from app.infrastructure.db.models.company import InvoiceCounterModel
@@ -83,6 +83,7 @@ class SqlAlchemyInvoiceRepository:
         customer_id: uuid.UUID | None = None,
         from_date: date | None = None,
         to_date: date | None = None,
+        document_type: DocumentType | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[Invoice], int]:
@@ -94,6 +95,10 @@ class SqlAlchemyInvoiceRepository:
                 InvoiceModel.deleted_at.is_(None),
             )
         )
+        if document_type:
+            base = base.where(InvoiceModel.document_type == document_type)
+        else:
+            base = base.where(InvoiceModel.document_type == DocumentType.INVOICE)
         if q:
             base = base.where(
                 or_(
@@ -121,12 +126,36 @@ class SqlAlchemyInvoiceRepository:
         return items, total
 
     async def list_overdue(self, company_id: uuid.UUID) -> list[Invoice]:
+        today = date.today()
         stmt = (
             select(InvoiceModel)
             .options(selectinload(InvoiceModel.items))
             .where(
                 InvoiceModel.company_id == company_id,
-                InvoiceModel.status == InvoiceStatus.OVERDUE,
+                InvoiceModel.document_type == DocumentType.INVOICE,
+                InvoiceModel.status.in_(
+                    [InvoiceStatus.ISSUED, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE]
+                ),
+                InvoiceModel.due_date < today,
+                InvoiceModel.amount_due > 0,
+                InvoiceModel.deleted_at.is_(None),
+            )
+            .order_by(InvoiceModel.due_date)
+        )
+        result = await self._session.execute(stmt)
+        return [InvoiceMapper.to_domain(m) for m in result.scalars().unique().all()]
+
+    async def list_collectible(self, company_id: uuid.UUID) -> list[Invoice]:
+        stmt = (
+            select(InvoiceModel)
+            .options(selectinload(InvoiceModel.items))
+            .where(
+                InvoiceModel.company_id == company_id,
+                InvoiceModel.document_type == DocumentType.INVOICE,
+                InvoiceModel.status.in_(
+                    [InvoiceStatus.ISSUED, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE]
+                ),
+                InvoiceModel.amount_due > 0,
                 InvoiceModel.deleted_at.is_(None),
             )
             .order_by(InvoiceModel.due_date)
@@ -140,6 +169,7 @@ class SqlAlchemyInvoiceRepository:
             .options(selectinload(InvoiceModel.items))
             .where(
                 InvoiceModel.company_id == company_id,
+                InvoiceModel.document_type == DocumentType.INVOICE,
                 InvoiceModel.status.in_([InvoiceStatus.ISSUED, InvoiceStatus.PARTIALLY_PAID]),
                 InvoiceModel.due_date < today,
                 InvoiceModel.amount_due > 0,
@@ -173,3 +203,44 @@ class SqlAlchemyInvoiceRepository:
         counter.last_value += 1
         await self._session.flush()
         return format_invoice_number(prefix, financial_year, counter.last_value)
+
+    async def list_issued_in_period(
+        self, company_id: uuid.UUID, from_date: date, to_date: date
+    ) -> list[Invoice]:
+        issued_statuses = [
+            InvoiceStatus.ISSUED,
+            InvoiceStatus.PARTIALLY_PAID,
+            InvoiceStatus.PAID,
+            InvoiceStatus.OVERDUE,
+        ]
+        stmt = (
+            select(InvoiceModel)
+            .options(selectinload(InvoiceModel.items))
+            .where(
+                InvoiceModel.company_id == company_id,
+                InvoiceModel.deleted_at.is_(None),
+                InvoiceModel.issue_date >= from_date,
+                InvoiceModel.issue_date <= to_date,
+                InvoiceModel.status.in_(issued_statuses),
+            )
+            .order_by(InvoiceModel.issue_date)
+        )
+        result = await self._session.execute(stmt)
+        return [InvoiceMapper.to_domain(m) for m in result.scalars().unique().all()]
+
+    async def list_credit_notes_for_invoice(
+        self, company_id: uuid.UUID, invoice_id: uuid.UUID
+    ) -> list[Invoice]:
+        stmt = (
+            select(InvoiceModel)
+            .options(selectinload(InvoiceModel.items))
+            .where(
+                InvoiceModel.company_id == company_id,
+                InvoiceModel.original_invoice_id == invoice_id,
+                InvoiceModel.document_type == DocumentType.CREDIT_NOTE,
+                InvoiceModel.deleted_at.is_(None),
+            )
+            .order_by(InvoiceModel.issue_date.desc())
+        )
+        result = await self._session.execute(stmt)
+        return [InvoiceMapper.to_domain(m) for m in result.scalars().unique().all()]

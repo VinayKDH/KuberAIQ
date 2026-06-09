@@ -1,6 +1,6 @@
-# Monitoring Strategy — VyaparAI
+# Monitoring Strategy — KuberAIQ
 
-This document describes the observability stack for VyaparAI on Azure. It complements
+This document describes the observability stack for KuberAIQ on Azure. It complements
 [docs/11-azure-architecture.md](../docs/11-azure-architecture.md) §11.5–11.6.
 
 ## Goals

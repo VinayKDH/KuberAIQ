@@ -77,6 +77,47 @@ class PaymentService:
             )
             return saved_payment
 
+    async def reverse(
+        self,
+        *,
+        company_id: uuid.UUID,
+        invoice_id: uuid.UUID,
+        payment_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        ip: str | None = None,
+    ) -> PaymentRecord:
+        async with self._uow_factory() as uow:
+            invoice = await uow.invoices.get_by_id(company_id, invoice_id)
+            if not invoice:
+                raise NotFoundError("Invoice not found")
+            payment = await uow.payments.get_by_id(company_id, payment_id)
+            if not payment or payment.invoice_id != invoice_id:
+                raise NotFoundError("Payment not found")
+
+            amount_due_before = invoice.amount_due.amount
+            status_before = invoice.status
+            invoice.reverse_payment(Money.of(payment.amount), today=date.today())
+            await uow.payments.soft_delete(payment.id)
+            await uow.invoices.update(invoice)
+            await uow.audit.log(
+                company_id=company_id,
+                actor_user_id=actor_id,
+                entity_type=EntityType.PAYMENT,
+                entity_id=payment.id,
+                action=AuditAction.PAYMENT_REVERSE,
+                before={
+                    "amount": str(payment.amount),
+                    "amount_due": str(amount_due_before),
+                    "invoice_status": str(status_before),
+                },
+                after={
+                    "amount_due": str(invoice.amount_due.amount),
+                    "invoice_status": str(invoice.status),
+                },
+                ip_address=ip,
+            )
+            return payment
+
     async def list_for_invoice(self, company_id: uuid.UUID, invoice_id: uuid.UUID) -> list[PaymentRecord]:
         async with self._uow_factory() as uow:
             invoice = await uow.invoices.get_by_id(company_id, invoice_id)

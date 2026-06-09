@@ -20,13 +20,26 @@ class ReminderResponse(BaseModel):
     provider_message_id: str | None = None
 
 
+class ReminderPreviewResponse(BaseModel):
+    invoice_id: str
+    customer_name: str
+    days_overdue: int
+    amount_due: Decimal
+    language: str
+    message: str
+
+
 class OverdueInvoiceResponse(BaseModel):
+    id: str
     invoice_id: str
     invoice_number: str | None
     customer_name: str
+    customer_phone: str | None = None
     amount_due: Decimal
     days_overdue: int
     due_date: str
+    last_reminder_at: str | None = None
+    last_reminder_channel: str | None = None
 
 
 class BulkPreviewResponse(BaseModel):
@@ -37,4 +50,21 @@ class BulkPreviewResponse(BaseModel):
 class CollectionsDashboardResponse(BaseModel):
     overdue_count: int
     total_outstanding: Decimal
+    total_overdue: Decimal
+    reminded_today: int = 0
     invoices: list[OverdueInvoiceResponse]
+
+
+class CallTodayInvoiceResponse(BaseModel):
+    id: str
+    invoice_id: str
+    invoice_number: str | None
+    customer_name: str
+    customer_phone: str | None = None
+    amount_due: Decimal
+    days_overdue: int
+    days_until_due: int
+    priority_score: float
+    due_date: str
+    last_reminder_at: str | None = None
+    last_reminder_channel: str | None = None

@@ -1,13 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Bot, Send, User } from "lucide-react";
+import { Bot, Mic, MicOff, Send, User } from "lucide-react";
+import { AssistantDataCard } from "@/components/assistant/assistant-data-card";
+import { ConfirmActionCard } from "@/components/assistant/confirm-action-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { useChatMutation } from "@/features/assistant/hooks";
-import type { ChatMessage } from "@/features/assistant/types";
-import { ASSISTANT_CHANNEL } from "@/lib/constants";
+import { useChatMutation, useConfirmMutation } from "@/features/assistant/hooks";
+import type { ChatMessage, PendingAction } from "@/features/assistant/types";
+import {
+  ASSISTANT_CANCEL_WORDS,
+  ASSISTANT_CHANNEL,
+  ASSISTANT_CONFIRM_WORDS,
+} from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export default function AssistantPage() {
@@ -15,25 +21,67 @@ export default function AssistantPage() {
     {
       role: "assistant",
       content:
-        "Hi! I'm your VyaparAI assistant. Ask me to create invoices, check overdue payments, or summarize your dashboard.",
+        "Hi! I'm your KuberAIQ assistant. Ask me to create invoices, check overdue payments, or summarize your dashboard.",
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [listening, setListening] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatMutation = useChatMutation();
+  const confirmMutation = useConfirmMutation();
 
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const appendAssistantMessage = (response: {
+    message: string;
+    intent?: string;
+    data?: Record<string, unknown> | null;
+    suggested_actions?: { label: string; value: string }[];
+    requires_confirmation?: boolean;
+    pending_action?: PendingAction | null;
+  }) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: response.message,
+        timestamp: new Date(),
+        intent: response.intent,
+        data: response.data ?? null,
+        suggestedActions: response.suggested_actions,
+        requiresConfirmation: response.requires_confirmation,
+        pendingAction: response.pending_action ?? null,
+      },
+    ]);
+    setPendingAction(response.requires_confirmation ? response.pending_action ?? null : null);
+    setTimeout(scrollToBottom, 100);
+  };
+
   const sendMessage = async (text: string) => {
-    if (!text.trim() || chatMutation.isPending) return;
+    if (!text.trim() || chatMutation.isPending || confirmMutation.isPending) return;
+
+    const trimmed = text.trim();
+    const normalized = trimmed.toLowerCase();
+
+    if (pendingAction && sessionId) {
+      if (ASSISTANT_CONFIRM_WORDS.has(normalized) || normalized === "confirm") {
+        await handleConfirm();
+        return;
+      }
+      if (ASSISTANT_CANCEL_WORDS.has(normalized) || normalized === "cancel") {
+        handleCancel();
+        return;
+      }
+    }
 
     const userMessage: ChatMessage = {
       role: "user",
-      content: text.trim(),
+      content: trimmed,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
@@ -41,22 +89,15 @@ export default function AssistantPage() {
 
     try {
       const response = await chatMutation.mutateAsync({
-        message: text.trim(),
+        message: trimmed,
         session_id: sessionId,
         channel: ASSISTANT_CHANNEL,
+        pending_action:
+          pendingAction && ASSISTANT_CONFIRM_WORDS.has(normalized) ? pendingAction : undefined,
       });
 
       setSessionId(response.session_id);
-
-      const assistantMessage: ChatMessage = {
-        role: "assistant",
-        content: response.message,
-        timestamp: new Date(),
-        suggestedActions: response.suggested_actions,
-        requiresConfirmation: response.requires_confirmation,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setTimeout(scrollToBottom, 100);
+      appendAssistantMessage(response);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -69,9 +110,84 @@ export default function AssistantPage() {
     }
   };
 
+  const handleConfirm = async () => {
+    if (!sessionId || !pendingAction) return;
+    try {
+      const response = await confirmMutation.mutateAsync({
+        session_id: sessionId,
+        pending_action: pendingAction,
+      });
+      appendAssistantMessage(response);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: err instanceof Error ? err.message : "Could not complete that action.",
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  };
+
+  const handleCancel = () => {
+    setPendingAction(null);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: "Okay, I cancelled that action.",
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     sendMessage(input);
+  };
+
+  const isBusy = chatMutation.isPending || confirmMutation.isPending;
+
+  const startVoiceInput = () => {
+    type SpeechRecognitionCtor = new () => {
+      lang: string;
+      interimResults: boolean;
+      maxAlternatives: number;
+      onresult: ((event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => void) | null;
+      onerror: (() => void) | null;
+      onend: (() => void) | null;
+      start: () => void;
+    };
+    const win = window as unknown as {
+      SpeechRecognition?: SpeechRecognitionCtor;
+      webkitSpeechRecognition?: SpeechRecognitionCtor;
+    };
+    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Voice input is not supported in this browser.",
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-IN";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    setListening(true);
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript ?? "";
+      setInput(transcript);
+      setListening(false);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognition.start();
   };
 
   return (
@@ -90,7 +206,7 @@ export default function AssistantPage() {
               <Bot className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">VyaparAI Copilot</CardTitle>
+              <CardTitle className="text-base">KuberAIQ Copilot</CardTitle>
               <CardDescription>Powered by LangGraph agents</CardDescription>
             </div>
           </div>
@@ -119,7 +235,21 @@ export default function AssistantPage() {
                   )}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
-                  {msg.suggestedActions && msg.suggestedActions.length > 0 && (
+                  {msg.role === "assistant" && msg.intent && msg.data && (
+                    <AssistantDataCard intent={msg.intent} data={msg.data} />
+                  )}
+                  {msg.role === "assistant" &&
+                    i === messages.length - 1 &&
+                    pendingAction &&
+                    msg.requiresConfirmation && (
+                    <ConfirmActionCard
+                      pendingAction={pendingAction}
+                      onConfirm={handleConfirm}
+                      onCancel={handleCancel}
+                      loading={confirmMutation.isPending}
+                    />
+                  )}
+                  {msg.suggestedActions && msg.suggestedActions.length > 0 && !msg.requiresConfirmation && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {msg.suggestedActions.map((action) => (
                         <Button
@@ -128,7 +258,7 @@ export default function AssistantPage() {
                           size="sm"
                           className="h-7 text-xs"
                           onClick={() => sendMessage(action.value)}
-                          disabled={chatMutation.isPending}
+                          disabled={isBusy}
                         >
                           {action.label}
                         </Button>
@@ -143,7 +273,7 @@ export default function AssistantPage() {
                 )}
               </div>
             ))}
-            {chatMutation.isPending && (
+            {isBusy && (
               <div className="flex gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
                   <Bot className="h-4 w-4" />
@@ -172,10 +302,21 @@ export default function AssistantPage() {
                 className="min-h-[60px] resize-none"
               />
               <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-[60px] w-[60px] shrink-0"
+                disabled={isBusy}
+                onClick={startVoiceInput}
+                aria-label={listening ? "Stop listening" : "Voice input"}
+              >
+                {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
+              <Button
                 type="submit"
                 size="icon"
                 className="h-[60px] w-[60px] shrink-0"
-                disabled={!input.trim() || chatMutation.isPending}
+                disabled={!input.trim() || isBusy}
               >
                 <Send className="h-4 w-4" />
                 <span className="sr-only">Send</span>

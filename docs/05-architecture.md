@@ -12,7 +12,7 @@ graph TB
     Owner["MSME Owner / Staff"]
     CA["CA / Vendor (Phase 2)"]
 
-    subgraph VyaparAI["VyaparAI Platform"]
+    subgraph KuberAIQ["KuberAIQ Platform"]
         Web["Web Dashboard (Next.js PWA)"]
         API["Backend API (FastAPI)"]
         AI["AI Copilot (LangGraph)"]
@@ -253,7 +253,7 @@ graph TB
         WAAPI[WhatsApp Cloud]
     end
     FD["Azure Front Door + WAF"]
-    subgraph RG["Resource Group: rg-vyaparai-prod (Central India)"]
+    subgraph RG["Resource Group: rg-kuberaiq-prod (Central India)"]
         ASP["App Service Plan"]
         BE["App Service: api"]
         FE["App Service / Static Web App: web"]

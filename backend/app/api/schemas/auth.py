@@ -8,12 +8,28 @@ class MockLoginRequest(BaseModel):
     email: EmailStr
 
 
+class EntraCallbackRequest(BaseModel):
+    code: str
+    code_verifier: str
+    redirect_uri: str
+
+
+class GoogleCallbackRequest(BaseModel):
+    code: str
+    code_verifier: str
+    redirect_uri: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class UserResponse(BaseModel):
     id: str
     email: str
     full_name: str | None
     role: str
-    company_id: str
+    company_id: str | None
 
 
 class TokenResponse(BaseModel):
@@ -21,8 +37,14 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+    needs_payment: bool = False
+    needs_onboarding: bool = False
     user: UserResponse
 
 
 class MeResponse(BaseModel):
     user: UserResponse
+    needs_payment: bool = False
+    needs_onboarding: bool = False
+    subscription_status: str | None = None
+    subscription_active: bool = False

@@ -38,3 +38,32 @@ async def test_create_customer_requires_auth(client):
         json={"name": "Test", "phone": "9876543210"},
     )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_customer_statement_pdf(client, auth_headers):
+    create_resp = await client.post(
+        "/api/v1/customers",
+        json={"name": "Statement Co", "phone": "9876501234"},
+        headers=auth_headers,
+    )
+    customer_id = create_resp.json()["id"]
+    await client.post(
+        "/api/v1/invoices",
+        json={
+            "customer_id": customer_id,
+            "issue_date": "2026-06-01",
+            "due_date": "2026-06-15",
+            "status": "ISSUED",
+            "items": [{"description": "Goods", "quantity": 1, "unit_price": 1000, "gst_rate": 18}],
+        },
+        headers=auth_headers,
+    )
+
+    resp = await client.get(
+        f"/api/v1/customers/{customer_id}/statement.pdf",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert resp.content[:4] == b"%PDF"

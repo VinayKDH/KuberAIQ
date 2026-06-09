@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PAGE_TITLES } from "@/lib/constants";
+import { APP_NAME, PAGE_TITLES } from "@/lib/constants";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -17,7 +17,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const title =
     Object.entries(PAGE_TITLES).find(([route]) => pathname.startsWith(route))?.[1] ??
-    "VyaparAI";
+    APP_NAME;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

@@ -40,7 +40,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
       // ignore logout errors
     } finally {
       clearSession();
-      router.push(ROUTES.LOGIN);
+      router.push(ROUTES.HOME);
     }
   };
 

@@ -7,7 +7,11 @@ from app.core.constants import AiRoute
 from app.infrastructure.ai.graph.agents.collections_agent import run_collections_agent
 from app.infrastructure.ai.graph.agents.customer_agent import run_customer_agent
 from app.infrastructure.ai.graph.agents.dashboard_agent import run_dashboard_agent
+from app.infrastructure.ai.graph.agents.clarify_agent import run_clarify_agent
+from app.infrastructure.ai.graph.agents.help_agent import run_help_agent
 from app.infrastructure.ai.graph.agents.invoice_agent import run_invoice_agent
+from app.infrastructure.ai.session_context import augment_message_with_history
+from app.infrastructure.ai.serialization import serialize_chat_response
 from app.infrastructure.ai.graph.router import route_message
 from app.infrastructure.ai.guardrails import validate_response
 from app.infrastructure.ai.mock_llm import MockLlm
@@ -26,14 +30,20 @@ class CopilotGraph:
         channel: str = "web",
         confirmed: bool = False,
         services: dict[str, Any] | None = None,
+        history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        history = history or []
+        resolved_message = augment_message_with_history(message, history)
         state: dict[str, Any] = {
             "company_id": company_id,
             "user_id": user_id,
-            "message": message,
+            "message": resolved_message,
+            "original_message": message,
             "channel": channel,
             "confirmed": confirmed,
             "services": services or {},
+            "llm": self._llm,
+            "history": history,
         }
         routed = await route_message(state, self._llm)
         state.update(routed)
@@ -47,20 +57,14 @@ class CopilotGraph:
             result = await run_dashboard_agent(state)
         elif route == AiRoute.CUSTOMER:
             result = await run_customer_agent(state)
+        elif route == AiRoute.HELP:
+            result = await run_help_agent(state)
         else:
-            result = {
-                "response": {
-                    "intent": "clarify",
-                    "message": "Could you clarify what you'd like me to do?",
-                    "requires_confirmation": False,
-                    "pending_action": None,
-                    "data": None,
-                    "suggested_actions": [],
-                }
-            }
+            result = await run_clarify_agent(state)
 
         response = validate_response(result.get("response", {}))
+        response["route"] = route
         response.setdefault("pending_action", None)
         response.setdefault("data", None)
         response.setdefault("suggested_actions", [])
-        return response
+        return serialize_chat_response(response)

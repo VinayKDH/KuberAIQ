@@ -11,6 +11,7 @@ from app.application.ports.pdf import PdfGeneratorPort
 from app.application.ports.storage import StoragePort
 from app.core.constants import (
     BLOB_INVOICE_PREFIX,
+    DEFAULT_CREDIT_NOTE_PREFIX,
     DEFAULT_UNIT,
     PDF_SIGNED_URL_TTL_SECONDS,
     AuditAction,
@@ -19,14 +20,16 @@ from app.core.constants import (
 )
 from app.core.errors import ConflictError, NotFoundError, ValidationAppError
 from app.domain.entities.invoice import Invoice, InvoiceItem
-from app.domain.enums import InvoiceStatus, ReminderChannel
+from app.domain.enums import DocumentType, InvoiceStatus, ReminderChannel
 from app.domain.exceptions import (
     DomainError,
     InvalidGstRate,
     InvoiceHasPayments,
     InvoiceNotEditable,
     InvalidStateTransition,
+    PaymentExceedsDue,
 )
+from app.domain.services.hsn_gst_lookup import suggest_hsn_from_name
 from app.domain.services.invoice_numbering import financial_year
 from app.domain.value_objects.money import Money
 
@@ -39,6 +42,13 @@ class InvoiceItemInput:
     gst_rate: Decimal
     hsn_sac: str | None = None
     unit: str = DEFAULT_UNIT
+    product_id: uuid.UUID | None = None
+
+
+@dataclass
+class CreateCreditNoteInput:
+    reason: str
+    items: list[InvoiceItemInput] | None = None
 
 
 @dataclass
@@ -87,12 +97,13 @@ class InvoiceService:
             if not company:
                 raise NotFoundError("Company not found")
             try:
+                items = await self._enrich_items_from_catalog(uow, company_id, data.items)
                 invoice = self._build_invoice(
                     company_id=company_id,
                     customer_id=data.customer_id,
                     issue_date=data.issue_date,
                     due_date=data.due_date,
-                    items=data.items,
+                    items=items,
                     created_by=actor_id,
                 )
                 invoice.recalculate(
@@ -162,7 +173,8 @@ class InvoiceService:
             if data.due_date:
                 invoice.due_date = data.due_date
             if data.items is not None:
-                invoice.items = self._build_items(data.items)
+                enriched = await self._enrich_items_from_catalog(uow, company_id, data.items)
+                invoice.items = self._build_items(enriched)
             try:
                 invoice.recalculate(
                     supplier_state=company.state_code,
@@ -220,6 +232,104 @@ class InvoiceService:
             )
             return saved
 
+    async def create_credit_note(
+        self,
+        *,
+        company_id: uuid.UUID,
+        invoice_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        data: CreateCreditNoteInput,
+        ip: str | None = None,
+    ) -> Invoice:
+        if not data.reason.strip():
+            raise ValidationAppError("Credit note reason is required")
+        async with self._uow_factory() as uow:
+            original = await uow.invoices.get_by_id(company_id, invoice_id)
+            if not original:
+                raise NotFoundError("Invoice not found")
+            if original.document_type != DocumentType.INVOICE:
+                raise ValidationAppError("Credit notes can only be issued against tax invoices")
+            if original.status in {InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED, InvoiceStatus.PAID}:
+                raise ConflictError(
+                    f"Cannot issue credit note against {original.status} invoice",
+                    code=ErrorCode.INVALID_STATE_TRANSITION,
+                )
+            customer = await uow.customers.get_by_id(company_id, original.customer_id)
+            company = await uow.companies.get_by_id(company_id)
+            if not customer or not company:
+                raise NotFoundError("Customer or company not found")
+
+            if data.items:
+                items_input = data.items
+            else:
+                items_input = [
+                    InvoiceItemInput(
+                        description=item.description,
+                        quantity=item.quantity,
+                        unit_price=item.unit_price.amount,
+                        gst_rate=item.gst_rate,
+                        hsn_sac=item.hsn_sac,
+                        unit=item.unit,
+                        product_id=item.product_id,
+                    )
+                    for item in original.items
+                ]
+
+            credit_note = Invoice(
+                company_id=company_id,
+                customer_id=original.customer_id,
+                issue_date=date.today(),
+                due_date=date.today(),
+                items=self._build_items(items_input),
+                created_by=actor_id,
+                document_type=DocumentType.CREDIT_NOTE,
+                original_invoice_id=original.id,
+                credit_reason=data.reason.strip(),
+            )
+            try:
+                credit_note.recalculate(
+                    supplier_state=company.state_code,
+                    customer_state=customer.state_code,
+                )
+                original.apply_credit(credit_note.grand_total)
+            except DomainError as exc:
+                code = ErrorCode.VALIDATION_ERROR
+                if isinstance(exc, InvalidStateTransition):
+                    code = ErrorCode.INVALID_STATE_TRANSITION
+                elif isinstance(exc, PaymentExceedsDue):
+                    code = ErrorCode.PAYMENT_EXCEEDS_DUE
+                raise ValidationAppError(str(exc), code=code) from exc
+
+            fy = financial_year(credit_note.issue_date)
+            number = await uow.invoices.allocate_number(
+                company_id, f"CN:{fy}", DEFAULT_CREDIT_NOTE_PREFIX
+            )
+            credit_note.issue(number=number, fy=fy)
+
+            saved = await uow.invoices.create(credit_note)
+            await uow.invoices.update(original)
+            await uow.audit.log(
+                company_id=company_id,
+                actor_user_id=actor_id,
+                entity_type=EntityType.CREDIT_NOTE,
+                entity_id=saved.id,
+                action=AuditAction.ISSUE,
+                before=None,
+                after={
+                    "credit_note_number": saved.invoice_number,
+                    "original_invoice_id": str(original.id),
+                    "amount": str(saved.grand_total.amount),
+                },
+                ip_address=ip,
+            )
+            return saved
+
+    async def list_credit_notes(
+        self, company_id: uuid.UUID, invoice_id: uuid.UUID
+    ) -> list[Invoice]:
+        async with self._uow_factory() as uow:
+            return await uow.invoices.list_credit_notes_for_invoice(company_id, invoice_id)
+
     async def cancel(
         self,
         *,
@@ -276,11 +386,16 @@ class InvoiceService:
                     "legal_name": company.legal_name,
                     "gstin": company.gstin,
                     "state_code": company.state_code,
+                    "address": company.address,
+                    "upi_id": company.upi_id,
+                    "upi_payee_name": company.upi_payee_name,
                 },
                 customer={
                     "name": customer.name,
                     "gstin": customer.gstin.value if customer.gstin else None,
+                    "state_code": customer.state_code,
                     "phone": customer.phone.value,
+                    "email": customer.email,
                     "billing_address": customer.billing_address,
                 },
                 invoice=self._invoice_to_dict(invoice),
@@ -291,6 +406,18 @@ class InvoiceService:
             await uow.invoices.update(invoice)
             url = await self._storage.get_signed_url(path, PDF_SIGNED_URL_TTL_SECONDS)
             return path, url
+
+    async def download_pdf_bytes(
+        self, company_id: uuid.UUID, invoice_id: uuid.UUID
+    ) -> tuple[bytes, str]:
+        path, _ = await self.generate_pdf(company_id, invoice_id)
+        data = await self._storage.download(path)
+        async with self._uow_factory() as uow:
+            invoice = await uow.invoices.get_by_id(company_id, invoice_id)
+            if not invoice:
+                raise NotFoundError("Invoice not found")
+            filename = f"{invoice.invoice_number or invoice.id}.pdf"
+        return data, filename
 
     async def share_whatsapp(
         self,
@@ -307,7 +434,7 @@ class InvoiceService:
             if not invoice or not customer:
                 raise NotFoundError("Invoice or customer not found")
             message = (
-                f"Invoice {invoice.invoice_number} from VyaparAI. "
+                f"Invoice {invoice.invoice_number} from KuberAIQ. "
                 f"Amount due: ₹{invoice.amount_due.amount}. PDF: {url}"
             )
             provider_id = await self._notifier.send_message(
@@ -326,6 +453,41 @@ class InvoiceService:
                 ip_address=ip,
             )
             return provider_id
+
+    async def register_irn(
+        self,
+        *,
+        company_id: uuid.UUID,
+        invoice_id: uuid.UUID,
+        irn: str,
+        actor_id: uuid.UUID,
+        ip: str | None = None,
+    ) -> Invoice:
+        async with self._uow_factory() as uow:
+            invoice = await uow.invoices.get_by_id(company_id, invoice_id)
+            if not invoice:
+                raise NotFoundError("Invoice not found")
+            try:
+                invoice.register_irn(irn)
+            except (InvalidStateTransition, ValueError) as exc:
+                code = (
+                    ErrorCode.INVALID_STATE_TRANSITION
+                    if isinstance(exc, InvalidStateTransition)
+                    else ErrorCode.VALIDATION_ERROR
+                )
+                raise ValidationAppError(str(exc), code=code) from exc
+            saved = await uow.invoices.update(invoice)
+            await uow.audit.log(
+                company_id=company_id,
+                actor_user_id=actor_id,
+                entity_type=EntityType.INVOICE,
+                entity_id=saved.id,
+                action=AuditAction.UPDATE,
+                before=None,
+                after={"irn": saved.irn},
+                ip_address=ip,
+            )
+            return saved
 
     async def gst_report(
         self, company_id: uuid.UUID, from_date: date, to_date: date
@@ -359,6 +521,38 @@ class InvoiceService:
                 "invoice_count": len(invoices),
             }
 
+    async def _enrich_items_from_catalog(
+        self,
+        uow,
+        company_id: uuid.UUID,
+        items: list[InvoiceItemInput],
+    ) -> list[InvoiceItemInput]:
+        enriched: list[InvoiceItemInput] = []
+        for item in items:
+            if not item.product_id:
+                enriched.append(item)
+                continue
+            product = await uow.products.get_by_id(company_id, item.product_id)
+            if not product:
+                enriched.append(item)
+                continue
+            hsn_sac = item.hsn_sac or product.hsn_sac
+            if not hsn_sac:
+                suggestion = suggest_hsn_from_name(item.description or product.name)
+                hsn_sac = suggestion.hsn_sac if suggestion else None
+            enriched.append(
+                InvoiceItemInput(
+                    description=item.description or product.name,
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                    gst_rate=item.gst_rate,
+                    hsn_sac=hsn_sac,
+                    unit=item.unit or product.unit,
+                    product_id=item.product_id,
+                )
+            )
+        return enriched
+
     @staticmethod
     def _build_items(items: list[InvoiceItemInput]) -> list[InvoiceItem]:
         if not items:
@@ -372,6 +566,7 @@ class InvoiceService:
                 unit=item.unit,
                 unit_price=Money.of(item.unit_price),
                 gst_rate=item.gst_rate,
+                product_id=item.product_id,
             )
             for idx, item in enumerate(items)
         ]
@@ -399,8 +594,15 @@ class InvoiceService:
 
     @staticmethod
     def _invoice_to_dict(invoice: Invoice) -> dict:
+        doc_title = "TAX INVOICE"
+        if invoice.document_type == DocumentType.CREDIT_NOTE:
+            doc_title = "CREDIT NOTE"
         return {
             "invoice_number": invoice.invoice_number,
+            "document_type": invoice.document_type.value,
+            "document_title": doc_title,
+            "original_invoice_number": None,
+            "credit_reason": invoice.credit_reason,
             "issue_date": str(invoice.issue_date),
             "due_date": str(invoice.due_date),
             "status": invoice.status,

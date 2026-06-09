@@ -1,70 +1,51 @@
 services:
   postgres:
-    image: postgres:16
-    container_name: vyaparai-postgres
-    restart: unless-stopped
+    image: postgres:16-alpine
+    container_name: kuberaiq-postgres
     environment:
-      POSTGRES_USER: vyaparai
-      POSTGRES_PASSWORD: vyaparai
-      POSTGRES_DB: vyaparai
+      POSTGRES_USER: kuberaiq
+      POSTGRES_PASSWORD: kuberaiq
+      POSTGRES_DB: kuberaiq
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vyaparai -d vyaparai"]
+      test: ["CMD-SHELL", "pg_isready -U kuberaiq -d kuberaiq"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    container_name: vyaparai-backend
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
+    container_name: kuberaiq-backend
     ports:
       - "8000:8000"
     environment:
-      ENVIRONMENT: local
-      DEBUG: "true"
-      LOG_LEVEL: INFO
-      DATABASE_URL: postgresql+asyncpg://vyaparai:vyaparai@postgres:5432/vyaparai
-      JWT_SECRET: dev-only-change-me
-      CORS_ORIGINS: '["http://localhost:3000"]'
+      DATABASE_URL: postgresql+asyncpg://kuberaiq:kuberaiq@postgres:5432/kuberaiq
+      USE_MOCK_AUTH: "true"
       USE_MOCK_LLM: "true"
       USE_MOCK_BLOB: "true"
       USE_MOCK_WHATSAPP: "true"
-      USE_MOCK_AUTH: "true"
-      LOCAL_BLOB_DIR: /app/local_blob_storage
-    volumes:
-      - blob_storage:/app/local_blob_storage
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      USE_MOCK_BILLING: "true"
+      JWT_SECRET: dev-only-change-me
+      ENVIRONMENT: local
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8000
-    container_name: vyaparai-frontend
-    restart: unless-stopped
-    depends_on:
-      backend:
-        condition: service_healthy
+        NEXT_PUBLIC_USE_MOCK_AUTH: "true"
+    container_name: kuberaiq-frontend
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
-  blob_storage:
