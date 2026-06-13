@@ -1,6 +1,7 @@
 """Pytest fixtures — in-memory SQLite test DB and FastAPI client."""
 from __future__ import annotations
 
+import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
 
@@ -11,6 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.constants import (
     COMPLIANCE_TURNOVER_BANDS,
     DEFAULT_INVOICE_PREFIX,
+    DEMO_CA_EMAIL,
+    DEMO_CA_FIRM_NAME,
+    DEMO_CA_NAME,
     DEMO_COMPANY_ADDRESS,
     DEMO_COMPANY_GSTIN,
     DEMO_COMPANY_NAME,
@@ -20,15 +24,16 @@ from app.core.constants import (
     SUBSCRIPTION_PLAN_STARTER,
     SUBSCRIPTION_STARTER_AMOUNT_PAISE,
 )
-from app.domain.enums import SubscriptionStatus
+from app.domain.enums import CaAssignmentStatus, SubscriptionStatus
 from app.core.security import create_access_token
 from app.domain.enums import UserRole
 from app.infrastructure.db.base import Base
+from app.infrastructure.db.models.ca_client_assignment import CaClientAssignmentModel
 from app.infrastructure.db.models.company import CompanyModel
 from app.infrastructure.db.models.subscription import SubscriptionModel
 from app.infrastructure.db.models.user import UserModel
 from app.main import create_app
-from app.startup.seed import DEMO_COMPANY_ID, DEMO_USER_ID
+from app.startup.seed import DEMO_CA_USER_ID, DEMO_COMPANY_ID, DEMO_USER_ID
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -121,6 +126,25 @@ async def client(db_engine, monkeypatch) -> AsyncGenerator[AsyncClient, None]:
                 amount_paise=SUBSCRIPTION_STARTER_AMOUNT_PAISE,
                 paid_at=now,
                 current_period_end=now + timedelta(days=30),
+            )
+        )
+        session.add(
+            UserModel(
+                id=DEMO_CA_USER_ID,
+                company_id=None,
+                email=DEMO_CA_EMAIL,
+                full_name=DEMO_CA_NAME,
+                role=UserRole.CA,
+            )
+        )
+        session.add(
+            CaClientAssignmentModel(
+                id=uuid.uuid4(),
+                ca_user_id=DEMO_CA_USER_ID,
+                company_id=DEMO_COMPANY_ID,
+                status=CaAssignmentStatus.ACTIVE,
+                invited_by=DEMO_USER_ID,
+                ca_firm_name=DEMO_CA_FIRM_NAME,
             )
         )
         await session.commit()

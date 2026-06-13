@@ -28,6 +28,15 @@ class SqlAlchemySubscriptionRepository:
         model = result.scalar_one_or_none()
         return self._to_record(model) if model else None
 
+    async def list_active_past_period_end(self, as_of: datetime) -> list[SubscriptionRecord]:
+        stmt = select(SubscriptionModel).where(
+            SubscriptionModel.status == SubscriptionStatus.ACTIVE.value,
+            SubscriptionModel.current_period_end.is_not(None),
+            SubscriptionModel.current_period_end < as_of,
+        )
+        result = await self._session.execute(stmt)
+        return [self._to_record(model) for model in result.scalars().all()]
+
     async def create(self, record: SubscriptionRecord) -> SubscriptionRecord:
         model = SubscriptionModel(
             id=record.id,

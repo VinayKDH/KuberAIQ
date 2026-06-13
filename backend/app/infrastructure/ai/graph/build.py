@@ -14,11 +14,12 @@ from app.infrastructure.ai.session_context import augment_message_with_history
 from app.infrastructure.ai.serialization import serialize_chat_response
 from app.infrastructure.ai.graph.router import route_message
 from app.infrastructure.ai.guardrails import validate_response
+from app.application.ports.llm import LlmPort
 from app.infrastructure.ai.mock_llm import MockLlm
 
 
 class CopilotGraph:
-    def __init__(self, llm: MockLlm | None = None) -> None:
+    def __init__(self, llm: LlmPort | None = None) -> None:
         self._llm = llm or MockLlm()
 
     async def run(

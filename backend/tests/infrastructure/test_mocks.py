@@ -79,3 +79,50 @@ async def test_whatsapp_notifier_posts_to_graph_api(
     assert provider_id == "wamid.real"
     assert "123456/messages" in captured["url"]
     assert captured["json"]["to"] == "919876543210"
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_notifier_uses_template_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core import config as config_mod
+    from app.infrastructure.notifications.whatsapp_notifier import WhatsAppNotifier
+
+    monkeypatch.setattr(config_mod.settings, "whatsapp_phone_number_id", "123456")
+    monkeypatch.setattr(config_mod.settings, "whatsapp_access_token", "token")
+
+    captured: dict = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"messages": [{"id": "wamid.tpl"}]}
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, json, headers):
+            captured["json"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "app.infrastructure.notifications.whatsapp_notifier.httpx.AsyncClient",
+        lambda **kwargs: FakeClient(),
+    )
+
+    notifier = WhatsAppNotifier()
+    await notifier.send_message(
+        channel=ReminderChannel.WHATSAPP,
+        to="+919876543210",
+        message="Payment due",
+        template_name="payment_reminder_en",
+    )
+    assert captured["json"]["type"] == "template"
+    assert captured["json"]["template"]["name"] == "payment_reminder_en"
+

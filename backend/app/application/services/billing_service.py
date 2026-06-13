@@ -10,10 +10,11 @@ from app.core.config import settings
 from app.core.constants import (
     SUBSCRIPTION_PERIOD_DAYS,
     SUBSCRIPTION_PLAN_STARTER,
+    SUBSCRIPTION_PLAN_STARTER_LABEL,
     SUBSCRIPTION_STARTER_AMOUNT_PAISE,
 )
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationAppError
-from app.domain.enums import SubscriptionStatus
+from app.domain.enums import SubscriptionStatus, UserRole
 from app.infrastructure.auth.token_service import TokenService
 from app.infrastructure.billing.razorpay_client import RazorpayClient
 
@@ -27,7 +28,7 @@ class BillingService:
         async with self._uow_factory() as uow:
             existing = await uow.subscriptions.get_by_user_id(user_id)
             if existing:
-                return existing
+                return await self._apply_expiry_if_needed(existing)
             record = SubscriptionRecord(
                 id=uuid.uuid4(),
                 user_id=user_id,
@@ -40,6 +41,10 @@ class BillingService:
             return created
 
     async def is_active(self, user_id: uuid.UUID) -> bool:
+        async with self._uow_factory() as uow:
+            user = await uow.users.get_by_id(user_id)
+        if user and user.role == UserRole.CA:
+            return True
         sub = await self.ensure_subscription(user_id)
         return self._is_subscription_active(sub)
 
@@ -50,6 +55,32 @@ class BillingService:
         if sub.current_period_end and ensure_utc(sub.current_period_end) < utc_now():
             return False
         return True
+
+    async def _apply_expiry_if_needed(self, sub: SubscriptionRecord) -> SubscriptionRecord:
+        if not (
+            sub.status == SubscriptionStatus.ACTIVE
+            and sub.current_period_end
+            and ensure_utc(sub.current_period_end) < utc_now()
+        ):
+            return sub
+        sub.status = SubscriptionStatus.EXPIRED
+        async with self._uow_factory() as uow:
+            await uow.subscriptions.update(sub)
+            await uow.commit()
+        return sub
+
+    async def expire_subscriptions_past_period(self) -> int:
+        now = utc_now()
+        async with self._uow_factory() as uow:
+            due = await uow.subscriptions.list_active_past_period_end(now)
+        expired = 0
+        for sub in due:
+            sub.status = SubscriptionStatus.EXPIRED
+            async with self._uow_factory() as uow:
+                await uow.subscriptions.update(sub)
+                await uow.commit()
+            expired += 1
+        return expired
 
     async def build_token_response(self, user: UserRecord) -> dict:
         sub = await self.ensure_subscription(user.id)
@@ -62,12 +93,14 @@ class BillingService:
             user = await uow.users.get_by_id(user_id)
         if not user:
             raise NotFoundError("User not found")
+        is_ca = user.role == UserRole.CA
         return {
             "subscription_status": sub.status.value,
-            "subscription_active": active,
-            "needs_payment": not active,
-            "needs_onboarding": active and user.company_id is None,
+            "subscription_active": active if not is_ca else True,
+            "needs_payment": False if is_ca else not active,
+            "needs_onboarding": False if is_ca else (active and user.company_id is None),
             "plan_code": sub.plan_code,
+            "plan_name": SUBSCRIPTION_PLAN_STARTER_LABEL,
             "amount_paise": sub.amount_paise,
             "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
         }
@@ -79,6 +112,11 @@ class BillingService:
         sub = await self.ensure_subscription(user_id)
         if self._is_subscription_active(sub):
             raise ConflictError("Subscription is already active")
+
+        async with self._uow_factory() as uow:
+            user = await uow.users.get_by_id(user_id)
+        if not user:
+            raise NotFoundError("User not found")
 
         client = RazorpayClient()
         order = await client.create_order(
@@ -97,6 +135,8 @@ class BillingService:
             "amount_paise": sub.amount_paise,
             "currency": "INR",
             "plan_code": sub.plan_code,
+            "prefill_email": user.email,
+            "prefill_name": user.full_name,
         }
 
     async def verify_payment(

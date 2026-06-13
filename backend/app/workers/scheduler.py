@@ -8,9 +8,12 @@ from app.core.constants import (
     OVERDUE_JOB_INTERVAL_HOURS,
     SCHEDULED_REMINDER_JOB_HOUR,
     SCHEDULED_REMINDER_JOB_MINUTE,
+    SUBSCRIPTION_EXPIRY_JOB_HOUR,
+    SUBSCRIPTION_EXPIRY_JOB_MINUTE,
 )
 from app.workers.jobs import (
     expire_quotations_all_companies,
+    expire_subscriptions_past_period,
     mark_overdue_all_companies,
     send_compliance_alerts_all_companies,
     send_scheduled_reminders_all_companies,
@@ -56,6 +59,15 @@ def start_scheduler() -> None:
             minute=SCHEDULED_REMINDER_JOB_MINUTE,
         ),
         id="quotation_expiry",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        expire_subscriptions_past_period,
+        CronTrigger(
+            hour=SUBSCRIPTION_EXPIRY_JOB_HOUR,
+            minute=SUBSCRIPTION_EXPIRY_JOB_MINUTE,
+        ),
+        id="subscription_expiry",
         replace_existing=True,
     )
     _scheduler.start()

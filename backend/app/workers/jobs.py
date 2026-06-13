@@ -50,6 +50,15 @@ async def send_compliance_alerts_all_companies() -> None:
         logger.info("compliance_alerts_completed", alerts_sent=total)
 
 
+async def expire_subscriptions_past_period() -> int:
+    """Mark platform subscriptions EXPIRED when the billing period has ended."""
+    container = build_container()
+    expired = await container.billing_service.expire_subscriptions_past_period()
+    if expired:
+        logger.info("subscription_expiry_completed", subscriptions_expired=expired)
+    return expired
+
+
 async def expire_quotations_all_companies() -> None:
     """Mark past-validity quotations as EXPIRED."""
     container = build_container()

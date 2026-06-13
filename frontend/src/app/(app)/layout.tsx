@@ -8,6 +8,10 @@ import { apiClient } from "@/lib/api-client";
 import { clearSession, isAuthenticated } from "@/lib/auth";
 import { resolveProtectedRoute, type MeGate } from "@/lib/session-routing";
 
+interface MeResponse extends MeGate {
+  user: { role: string; email: string; full_name: string | null; company_id: string | null };
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -19,9 +23,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    apiClient<MeGate>(API_PATHS.ME)
+    apiClient<MeResponse>(API_PATHS.ME)
       .then((me) => {
-        const redirect = resolveProtectedRoute(me, pathname);
+        const redirect = resolveProtectedRoute({ ...me, role: me.user.role }, pathname);
         if (redirect) {
           router.replace(redirect);
           return;

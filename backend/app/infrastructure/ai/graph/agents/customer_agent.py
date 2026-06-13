@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import uuid
 
+from app.application.ports.llm import LlmPort
 from app.core.constants import AiIntent
-from app.infrastructure.ai.mock_llm import MockLlm
 from app.infrastructure.ai.tools.executor import ToolExecutor
 
 
 async def run_customer_agent(state: dict) -> dict:
-    llm = state.get("llm") or MockLlm()
+    llm: LlmPort = state["llm"]
     message = state.get("message", "")
     entities = await llm.extract_entities(message, "customer")
     services = state.get("services", {})

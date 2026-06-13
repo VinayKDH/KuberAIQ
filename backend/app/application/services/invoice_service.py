@@ -14,6 +14,7 @@ from app.core.constants import (
     DEFAULT_CREDIT_NOTE_PREFIX,
     DEFAULT_UNIT,
     PDF_SIGNED_URL_TTL_SECONDS,
+    WHATSAPP_TEMPLATE_INVOICE_SHARE,
     AuditAction,
     EntityType,
     ErrorCode,
@@ -441,6 +442,7 @@ class InvoiceService:
                 channel=ReminderChannel.WHATSAPP,
                 to=customer.phone.e164,
                 message=message,
+                template_name=WHATSAPP_TEMPLATE_INVOICE_SHARE,
             )
             await uow.audit.log(
                 company_id=company_id,

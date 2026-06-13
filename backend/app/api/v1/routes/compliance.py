@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.deps import AuthContext, get_container, get_tenant_context, require_roles
+from app.api.deps import AuthContext, get_container, get_tenant_context, require_roles, require_tenant_read_roles
 from app.api.schemas.compliance import (
     CompleteObligationRequest,
     CompleteObligationResponse,
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/compliance", tags=["compliance"])
 
 @router.get("/dashboard", response_model=ComplianceDashboardResponse)
 async def compliance_dashboard(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
 ) -> ComplianceDashboardResponse:
     data = await container.compliance_service.dashboard(auth.company_id)
@@ -34,7 +34,7 @@ async def compliance_dashboard(
 
 @router.get("/obligations", response_model=ComplianceObligationsResponse)
 async def compliance_obligations(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
 ) -> ComplianceObligationsResponse:
     data = await container.compliance_service.obligations(auth.company_id)
@@ -43,7 +43,7 @@ async def compliance_obligations(
 
 @router.get("/calendar", response_model=ComplianceCalendarResponse)
 async def compliance_calendar(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
     days: Annotated[int, Query(ge=7, le=365)] = 90,
 ) -> ComplianceCalendarResponse:
@@ -96,7 +96,7 @@ async def update_compliance_profile(
 
 @router.get("/alerts/preview", response_model=ComplianceAlertsPreviewResponse)
 async def preview_compliance_alerts(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
 ) -> ComplianceAlertsPreviewResponse:
     data = await container.compliance_service.preview_alerts(auth.company_id)

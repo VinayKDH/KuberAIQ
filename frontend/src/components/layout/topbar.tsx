@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { LogOut, Menu, User } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { CaClientSwitcher } from "@/components/layout/ca-client-switcher";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +60,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <CaClientSwitcher />
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger>

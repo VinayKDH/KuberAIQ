@@ -8,6 +8,13 @@ class UserRole(StrEnum):
     OWNER = "OWNER"
     STAFF = "STAFF"
     VIEWER = "VIEWER"
+    CA = "CA"
+
+
+class CaAssignmentStatus(StrEnum):
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    REVOKED = "REVOKED"
 
 
 class InvoiceStatus(StrEnum):

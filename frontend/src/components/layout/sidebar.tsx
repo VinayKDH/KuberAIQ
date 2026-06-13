@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { APP_NAME, NAV_ITEMS, ROUTES } from "@/lib/constants";
+import { APP_NAME, NAV_ITEMS, NAV_ITEMS_CA, ROUTES, USER_ROLE } from "@/lib/constants";
+import { getStoredUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const iconMap = {
@@ -34,11 +35,14 @@ interface SidebarProps {
 
 export function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
+  const user = getStoredUser();
+  const navItems = user?.role === USER_ROLE.CA ? NAV_ITEMS_CA : NAV_ITEMS;
+  const homeHref = user?.role === USER_ROLE.CA ? ROUTES.CA_DASHBOARD : ROUTES.DASHBOARD;
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
-        <Link href={ROUTES.DASHBOARD} className="flex items-center gap-2 font-semibold" onClick={onNavigate}>
+        <Link href={homeHref} className="flex items-center gap-2 font-semibold" onClick={onNavigate}>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
             K
           </div>
@@ -46,7 +50,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </Link>
       </div>
       <nav className="flex-1 space-y-1 p-4">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const Icon = iconMap[item.icon as keyof typeof iconMap];
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
@@ -68,7 +72,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         })}
       </nav>
       <div className="border-t border-sidebar-border p-4">
-        <p className="text-xs text-muted-foreground">GST Billing & Collections</p>
+        <p className="text-xs text-muted-foreground">
+          {user?.role === USER_ROLE.CA ? "CA Compliance Portal" : "GST Billing & Collections"}
+        </p>
       </div>
     </aside>
   );

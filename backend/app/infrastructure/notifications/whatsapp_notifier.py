@@ -30,14 +30,35 @@ class WhatsAppNotifier:
             f"{WHATSAPP_GRAPH_BASE_URL}/{WHATSAPP_GRAPH_API_VERSION}/"
             f"{settings.whatsapp_phone_number_id}/messages"
         )
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": to.lstrip("+"),
-            "type": "text",
-            "text": {"preview_url": False, "body": message},
-        }
+        recipient = to.lstrip("+")
         headers = {"Authorization": f"Bearer {settings.whatsapp_access_token}"}
+
+        if template_name:
+            language_code = "hi" if template_name.endswith("_hi") else "en"
+            payload = {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": recipient,
+                "type": "template",
+                "template": {
+                    "name": template_name,
+                    "language": {"code": language_code},
+                    "components": [
+                        {
+                            "type": "body",
+                            "parameters": [{"type": "text", "text": message[:1024]}],
+                        }
+                    ],
+                },
+            }
+        else:
+            payload = {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": recipient,
+                "type": "text",
+                "text": {"preview_url": False, "body": message},
+            }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=payload, headers=headers)

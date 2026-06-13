@@ -4,10 +4,12 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    advisors,
     ai,
     audit,
     auth,
     billing,
+    ca,
     collections,
     companies,
     compliance,
@@ -23,7 +25,9 @@ from app.api.v1.routes import (
 api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(billing.router)
+api_router.include_router(ca.router)
 api_router.include_router(companies.router)
+api_router.include_router(advisors.router)
 api_router.include_router(audit.router)
 api_router.include_router(customers.router)
 api_router.include_router(products.router)

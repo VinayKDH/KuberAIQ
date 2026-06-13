@@ -1,5 +1,8 @@
 export const APP_NAME = "KuberAIQ";
 export const DEMO_LOGIN_EMAIL = "owner@demo.kuberaiq.com";
+export const DEMO_CA_LOGIN_EMAIL = "ca@demo.kuberaiq.com";
+export const E2E_EMAIL_DOMAIN = "@test.kuberaiq.com";
+export const E2E_COMPANY_NAME_PREFIX = "E2E Traders";
 
 /** Public production URLs (custom domain; overridden at Docker build via NEXT_PUBLIC_*). */
 export const PUBLIC_WEB_URL =
@@ -26,6 +29,15 @@ export const OAUTH_PKCE_TTL_SECONDS = 600;
 /** Shared cookie domain for OAuth PKCE state (e.g. `.kuberaiq.com`). */
 export const OAUTH_COOKIE_DOMAIN = process.env.NEXT_PUBLIC_OAUTH_COOKIE_DOMAIN ?? "";
 
+export const USER_ROLE = {
+  OWNER: "OWNER",
+  STAFF: "STAFF",
+  VIEWER: "VIEWER",
+  CA: "CA",
+} as const;
+
+export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
+
 export const ROUTES = {
   HOME: "/",
   LOGIN: "/login",
@@ -45,6 +57,8 @@ export const ROUTES = {
   COLLECTIONS: "/collections",
   ASSISTANT: "/assistant",
   COMPLIANCE: "/compliance",
+  CA_CLIENTS: "/ca/clients",
+  CA_DASHBOARD: "/ca/dashboard",
   SETTINGS: "/settings",
   TERMS: "/terms",
   PRIVACY: "/privacy",
@@ -96,6 +110,13 @@ export const API_PATHS = {
   COMPLIANCE_COMPLETE: (id: string) => `/compliance/obligations/${id}/complete` as const,
   COMPLIANCE_PROFILE: "/compliance/profile",
   COMPLIANCE_ALERTS_PREVIEW: "/compliance/alerts/preview",
+  CA_CLIENTS: "/ca/clients",
+  CA_DASHBOARD: "/ca/dashboard",
+  CA_ACCEPT_INVITE: (id: string) => `/ca/invitations/${id}/accept` as const,
+  CA_CONTEXT: "/ca/context",
+  CA_CONTEXT_CLEAR: "/ca/context/clear",
+  ADVISORS: "/companies/me/advisors",
+  ADVISOR_REVOKE: (id: string) => `/companies/me/advisors/${id}` as const,
   AI_CHAT: "/ai/chat",
   AI_CONFIRM: "/ai/confirm",
 } as const;
@@ -122,10 +143,21 @@ export const QUERY_KEYS = {
   GSTR1_REPORT: (from: string, to: string) => ["gstr1-report", from, to] as const,
   GSTR3B_REPORT: (from: string, to: string) => ["gstr3b-report", from, to] as const,
   COMPLIANCE_ALERTS: ["compliance", "alerts"] as const,
+  BILLING_STATUS: ["billing", "status"] as const,
   COMPLIANCE: ["compliance", "dashboard"] as const,
   COMPLIANCE_OBLIGATIONS: ["compliance", "obligations"] as const,
   COMPLIANCE_CALENDAR: (days?: number) => ["compliance", "calendar", days] as const,
+  CA_CLIENTS: ["ca", "clients"] as const,
+  CA_DASHBOARD: ["ca", "dashboard"] as const,
+  ADVISORS: ["advisors"] as const,
 } as const;
+
+export const NAV_ITEMS_CA = [
+  { href: ROUTES.CA_DASHBOARD, label: "Dashboard", icon: "LayoutDashboard" },
+  { href: ROUTES.CA_CLIENTS, label: "Clients", icon: "Users" },
+  { href: ROUTES.COMPLIANCE, label: "Compliance", icon: "ShieldCheck" },
+  { href: ROUTES.SETTINGS, label: "Reports", icon: "Settings" },
+] as const;
 
 export const NAV_ITEMS = [
   { href: ROUTES.DASHBOARD, label: "Dashboard", icon: "LayoutDashboard" },
@@ -180,6 +212,8 @@ export const PAGE_TITLES: Record<string, string> = {
   [ROUTES.CUSTOMERS]: "Customers",
   [ROUTES.COLLECTIONS]: "Collections",
   [ROUTES.COMPLIANCE]: "Compliance",
+  [ROUTES.CA_CLIENTS]: "Clients",
+  [ROUTES.CA_DASHBOARD]: "CA Dashboard",
   [ROUTES.ASSISTANT]: "AI Assistant",
   [ROUTES.SETTINGS]: "Settings",
 };
@@ -419,6 +453,33 @@ export const COMPLIANCE_COPY = {
   ALERTS_EMPTY: "No obligations due in the next few days.",
 } as const;
 
+export const CA_COPY = {
+  CLIENTS_TITLE: "Your clients",
+  CLIENTS_DESCRIPTION: "MSME businesses you advise — accept invites and open a client workspace.",
+  DASHBOARD_TITLE: "Filing overview",
+  DASHBOARD_DESCRIPTION: "Upcoming GST and compliance deadlines across your active clients.",
+  PENDING_INVITES: "Pending invitations",
+  ACTIVE_CLIENTS: "Active clients",
+  ACCEPT_INVITE: "Accept invite",
+  OPEN_CLIENT: "Open client",
+  CLEAR_CLIENT: "Clear client context",
+  NO_CLIENTS: "No client assignments yet. Ask an MSME owner to invite you from Settings.",
+  FIRM_LABEL: "Firm",
+  STATUS_PENDING: "Pending",
+  STATUS_ACTIVE: "Active",
+  STATUS_REVOKED: "Revoked",
+  SWITCHER_LABEL: "Acting for",
+  SWITCHER_PLACEHOLDER: "Select client",
+  ADVISORS_TITLE: "Chartered accountants",
+  ADVISORS_DESCRIPTION: "Invite your CA to view compliance and GSTR reports for this business.",
+  INVITE_CA: "Invite CA",
+  REVOKE_CA: "Revoke access",
+  CA_EMAIL: "CA email",
+  CA_FIRM: "CA firm name (optional)",
+  INVITE_SENT: "Invitation sent.",
+  INVITE_ERROR: "Could not send invitation.",
+} as const;
+
 export const E_INVOICE_TURNOVER_THRESHOLD = 1_000_000;
 
 export const REMINDER_LANGUAGES = [
@@ -441,14 +502,40 @@ export const COLLECTIONS_COPY = {
 
 export const RAZORPAY_CHECKOUT_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js";
 
+export const BILLING_SETTINGS = {
+  TITLE: "KuberAIQ subscription",
+  DESCRIPTION: "Your platform plan — separate from customer UPI/payment settings below.",
+  PLAN_LABEL: "Plan",
+  STATUS_LABEL: "Status",
+  VALID_UNTIL_LABEL: "Valid until",
+  AMOUNT_LABEL: "Amount",
+  RENEW_CTA: "Renew subscription",
+  PAY_CTA: "Complete payment",
+  ACTIVE_NOTE: "Your subscription is active. You can use the full workspace until the date above.",
+  EXPIRED_NOTE: "Your subscription has ended. Renew to continue using KuberAIQ.",
+  PENDING_NOTE: "Payment is required before you can finish business setup.",
+  STATUS_LABELS: {
+    PENDING: "Payment pending",
+    ACTIVE: "Active",
+    EXPIRED: "Expired",
+    CANCELLED: "Cancelled",
+  } as Record<string, string>,
+} as const;
+
 export const SUBSCRIPTION_PAGE = {
   TITLE: "Activate your subscription",
-  DESCRIPTION: "Complete payment to set up your business workspace. Each account gets its own isolated data.",
+  DESCRIPTION: "Complete payment to unlock your workspace and set up your business.",
   PLAN_NAME: "KuberAIQ Starter",
-  BILLING_CYCLE: "per month · billed monthly",
-  PAY_CTA: "Pay with Razorpay",
+  BILLING_CYCLE: "per month · 30-day access",
+  PAY_CTA: "Pay securely with Razorpay",
   MOCK_PAY_CTA: "Activate (demo — no charge)",
-  PAYING: "Processing…",
+  PAYING: "Processing payment…",
+  PAYMENT_CANCELLED: "Payment cancelled. You can try again when ready.",
+  PAYMENT_SUCCESS: "Payment successful — setting up your workspace…",
+  SECURE_NOTE: "Secured by Razorpay · UPI, cards, netbanking & wallets",
+  ACCOUNT_LABEL: "Account",
+  STEPS: ["Sign in", "Pay", "Set up business"] as const,
+  STEP_ACTIVE: 1,
   FEATURES: [
     "GST invoicing, quotations & credit notes",
     "Collections, reminders & customer ledger",

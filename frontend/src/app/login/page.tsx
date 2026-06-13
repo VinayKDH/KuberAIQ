@@ -12,6 +12,7 @@ import {
   API_PATHS,
   APP_NAME,
   DEMO_LOGIN_EMAIL,
+  DEMO_CA_LOGIN_EMAIL,
   LANDING_COPY,
   LEGAL_COPY,
   ROUTES,
@@ -71,7 +72,7 @@ export default function LoginPage() {
         body: { email },
       });
       storeSession(tokens);
-      router.push(postLoginRoute(tokens));
+      router.push(postLoginRoute({ ...tokens, role: tokens.user.role }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -194,8 +195,10 @@ export default function LoginPage() {
                   {loading ? "Signing in…" : "Sign in"}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
-                  Development mode — demo account{" "}
+                  Development mode — MSME demo{" "}
                   <span className="font-mono">{DEMO_LOGIN_EMAIL}</span>
+                  {" · CA demo "}
+                  <span className="font-mono">{DEMO_CA_LOGIN_EMAIL}</span>
                 </p>
               </form>
             )}

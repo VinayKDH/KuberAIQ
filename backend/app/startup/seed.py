@@ -9,6 +9,9 @@ from sqlalchemy import select
 
 from app.core.constants import (
     DEFAULT_INVOICE_PREFIX,
+    DEMO_CA_EMAIL,
+    DEMO_CA_FIRM_NAME,
+    DEMO_CA_NAME,
     DEMO_COMPANY_ADDRESS,
     DEMO_COMPANY_AUTO_REMINDERS,
     DEMO_COMPANY_EMPLOYEE_COUNT,
@@ -27,10 +30,11 @@ from app.core.constants import (
     DEMO_USER_NAME,
     LEGACY_DEMO_USER_EMAIL,
 )
-from app.domain.enums import UserRole
+from app.domain.enums import CaAssignmentStatus, UserRole
 from app.core.config import settings
 from app.core.constants import SUBSCRIPTION_PLAN_STARTER
 from app.domain.enums import SubscriptionStatus
+from app.infrastructure.db.models.ca_client_assignment import CaClientAssignmentModel
 from app.infrastructure.db.models.company import CompanyModel
 from app.infrastructure.db.models.subscription import SubscriptionModel
 from app.infrastructure.db.models.user import UserModel
@@ -40,6 +44,7 @@ logger = structlog.get_logger(__name__)
 
 DEMO_COMPANY_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 DEMO_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
+DEMO_CA_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000003")
 
 
 def _apply_demo_company_defaults(company: CompanyModel) -> bool:
@@ -102,8 +107,7 @@ async def seed_demo_data() -> None:
             if company_changed or user_changed or sub_changed:
                 await session.commit()
                 logger.info("demo_seed_backfill", company_id=str(DEMO_COMPANY_ID))
-            else:
-                logger.info("demo_seed_skipped", reason="already_exists")
+            await _ensure_demo_ca(session)
             return
 
         company = CompanyModel(
@@ -147,3 +151,44 @@ async def seed_demo_data() -> None:
         )
         await session.commit()
         logger.info("demo_seed_complete", company_id=str(DEMO_COMPANY_ID), email=DEMO_USER_EMAIL)
+        await _ensure_demo_ca(session)
+
+
+async def _ensure_demo_ca(session) -> None:
+    """Seed demo CA user with ACTIVE assignment to demo company."""
+    ca_result = await session.execute(select(UserModel).where(UserModel.id == DEMO_CA_USER_ID))
+    ca_user = ca_result.scalar_one_or_none()
+    if not ca_user:
+        session.add(
+            UserModel(
+                id=DEMO_CA_USER_ID,
+                company_id=None,
+                email=DEMO_CA_EMAIL,
+                full_name=DEMO_CA_NAME,
+                role=UserRole.CA,
+            )
+        )
+
+    assignment_result = await session.execute(
+        select(CaClientAssignmentModel).where(
+            CaClientAssignmentModel.ca_user_id == DEMO_CA_USER_ID,
+            CaClientAssignmentModel.company_id == DEMO_COMPANY_ID,
+        )
+    )
+    assignment = assignment_result.scalar_one_or_none()
+    if not assignment:
+        session.add(
+            CaClientAssignmentModel(
+                id=uuid.uuid4(),
+                ca_user_id=DEMO_CA_USER_ID,
+                company_id=DEMO_COMPANY_ID,
+                status=CaAssignmentStatus.ACTIVE,
+                invited_by=DEMO_USER_ID,
+                ca_firm_name=DEMO_CA_FIRM_NAME,
+            )
+        )
+    elif assignment.status != CaAssignmentStatus.ACTIVE:
+        assignment.status = CaAssignmentStatus.ACTIVE
+
+    await session.commit()
+    logger.info("demo_ca_seed_complete", email=DEMO_CA_EMAIL)

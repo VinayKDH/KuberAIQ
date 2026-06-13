@@ -8,7 +8,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import Response
 
-from app.api.deps import AuthContext, get_tenant_context, get_client_ip, get_container, require_roles
+from app.api.deps import (
+    AuthContext,
+    get_client_ip,
+    get_container,
+    get_tenant_context,
+    require_msme_roles,
+    require_tenant_read_roles,
+)
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.gstr import Gstr1ReportResponse, Gstr3bReportResponse
 from app.api.schemas.invoice import (
@@ -87,7 +94,7 @@ def _to_response(invoice, *, customer_name: str | None = None) -> InvoiceRespons
 @router.post("", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
 async def create_invoice(
     body: CreateInvoiceRequest,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> InvoiceResponse:
@@ -150,7 +157,7 @@ async def list_invoices(
 
 @router.get("/reports/gst", response_model=GstReportResponse)
 async def gst_report(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
     from_date: date = Query(..., alias="from"),
     to_date: date = Query(..., alias="to"),
@@ -161,7 +168,7 @@ async def gst_report(
 
 @router.get("/reports/gst.csv")
 async def gst_report_csv(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
     from_date: date = Query(..., alias="from"),
     to_date: date = Query(..., alias="to"),
@@ -188,7 +195,7 @@ async def gst_report_csv(
 
 @router.get("/reports/gstr1", response_model=Gstr1ReportResponse)
 async def gstr1_report(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
     from_date: date = Query(..., alias="from"),
     to_date: date = Query(..., alias="to"),
@@ -201,7 +208,7 @@ async def gstr1_report(
 
 @router.get("/reports/gstr1.csv")
 async def gstr1_report_csv(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
     from_date: date = Query(..., alias="from"),
     to_date: date = Query(..., alias="to"),
@@ -231,7 +238,7 @@ async def gstr1_report_csv(
 
 @router.get("/reports/gstr3b", response_model=Gstr3bReportResponse)
 async def gstr3b_report(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
     from_date: date = Query(..., alias="from"),
     to_date: date = Query(..., alias="to"),
@@ -244,7 +251,7 @@ async def gstr3b_report(
 
 @router.get("/reports/gstr3b.csv")
 async def gstr3b_report_csv(
-    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
     container: Annotated[Container, Depends(get_container)],
     from_date: date = Query(..., alias="from"),
     to_date: date = Query(..., alias="to"),
@@ -285,7 +292,7 @@ async def get_invoice(
 async def update_invoice(
     invoice_id: uuid.UUID,
     body: UpdateInvoiceRequest,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> InvoiceResponse:
@@ -308,7 +315,7 @@ async def update_invoice(
 @router.post("/{invoice_id}:issue", response_model=InvoiceResponse)
 async def issue_invoice(
     invoice_id: uuid.UUID,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> InvoiceResponse:
@@ -325,7 +332,7 @@ async def issue_invoice(
 async def cancel_invoice(
     invoice_id: uuid.UUID,
     body: CancelInvoiceRequest,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> InvoiceResponse:
@@ -343,7 +350,7 @@ async def cancel_invoice(
 async def register_invoice_irn(
     invoice_id: uuid.UUID,
     body: RegisterIrnRequest,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> InvoiceResponse:
@@ -361,7 +368,7 @@ async def register_invoice_irn(
 async def create_credit_note(
     invoice_id: uuid.UUID,
     body: CreateCreditNoteRequest,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> CreditNoteResponse:
@@ -434,7 +441,7 @@ async def download_invoice_pdf(
 @router.post("/{invoice_id}:share-whatsapp")
 async def share_invoice_whatsapp(
     invoice_id: uuid.UUID,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> dict:

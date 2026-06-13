@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 
-from app.api.deps import AuthContext, get_tenant_context, get_client_ip, get_container, require_roles
+from app.api.deps import AuthContext, get_client_ip, get_container, get_tenant_context, require_msme_roles
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.customer import (
     CreateCustomerRequest,
@@ -37,7 +37,7 @@ def _to_response(customer) -> CustomerResponse:
 @router.post("", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
 async def create_customer(
     body: CreateCustomerRequest,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> CustomerResponse:
@@ -52,7 +52,7 @@ async def create_customer(
 
 @router.get("/check-phone")
 async def check_phone(
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     phone: str = Query(..., min_length=10, max_length=13),
 ) -> dict:
@@ -92,7 +92,7 @@ async def get_customer(
 async def update_customer(
     customer_id: uuid.UUID,
     body: UpdateCustomerRequest,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> CustomerResponse:
@@ -109,7 +109,7 @@ async def update_customer(
 @router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_customer(
     customer_id: uuid.UUID,
-    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER))],
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> Response:

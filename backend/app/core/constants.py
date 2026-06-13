@@ -126,8 +126,12 @@ REMINDER_COOLDOWN_HOURS = 48
 
 # --- Billing / subscriptions -----------------------------------------------
 SUBSCRIPTION_PLAN_STARTER = "starter_monthly"
+SUBSCRIPTION_PLAN_STARTER_LABEL = "KuberAIQ Starter"
 SUBSCRIPTION_STARTER_AMOUNT_PAISE = 99900  # ₹999/month
 SUBSCRIPTION_PERIOD_DAYS = 30
+SUBSCRIPTION_EXPIRY_JOB_HOUR = 1
+SUBSCRIPTION_EXPIRY_JOB_MINUTE = 0
+RAZORPAY_WEBHOOK_PATH = "/api/v1/billing/webhooks/razorpay"
 RAZORPAY_API_BASE_URL = "https://api.razorpay.com/v1"
 RAZORPAY_CHECKOUT_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js"
 
@@ -236,6 +240,17 @@ DEMO_COMPANY_UDYAM_NUMBER = "UDYAM-MH-27-0123456"
 DEMO_COMPANY_HAS_TDS = False
 DEMO_COMPANY_AUTO_REMINDERS = True
 DEMO_COMPANY_REMINDER_LANGUAGE = "en"
+
+# --- CA persona -----------------------------------------------------------
+CA_EMAIL_DOMAIN = "@ca.kuberaiq.com"
+DEMO_CA_EMAIL = "ca@demo.kuberaiq.com"
+DEMO_CA_NAME = "Demo CA"
+DEMO_CA_FIRM_NAME = "Demo & Associates"
+DEMO_CA_USER_ID = "00000000-0000-4000-8000-000000000003"
+CA_INVITE_ALREADY_EXISTS = "This CA is already invited or assigned to your company"
+CA_INVITE_NOT_FOUND = "CA assignment not found"
+CA_NOT_ASSIGNED = "You are not assigned to this client"
+CA_CONTEXT_REQUIRED = "Select a client to view compliance data"
 
 # --- Aging buckets ---------------------------------------------------------
 AGING_BUCKETS: tuple[str, ...] = ("0-30", "31-60", "61-90", "90+")
@@ -484,6 +499,7 @@ PDF_STATEMENT_TITLE = "Statement of Account"
 OVERDUE_JOB_INTERVAL_HOURS = 6
 
 # --- WhatsApp webhook ------------------------------------------------------
+WHATSAPP_WEBHOOK_PATH = f"{API_V1_PREFIX}/webhooks/whatsapp"
 WHATSAPP_HUB_MODE = "subscribe"
 WHATSAPP_SIGNATURE_HEADER = "X-Hub-Signature-256"
 WHATSAPP_GRAPH_API_VERSION = "v21.0"

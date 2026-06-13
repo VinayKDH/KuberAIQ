@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, IndianRupee, ScrollText } from "lucide-react";
+import { AdvisorsPanel } from "@/components/settings/advisors-panel";
+import { BillingSubscriptionPanel } from "@/components/settings/billing-subscription-panel";
 import { GstReportPanel } from "@/components/settings/gst-report-panel";
 import { GstrFilingPanel } from "@/components/settings/gstr-filing-panel";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api-client";
 import { getStoredUser } from "@/lib/auth";
-import { API_PATHS, PAYMENTS_SETTINGS, QUERY_KEYS, REMINDER_LANGUAGES } from "@/lib/constants";
+import { API_PATHS, PAYMENTS_SETTINGS, QUERY_KEYS, REMINDER_LANGUAGES, USER_ROLE } from "@/lib/constants";
 
 interface CompanyProfile {
   id: string;
@@ -120,170 +122,194 @@ export default function SettingsPage() {
     }
   };
 
+  const isCa = user?.role === USER_ROLE.CA;
+  const isOwner = user?.role === USER_ROLE.OWNER;
+  const defaultTab = isCa ? "reports" : "company";
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground">Manage your company and account preferences</p>
+        <p className="text-muted-foreground">
+          {isCa ? "GSTR reports and account" : "Manage your company and account preferences"}
+        </p>
       </div>
 
-      <Tabs defaultValue="company">
+      <Tabs defaultValue={defaultTab}>
         <TabsList>
-          <TabsTrigger value="company">Company</TabsTrigger>
+          {!isCa && <TabsTrigger value="company">Company</TabsTrigger>}
+          {!isCa && <TabsTrigger value="billing">Billing</TabsTrigger>}
           <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="audit">Audit log</TabsTrigger>
+          {isOwner && !isCa && <TabsTrigger value="advisors">Advisors</TabsTrigger>}
+          {!isCa && <TabsTrigger value="audit">Audit log</TabsTrigger>}
           <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="company" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Company Information</CardTitle>
-              </div>
-              <CardDescription>GST billing details used on invoices and reports</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+        {!isCa && (
+          <TabsContent value="company" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>Company Information</CardTitle>
+                </div>
+                <CardDescription>GST billing details used on invoices and reports</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="company-name">Company Name</Label>
+                    <Input
+                      id="company-name"
+                      value={legalName}
+                      onChange={(e) => setLegalName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gstin">GSTIN</Label>
+                    <Input
+                      id="gstin"
+                      value={gstin}
+                      onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                      maxLength={15}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="state">State Code</Label>
+                    <Input id="state" value={company?.state_code ?? ""} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prefix">Invoice Prefix</Label>
+                    <Input
+                      id="prefix"
+                      value={invoicePrefix}
+                      onChange={(e) => setInvoicePrefix(e.target.value)}
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="company-name">Company Name</Label>
-                  <Input
-                    id="company-name"
-                    value={legalName}
-                    onChange={(e) => setLegalName(e.target.value)}
+                  <Label htmlFor="address">Billing Address</Label>
+                  <Textarea
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    rows={3}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gstin">GSTIN</Label>
-                  <Input
-                    id="gstin"
-                    value={gstin}
-                    onChange={(e) => setGstin(e.target.value.toUpperCase())}
-                    maxLength={15}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State Code</Label>
-                  <Input id="state" value={company?.state_code ?? ""} disabled />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="prefix">Invoice Prefix</Label>
-                  <Input
-                    id="prefix"
-                    value={invoicePrefix}
-                    onChange={(e) => setInvoicePrefix(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Billing Address</Label>
-                <Textarea
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              {message && <p className="text-sm text-muted-foreground">{message}</p>}
-              <Button onClick={saveCompany} disabled={saving || user?.role !== "OWNER"}>
-                {saving ? "Saving…" : "Save company profile"}
-              </Button>
-            </CardContent>
-          </Card>
+                {message && <p className="text-sm text-muted-foreground">{message}</p>}
+                <Button onClick={saveCompany} disabled={saving || !isOwner}>
+                  {saving ? "Saving…" : "Save company profile"}
+                </Button>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <IndianRupee className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>{PAYMENTS_SETTINGS.TITLE}</CardTitle>
-              </div>
-              <CardDescription>{PAYMENTS_SETTINGS.DESCRIPTION}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="upi-id">{PAYMENTS_SETTINGS.UPI_ID}</Label>
-                  <Input
-                    id="upi-id"
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    placeholder="merchant@upi"
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <IndianRupee className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>{PAYMENTS_SETTINGS.TITLE}</CardTitle>
+                </div>
+                <CardDescription>{PAYMENTS_SETTINGS.DESCRIPTION}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="upi-id">{PAYMENTS_SETTINGS.UPI_ID}</Label>
+                    <Input
+                      id="upi-id"
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
+                      placeholder="merchant@upi"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="upi-payee">{PAYMENTS_SETTINGS.UPI_PAYEE_NAME}</Label>
+                    <Input
+                      id="upi-payee"
+                      value={upiPayeeName}
+                      onChange={(e) => setUpiPayeeName(e.target.value)}
+                      placeholder={company?.legal_name ?? "Business name"}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="auto-reminders"
+                    type="checkbox"
+                    checked={autoReminders}
+                    onChange={(e) => setAutoReminders(e.target.checked)}
+                    className="h-4 w-4 rounded border"
                   />
+                  <Label htmlFor="auto-reminders">{PAYMENTS_SETTINGS.AUTO_REMINDERS}</Label>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="upi-payee">{PAYMENTS_SETTINGS.UPI_PAYEE_NAME}</Label>
-                  <Input
-                    id="upi-payee"
-                    value={upiPayeeName}
-                    onChange={(e) => setUpiPayeeName(e.target.value)}
-                    placeholder={company?.legal_name ?? "Business name"}
-                  />
+                  <Label htmlFor="reminder-language">{PAYMENTS_SETTINGS.DEFAULT_LANGUAGE}</Label>
+                  <select
+                    id="reminder-language"
+                    value={reminderLanguage}
+                    onChange={(e) => setReminderLanguage(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {REMINDER_LANGUAGES.map((lang) => (
+                      <option key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  id="auto-reminders"
-                  type="checkbox"
-                  checked={autoReminders}
-                  onChange={(e) => setAutoReminders(e.target.checked)}
-                  className="h-4 w-4 rounded border"
-                />
-                <Label htmlFor="auto-reminders">{PAYMENTS_SETTINGS.AUTO_REMINDERS}</Label>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reminder-language">{PAYMENTS_SETTINGS.DEFAULT_LANGUAGE}</Label>
-                <select
-                  id="reminder-language"
-                  value={reminderLanguage}
-                  onChange={(e) => setReminderLanguage(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  {REMINDER_LANGUAGES.map((lang) => (
-                    <option key={lang.value} value={lang.value}>
-                      {lang.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {paymentsMessage && <p className="text-sm text-muted-foreground">{paymentsMessage}</p>}
-              <Button onClick={savePayments} disabled={paymentsSaving || user?.role !== "OWNER"}>
-                {paymentsSaving ? "Saving…" : PAYMENTS_SETTINGS.SAVE_LABEL}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                {paymentsMessage && <p className="text-sm text-muted-foreground">{paymentsMessage}</p>}
+                <Button onClick={savePayments} disabled={paymentsSaving || !isOwner}>
+                  {paymentsSaving ? "Saving…" : PAYMENTS_SETTINGS.SAVE_LABEL}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {!isCa && (
+          <TabsContent value="billing" className="space-y-4">
+            <BillingSubscriptionPanel />
+          </TabsContent>
+        )}
 
         <TabsContent value="reports" className="space-y-4">
           <GstReportPanel />
           <GstrFilingPanel />
         </TabsContent>
 
-        <TabsContent value="audit" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <ScrollText className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Audit log</CardTitle>
-              </div>
-              <CardDescription>Recent create, update, and payment actions</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {auditLogs?.items.length ? (
-                auditLogs.items.map((entry) => (
-                  <div key={entry.id} className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">
-                      {entry.action} · {entry.entity_type}
-                    </p>
-                    <p className="text-muted-foreground">{entry.created_at}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No audit entries yet.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {isOwner && !isCa && (
+          <TabsContent value="advisors" className="space-y-4">
+            <AdvisorsPanel />
+          </TabsContent>
+        )}
+
+        {!isCa && (
+          <TabsContent value="audit" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <ScrollText className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>Audit log</CardTitle>
+                </div>
+                <CardDescription>Recent create, update, and payment actions</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {auditLogs?.items.length ? (
+                  auditLogs.items.map((entry) => (
+                    <div key={entry.id} className="rounded-md border p-3 text-sm">
+                      <p className="font-medium">
+                        {entry.action} · {entry.entity_type}
+                      </p>
+                      <p className="text-muted-foreground">{entry.created_at}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No audit entries yet.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="account" className="space-y-4">
           <Card>

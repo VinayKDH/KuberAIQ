@@ -187,6 +187,7 @@ class UserRepository(Protocol):
 class SubscriptionRepository(Protocol):
     async def get_by_user_id(self, user_id: uuid.UUID) -> "SubscriptionRecord | None": ...
     async def get_by_order_id(self, order_id: str) -> "SubscriptionRecord | None": ...
+    async def list_active_past_period_end(self, as_of: datetime) -> list["SubscriptionRecord"]: ...
     async def create(self, record: "SubscriptionRecord") -> "SubscriptionRecord": ...
     async def update(self, record: "SubscriptionRecord") -> "SubscriptionRecord": ...
 
@@ -348,6 +349,41 @@ class ComplianceRepository(Protocol):
     ) -> list["ComplianceStatusRecord"]: ...
 
 
+class CaClientAssignmentRepository(Protocol):
+    async def create(self, record: "CaClientAssignmentRecord") -> "CaClientAssignmentRecord": ...
+    async def get_by_id(self, assignment_id: uuid.UUID) -> "CaClientAssignmentRecord | None": ...
+    async def get_by_ca_and_company(
+        self, ca_user_id: uuid.UUID, company_id: uuid.UUID
+    ) -> "CaClientAssignmentRecord | None": ...
+    async def list_for_ca(self, ca_user_id: uuid.UUID) -> list["CaClientAssignmentRecord"]: ...
+    async def list_active_for_ca(self, ca_user_id: uuid.UUID) -> list["CaClientAssignmentRecord"]: ...
+    async def list_for_company(self, company_id: uuid.UUID) -> list["CaClientAssignmentRecord"]: ...
+    async def update(self, record: "CaClientAssignmentRecord") -> "CaClientAssignmentRecord": ...
+
+
+class CaClientAssignmentRecord:
+    def __init__(
+        self,
+        *,
+        id: uuid.UUID,
+        ca_user_id: uuid.UUID,
+        company_id: uuid.UUID,
+        status: "CaAssignmentStatus",
+        invited_by: uuid.UUID,
+        ca_firm_name: str | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+    ):
+        self.id = id
+        self.ca_user_id = ca_user_id
+        self.company_id = company_id
+        self.status = status
+        self.invited_by = invited_by
+        self.ca_firm_name = ca_firm_name
+        self.created_at = created_at
+        self.updated_at = updated_at
+
+
 class ComplianceStatusRecord:
     def __init__(
         self,
@@ -387,6 +423,7 @@ class UnitOfWork(ABC):
     users: UserRepository
     subscriptions: SubscriptionRepository
     compliance: ComplianceRepository
+    ca_assignments: CaClientAssignmentRepository
 
     @abstractmethod
     async def __aenter__(self) -> "UnitOfWork": ...

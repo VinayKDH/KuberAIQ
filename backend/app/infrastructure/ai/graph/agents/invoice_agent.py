@@ -5,13 +5,13 @@ import uuid
 from datetime import date, timedelta
 from decimal import Decimal
 
+from app.application.ports.llm import LlmPort
 from app.core.constants import AI_CLARIFY_SUGGESTED_ACTIONS, DEFAULT_DUE_DAYS, AiIntent
-from app.infrastructure.ai.mock_llm import MockLlm
 from app.infrastructure.ai.tools.executor import ToolExecutor
 
 
 async def run_invoice_agent(state: dict) -> dict:
-    llm = state.get("llm") or MockLlm()
+    llm: LlmPort = state["llm"]
     entities = await llm.extract_entities(state["message"], "invoice")
     services = state.get("services", {})
     executor = ToolExecutor(services)

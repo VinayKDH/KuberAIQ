@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.services.ai_service import AiService
 from app.application.services.auth_service import AuthService
 from app.application.services.billing_service import BillingService
+from app.application.services.ca_service import CaService
 from app.application.services.collection_service import CollectionService
 from app.application.services.compliance_service import ComplianceService
 from app.application.services.company_service import CompanyService
@@ -72,6 +73,7 @@ class Container:
     compliance_service: ComplianceService
     company_service: CompanyService
     billing_service: BillingService
+    ca_service: CaService
     ai_service: AiService
 
 
@@ -84,6 +86,7 @@ def build_container() -> Container:
     entra = EntraAuthProvider(uow) if not settings.use_mock_auth else MockAuthProvider()
     google = GoogleAuthProvider(uow) if not settings.use_mock_auth else None
     billing_service = BillingService(uow)
+    ca_service = CaService(uow)
     auth_service = AuthService(uow, entra, google, billing_service)
     llm = MockLlm() if settings.use_mock_llm else AzureOpenAiLlm()
     graph = CopilotGraph(llm=llm)
@@ -126,5 +129,6 @@ def build_container() -> Container:
         compliance_service=compliance_service,
         company_service=company_service,
         billing_service=billing_service,
+        ca_service=ca_service,
         ai_service=ai_service,
     )

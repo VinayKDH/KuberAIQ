@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:onboarding": "playwright test e2e/onboarding.spec.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.1",

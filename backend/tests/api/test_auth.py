@@ -33,3 +33,15 @@ async def test_mock_login_unknown_user(client: AsyncClient) -> None:
         json={"email": "unknown@example.com"},
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_mock_login_provisions_new_user(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/v1/auth/mock-login",
+        json={"email": "e2e-new@test.kuberaiq.com"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["needs_payment"] is True
+    assert body["user"]["email"] == "e2e-new@test.kuberaiq.com"

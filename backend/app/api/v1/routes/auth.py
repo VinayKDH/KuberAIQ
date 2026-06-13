@@ -1,6 +1,7 @@
 """Auth routes."""
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
@@ -15,10 +16,12 @@ from app.api.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
+from app.application.ports.repositories import UserRecord
 from app.core.config import settings
-from app.core.constants import DEMO_USER_EMAIL, LEGACY_DEMO_USER_EMAIL
+from app.core.constants import CA_EMAIL_DOMAIN, DEMO_USER_EMAIL, LEGACY_DEMO_USER_EMAIL
 from app.core.errors import ForbiddenError, NotFoundError, UnauthorizedError
 from app.core.container import Container
+from app.domain.enums import UserRole
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -45,7 +48,33 @@ async def mock_login(
         if not user and body.email.lower() == DEMO_USER_EMAIL.lower():
             user = await uow.users.get_by_email(LEGACY_DEMO_USER_EMAIL)
         if not user:
-            raise NotFoundError(f"No user found for {body.email}")
+            email = body.email.strip().lower()
+            _, _, domain = email.partition("@")
+            if domain.endswith("test.kuberaiq.com"):
+                local_part = email.split("@", 1)[0]
+                user = await uow.users.create(
+                    UserRecord(
+                        id=uuid.uuid4(),
+                        company_id=None,
+                        email=email,
+                        full_name=local_part.replace("+", " ").replace(".", " ").title() or "Test User",
+                        role=UserRole.OWNER,
+                    )
+                )
+            elif email.endswith(CA_EMAIL_DOMAIN):
+                local_part = email.split("@", 1)[0]
+                user = await uow.users.create(
+                    UserRecord(
+                        id=uuid.uuid4(),
+                        company_id=None,
+                        email=email,
+                        full_name=local_part.replace(".", " ").title() or "CA User",
+                        role=UserRole.CA,
+                    )
+                )
+            else:
+                raise NotFoundError(f"No user found for {body.email}")
+            await uow.commit()
     result = await container.billing_service.build_token_response(user)
     return TokenResponse(**result)
 

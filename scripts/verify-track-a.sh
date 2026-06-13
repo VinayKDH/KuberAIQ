@@ -99,6 +99,13 @@ if [[ -n "$INTEGRATIONS" ]]; then
   else
     warn "WhatsApp mode: mock (configure Meta credentials to enable)"
   fi
+  if echo "$INTEGRATIONS" | grep -q '"billing_mode":"razorpay"'; then
+    pass "Billing mode: razorpay"
+  elif [[ "${USE_MOCK_BILLING:-true}" == "true" ]]; then
+    warn "Billing mode: mock (expected until Razorpay keys are set)"
+  else
+    fail "Billing mode: mock (expected razorpay in production)"
+  fi
 else
   fail "Could not fetch /health/integrations"
 fi

@@ -85,6 +85,9 @@ def create_app() -> FastAPI:
             "whatsapp_configured": bool(
                 settings.whatsapp_phone_number_id and settings.whatsapp_access_token
             ),
+            "billing_mode": "mock" if settings.use_mock_billing else "razorpay",
+            "razorpay_configured": bool(settings.razorpay_key_id and settings.razorpay_key_secret),
+            "razorpay_webhook_configured": bool(settings.razorpay_webhook_secret),
         }
 
     return app

@@ -11,6 +11,8 @@ class CheckoutResponse(BaseModel):
     currency: str = "INR"
     plan_code: str
     mock_billing: bool = False
+    prefill_email: str | None = None
+    prefill_name: str | None = None
 
 
 class VerifyPaymentRequest(BaseModel):
@@ -25,6 +27,7 @@ class SubscriptionStatusResponse(BaseModel):
     needs_payment: bool
     needs_onboarding: bool
     plan_code: str
+    plan_name: str = "KuberAIQ Starter"
     amount_paise: int
     current_period_end: str | None = None
 

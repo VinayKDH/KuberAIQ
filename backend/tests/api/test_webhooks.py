@@ -8,6 +8,8 @@ import json
 import pytest
 from httpx import AsyncClient
 
+from app.core.config import settings
+
 
 def _signature(payload: bytes, secret: str) -> str:
     digest = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
@@ -20,7 +22,7 @@ async def test_whatsapp_webhook_verify(client: AsyncClient) -> None:
         "/api/v1/webhooks/whatsapp",
         params={
             "hub.mode": "subscribe",
-            "hub.verify_token": "kuberaiq-verify",
+            "hub.verify_token": settings.whatsapp_verify_token,
             "hub.challenge": "123456",
         },
     )

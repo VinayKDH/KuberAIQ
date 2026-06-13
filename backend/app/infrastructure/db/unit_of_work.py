@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import UnitOfWork
 from app.infrastructure.db.repositories.audit_repository import SqlAlchemyAuditRepository
+from app.infrastructure.db.repositories.ca_client_assignment_repository import (
+    SqlAlchemyCaClientAssignmentRepository,
+)
 from app.infrastructure.db.repositories.compliance_repository import SqlAlchemyComplianceRepository
 from app.infrastructure.db.repositories.company_repository import SqlAlchemyCompanyRepository
 from app.infrastructure.db.repositories.customer_repository import SqlAlchemyCustomerRepository
@@ -31,6 +34,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.users = SqlAlchemyUserRepository(session)
         self.subscriptions = SqlAlchemySubscriptionRepository(session)
         self.compliance = SqlAlchemyComplianceRepository(session)
+        self.ca_assignments = SqlAlchemyCaClientAssignmentRepository(session)
 
     async def __aenter__(self) -> SqlAlchemyUnitOfWork:
         return self

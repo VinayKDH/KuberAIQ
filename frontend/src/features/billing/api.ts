@@ -8,6 +8,7 @@ export interface BillingStatus {
   needs_payment: boolean;
   needs_onboarding: boolean;
   plan_code: string;
+  plan_name: string;
   amount_paise: number;
   current_period_end: string | null;
 }
@@ -19,6 +20,8 @@ export interface CheckoutSession {
   currency: string;
   plan_code: string;
   mock_billing: boolean;
+  prefill_email?: string | null;
+  prefill_name?: string | null;
 }
 
 export function fetchBillingStatus() {

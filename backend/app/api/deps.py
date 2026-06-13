@@ -54,7 +54,11 @@ async def get_verified_auth_context(
         user = await uow.users.get_by_id(auth.user_id)
         if not user:
             raise UnauthorizedError("User not found")
-        if auth.company_id != user.company_id:
+        if user.role == UserRole.CA:
+            if auth.company_id is not None:
+                if not await container.ca_service.verify_assignment(auth.user_id, auth.company_id):
+                    raise UnauthorizedError("Session expired — please sign in again")
+        elif auth.company_id != user.company_id:
             raise UnauthorizedError("Session expired — please sign in again")
     return auth
 
@@ -74,6 +78,28 @@ async def get_tenant_context(
     if auth.company_id is None:
         raise ForbiddenError("Complete company onboarding first")
     return auth
+
+
+async def require_tenant_read_roles(
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+) -> AuthContext:
+    """Read routes — CA plus MSME OWNER/STAFF/VIEWER."""
+    if auth.role in {UserRole.CA, UserRole.OWNER, UserRole.STAFF, UserRole.VIEWER}:
+        return auth
+    raise ForbiddenError("Insufficient permissions")
+
+
+def require_msme_roles(*roles: UserRole):
+    """Write routes — blocks CA; OWNER always passes for MSME roles."""
+
+    async def _check(auth: Annotated[AuthContext, Depends(get_tenant_context)]) -> AuthContext:
+        if auth.role == UserRole.CA:
+            raise ForbiddenError("Insufficient permissions")
+        if auth.role != UserRole.OWNER and auth.role not in roles:
+            raise ForbiddenError("Insufficient permissions")
+        return auth
+
+    return _check
 
 
 def require_roles(*roles: UserRole):
