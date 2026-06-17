@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.api.deps import AuthContext, get_tenant_context, get_container
 from app.api.schemas.ai import ChatRequest, ChatResponse, ConfirmRequest, SuggestedAction
@@ -67,7 +67,28 @@ async def get_session(
     auth: Annotated[AuthContext, Depends(get_tenant_context)],
     container: Annotated[Container, Depends(get_container)],
 ) -> dict:
-    session = container.ai_service.get_session(session_id)
+    session = await container.ai_service.get_session(auth.company_id, session_id)
     if not session:
         return {"turns": []}
-    return {"session_id": session.id, "turns": session.turns}
+    async with container.uow_factory() as uow:
+        turns = await uow.ai_sessions.list_recent_turns(
+            session_id, company_id=auth.company_id, limit=20
+        )
+    return {"session_id": session.id, "turns": turns}
+
+
+@router.post("/voice")
+async def voice_copilot(
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    container: Annotated[Container, Depends(get_container)],
+    audio: UploadFile = File(...),
+) -> dict:
+    _ = await audio.read()
+    # MVP Azure Speech stub: treat as non-transcribed input.
+    result = await container.ai_service.chat(
+        company_id=auth.company_id,
+        user_id=auth.user_id,
+        message="(voice input received)",
+        channel="voice",
+    )
+    return {"transcript": None, "stub": True, "response": result}

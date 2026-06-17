@@ -65,6 +65,12 @@ export function shareInvoiceWhatsApp(id: string) {
   );
 }
 
+export function createInvoicePaymentLink(id: string) {
+  return apiClient<{ url: string | null; provider: string }>(API_PATHS.INVOICE_PAYMENT_LINK(id), {
+    method: "POST",
+  });
+}
+
 export function registerInvoiceIrn(id: string, irn: string) {
   return apiClient<Invoice>(`${API_PATHS.INVOICES}/${id}/irn`, {
     method: "POST",

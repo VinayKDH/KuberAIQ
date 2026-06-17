@@ -9,6 +9,8 @@ from app.infrastructure.ai.intent_classifier import classify_route
 
 
 class MockLlm:
+    model_name = "mock-llm"
+
     async def classify_intent(self, message: str) -> dict[str, Any]:
         return classify_route(message)
 

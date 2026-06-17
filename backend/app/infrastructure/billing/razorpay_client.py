@@ -38,6 +38,39 @@ class RazorpayClient:
                 raise ValidationAppError("Failed to create Razorpay order")
             return response.json()
 
+    async def create_payment_link(
+        self,
+        *,
+        amount_paise: int,
+        customer_name: str,
+        customer_email: str | None,
+        customer_contact: str | None,
+        reference_id: str,
+        description: str,
+    ) -> dict:
+        payload = {
+            "amount": amount_paise,
+            "currency": "INR",
+            "reference_id": reference_id,
+            "description": description,
+            "customer": {
+                "name": customer_name,
+                "email": customer_email,
+                "contact": customer_contact,
+            },
+            "notify": {"sms": True, "email": bool(customer_email)},
+            "reminder_enable": True,
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{RAZORPAY_API_BASE_URL}/payment_links",
+                json=payload,
+                headers=self._headers,
+            )
+            if response.status_code >= 400:
+                raise ValidationAppError("Failed to create Razorpay payment link")
+            return response.json()
+
     def verify_payment_signature(
         self, *, order_id: str, payment_id: str, signature: str
     ) -> bool:

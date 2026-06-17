@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import {
   API_PATHS,
-  APP_NAME,
   DEMO_LOGIN_EMAIL,
   DEMO_CA_LOGIN_EMAIL,
   LANDING_COPY,
@@ -22,6 +21,7 @@ import { clearSession, isAuthenticated, storeSession, type AuthTokens } from "@/
 import { isEntraAuthConfigured, isMockAuthEnabled, startEntraLogin } from "@/lib/entra";
 import { postLoginRoute, type MeGate } from "@/lib/session-routing";
 import { isGoogleAuthConfigured, startGoogleLogin } from "@/lib/google";
+import { getPreferredLanguage, I18N_MESSAGES } from "@/lib/i18n";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,6 +35,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(() => isAuthenticated());
   const [error, setError] = useState<string | null>(null);
+  const lang = getPreferredLanguage();
+  const i18n = I18N_MESSAGES[lang];
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -113,7 +115,7 @@ export default function LoginPage() {
               K
             </Link>
             <CardTitle className="text-2xl">
-              {showOAuth ? "Create your account" : `Sign in to ${APP_NAME}`}
+              {showOAuth ? "Create your account" : i18n.loginTitle}
             </CardTitle>
             <CardDescription>
               {showOAuth

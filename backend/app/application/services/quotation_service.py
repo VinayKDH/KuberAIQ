@@ -243,7 +243,7 @@ class QuotationService:
                 f"Quotation in status {quotation.status} cannot be converted",
                 code=ErrorCode.INVALID_STATE_TRANSITION,
             )
-        due_date = quotation.valid_until
+        due_date = max(quotation.valid_until, date.today())
         invoice = await self._invoice_service.create(
             company_id=company_id,
             actor_id=actor_id,

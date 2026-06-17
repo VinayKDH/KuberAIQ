@@ -5,16 +5,19 @@ from fastapi import APIRouter
 
 from app.api.v1.routes import (
     advisors,
+    admin,
     ai,
     audit,
     auth,
     billing,
+    bank_reconciliation,
     ca,
     collections,
     companies,
     compliance,
     customers,
     dashboard,
+    expenses,
     invoices,
     payments,
     products,
@@ -34,8 +37,11 @@ api_router.include_router(products.router)
 api_router.include_router(invoices.router)
 api_router.include_router(quotations.router)
 api_router.include_router(payments.router)
+api_router.include_router(bank_reconciliation.router)
+api_router.include_router(expenses.router)
 api_router.include_router(collections.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(compliance.router)
 api_router.include_router(ai.router)
 api_router.include_router(webhooks.router)
+api_router.include_router(admin.router)

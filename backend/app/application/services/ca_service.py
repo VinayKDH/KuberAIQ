@@ -167,6 +167,12 @@ class CaService:
             if not company:
                 continue
             obligations = await compliance.obligations(assignment.company_id)
+            async with self._uow_factory() as uow:
+                collectible = await uow.invoices.list_collectible(assignment.company_id)
+            overdue_total = sum(
+                (inv.amount_due.amount for inv in collectible if inv.status.value == "OVERDUE"),
+                start=0,
+            )
             rows = obligations.get("obligations", [])
             upcoming = sorted(
                 [
@@ -188,10 +194,33 @@ class CaService:
                     "gstin": company.gstin,
                     "upcoming_filings": upcoming,
                     "health_score": obligations.get("summary", {}).get("health_score"),
+                    "overdue_total": overdue_total,
                 }
             )
 
         return {"clients": clients, "client_count": len(clients)}
+
+    async def gstr1_bulk(self, ca_user_id: uuid.UUID, from_date, to_date) -> dict:
+        from app.application.services.gstr_report_service import GstrReportService
+
+        service = GstrReportService(self._uow_factory)
+        async with self._uow_factory() as uow:
+            assignments = await uow.ca_assignments.list_active_for_ca(ca_user_id)
+            companies = [await uow.companies.get_by_id(row.company_id) for row in assignments]
+        items = []
+        for company in companies:
+            if not company:
+                continue
+            report = await service.gstr1_report(company.id, from_date, to_date)
+            items.append(
+                {
+                    "company_id": str(company.id),
+                    "company_name": company.legal_name,
+                    "gstin": company.gstin,
+                    "report": report,
+                }
+            )
+        return {"from": from_date.isoformat(), "to": to_date.isoformat(), "items": items}
 
     @staticmethod
     def _assignment_dict(

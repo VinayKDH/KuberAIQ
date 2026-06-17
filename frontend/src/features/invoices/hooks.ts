@@ -14,6 +14,7 @@ import {
   registerInvoiceIrn,
   createCreditNote,
   fetchCreditNotes,
+  createInvoicePaymentLink,
 } from "./api";
 import type { CreateInvoiceInput, CreateCreditNoteInput, InvoiceListParams, RecordPaymentInput } from "./types";
 
@@ -97,6 +98,16 @@ export function useDownloadInvoicePdf() {
 export function useShareInvoiceWhatsApp() {
   return useMutation({
     mutationFn: (id: string) => shareInvoiceWhatsApp(id),
+  });
+}
+
+export function useCreateInvoicePaymentLink() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => createInvoicePaymentLink(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INVOICE(id) });
+    },
   });
 }
 

@@ -34,6 +34,7 @@ class AzureOpenAiLlm:
 
     def __init__(self) -> None:
         self._fallback = MockLlm()
+        self.model_name = settings.azure_openai_deployment
 
     def _configured(self) -> bool:
         return bool(settings.azure_openai_endpoint and settings.azure_openai_api_key)

@@ -4,6 +4,7 @@ import type {
   CreateCustomerInput,
   Customer,
   CustomerHistory,
+  CustomerLedger,
   CustomerListParams,
   UpdateCustomerInput,
 } from "./types";
@@ -18,6 +19,10 @@ export function fetchCustomer(id: string) {
 
 export function fetchCustomerHistory(id: string) {
   return apiClient<CustomerHistory>(`${API_PATHS.CUSTOMERS}/${id}/history`);
+}
+
+export function fetchCustomerLedger(id: string) {
+  return apiClient<CustomerLedger>(API_PATHS.CUSTOMER_LEDGER(id));
 }
 
 export function createCustomer(input: CreateCustomerInput) {

@@ -415,6 +415,156 @@ class ComplianceStatusRecord:
         self.notes = notes
 
 
+class AiSessionRepository(Protocol):
+    async def get_session(
+        self, session_id: str, company_id: uuid.UUID
+    ) -> "AiSessionRecord | None": ...
+    async def create_or_touch_session(
+        self, session_id: str, company_id: uuid.UUID, user_id: uuid.UUID
+    ) -> "AiSessionRecord": ...
+    async def set_pending_action(
+        self, session_id: str, company_id: uuid.UUID, pending_action: dict | None
+    ) -> None: ...
+    async def append_turn(
+        self,
+        session_id: str,
+        company_id: uuid.UUID,
+        user_message: str,
+        assistant_payload: dict,
+    ) -> None: ...
+    async def list_recent_turns(
+        self, session_id: str, company_id: uuid.UUID, limit: int
+    ) -> list[dict]: ...
+
+
+class StaffInvitationRepository(Protocol):
+    async def create(self, record: "StaffInvitationRecord") -> "StaffInvitationRecord": ...
+    async def list_for_company(self, company_id: uuid.UUID) -> list["StaffInvitationRecord"]: ...
+    async def get_by_id(self, invitation_id: uuid.UUID) -> "StaffInvitationRecord | None": ...
+    async def update(self, record: "StaffInvitationRecord") -> "StaffInvitationRecord": ...
+    async def find_active_by_email(
+        self, company_id: uuid.UUID, email: str
+    ) -> "StaffInvitationRecord | None": ...
+
+
+class RecurringInvoiceTemplateRepository(Protocol):
+    async def create(self, record: "RecurringInvoiceTemplateRecord") -> "RecurringInvoiceTemplateRecord": ...
+    async def list_due_templates(self, as_of: date) -> list["RecurringInvoiceTemplateRecord"]: ...
+    async def update(self, record: "RecurringInvoiceTemplateRecord") -> "RecurringInvoiceTemplateRecord": ...
+
+
+class ExpenseRepository(Protocol):
+    async def create(self, record: "ExpenseRecord") -> "ExpenseRecord": ...
+    async def list_for_company(self, company_id: uuid.UUID, page: int, page_size: int) -> tuple[list["ExpenseRecord"], int]: ...
+    async def get_by_id(self, company_id: uuid.UUID, expense_id: uuid.UUID) -> "ExpenseRecord | None": ...
+    async def update(self, record: "ExpenseRecord") -> "ExpenseRecord": ...
+    async def soft_delete(self, company_id: uuid.UUID, expense_id: uuid.UUID) -> None: ...
+
+
+class AiUsageLogRepository(Protocol):
+    async def add_usage(
+        self,
+        *,
+        company_id: uuid.UUID,
+        session_id: str | None,
+        model_name: str,
+        tokens_in: int,
+        tokens_out: int,
+        total_tokens: int,
+    ) -> None: ...
+    async def total_tokens_this_month(self, company_id: uuid.UUID) -> int: ...
+
+
+class AiSessionRecord:
+    def __init__(
+        self,
+        *,
+        id: str,
+        company_id: uuid.UUID,
+        user_id: uuid.UUID,
+        pending_action: dict | None = None,
+    ):
+        self.id = id
+        self.company_id = company_id
+        self.user_id = user_id
+        self.pending_action = pending_action
+
+
+class StaffInvitationRecord:
+    def __init__(
+        self,
+        *,
+        id: uuid.UUID,
+        company_id: uuid.UUID,
+        invited_by: uuid.UUID,
+        email: str,
+        role: str,
+        status: str,
+        expires_at: datetime | None = None,
+        accepted_at: datetime | None = None,
+        created_at: datetime | None = None,
+    ):
+        self.id = id
+        self.company_id = company_id
+        self.invited_by = invited_by
+        self.email = email
+        self.role = role
+        self.status = status
+        self.expires_at = expires_at
+        self.accepted_at = accepted_at
+        self.created_at = created_at
+
+
+class RecurringInvoiceTemplateRecord:
+    def __init__(
+        self,
+        *,
+        id: uuid.UUID,
+        company_id: uuid.UUID,
+        customer_id: uuid.UUID,
+        name: str,
+        items_json: list[dict],
+        frequency: str,
+        next_run_date: date,
+        last_run_at: datetime | None = None,
+        is_active: bool = True,
+        created_by: uuid.UUID | None = None,
+    ):
+        self.id = id
+        self.company_id = company_id
+        self.customer_id = customer_id
+        self.name = name
+        self.items_json = items_json
+        self.frequency = frequency
+        self.next_run_date = next_run_date
+        self.last_run_at = last_run_at
+        self.is_active = is_active
+        self.created_by = created_by
+
+
+class ExpenseRecord:
+    def __init__(
+        self,
+        *,
+        id: uuid.UUID,
+        company_id: uuid.UUID,
+        expense_date: date,
+        category: str,
+        amount: "Decimal",
+        vendor_name: str | None = None,
+        note: str | None = None,
+        created_by: uuid.UUID | None = None,
+    ):
+        self.id = id
+        self.company_id = company_id
+        self.expense_date = expense_date
+        self.category = category
+        self.amount = amount
+        self.vendor_name = vendor_name
+        self.note = note
+        self.created_by = created_by
+
+
 class UnitOfWork(ABC):
     customers: CustomerRepository
     invoices: InvoiceRepository
@@ -428,6 +578,11 @@ class UnitOfWork(ABC):
     subscriptions: SubscriptionRepository
     compliance: ComplianceRepository
     ca_assignments: CaClientAssignmentRepository
+    ai_sessions: AiSessionRepository
+    staff_invitations: StaffInvitationRepository
+    recurring_templates: RecurringInvoiceTemplateRepository
+    expenses: ExpenseRepository
+    ai_usage: AiUsageLogRepository
 
     @abstractmethod
     async def __aenter__(self) -> "UnitOfWork": ...

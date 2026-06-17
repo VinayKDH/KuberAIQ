@@ -41,6 +41,7 @@ import {
   useRecordPayment,
   useReversePayment,
   useShareInvoiceWhatsApp,
+  useCreateInvoicePaymentLink,
 } from "@/features/invoices/hooks";
 import {
   CREDIT_NOTE_COPY,
@@ -63,11 +64,13 @@ export default function InvoiceDetailPage() {
   const downloadPdf = useDownloadInvoicePdf();
   const shareWhatsApp = useShareInvoiceWhatsApp();
   const reversePayment = useReversePayment();
+  const createPaymentLink = useCreateInvoicePaymentLink();
   const { data: creditNotes } = useCreditNotes(id);
 
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
+  const [paymentLink, setPaymentLink] = useState<string | null>(invoice?.payment_link_url ?? null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("UPI");
   const [paymentDate, setPaymentDate] = useState(todayIso());
@@ -157,6 +160,21 @@ export default function InvoiceDetailPage() {
               >
                 <MessageCircle className="mr-1 h-4 w-4" />
                 Share on WhatsApp
+              </Button>
+              <Button
+                variant="outline"
+                disabled={createPaymentLink.isPending}
+                onClick={async () => {
+                  setActionError(null);
+                  try {
+                    const res = await createPaymentLink.mutateAsync(id);
+                    setPaymentLink(res.url ?? null);
+                  } catch (err) {
+                    setActionError(err instanceof Error ? err.message : "Failed to create payment link");
+                  }
+                }}
+              >
+                Create payment link
               </Button>
             </>
           )}
@@ -300,6 +318,14 @@ export default function InvoiceDetailPage() {
       {shareSuccess && (
         <p className="text-sm text-green-600 dark:text-green-400" role="status">
           WhatsApp message sent ({shareSuccess})
+        </p>
+      )}
+      {paymentLink && (
+        <p className="text-sm text-muted-foreground">
+          Payment link:{" "}
+          <a href={paymentLink} target="_blank" rel="noreferrer" className="underline">
+            {paymentLink}
+          </a>
         </p>
       )}
 

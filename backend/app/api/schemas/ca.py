@@ -35,6 +35,7 @@ class CaDashboardClient(BaseModel):
     gstin: str | None = None
     upcoming_filings: list[CaUpcomingFiling]
     health_score: int | None = None
+    overdue_total: float | int | None = None
 
 
 class CaDashboardResponse(BaseModel):
@@ -44,6 +45,12 @@ class CaDashboardResponse(BaseModel):
 
 class CaSwitchContextRequest(BaseModel):
     company_id: str = Field(..., description="Client company to act on behalf of")
+
+
+class CaBulkGstrResponse(BaseModel):
+    from_date: str = Field(alias="from")
+    to_date: str = Field(alias="to")
+    items: list[dict]
 
 
 class InviteAdvisorRequest(BaseModel):

@@ -1,6 +1,7 @@
 """Company profile routes."""
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -15,6 +16,7 @@ from app.api.deps import (
 )
 from app.api.schemas.auth import TokenResponse
 from app.api.schemas.company import CompanyResponse, OnboardCompanyRequest, UpdateCompanyRequest
+from app.api.schemas.company import CompanyStaffResponse, InviteStaffRequest
 from app.application.services.company_service import OnboardCompanyInput, UpdateCompanyInput
 from app.core.container import Container
 from app.domain.enums import UserRole
@@ -86,3 +88,41 @@ async def update_my_company(
         ip=ip,
     )
     return _company_response(company)
+
+
+@router.get("/me/staff", response_model=CompanyStaffResponse)
+async def list_company_staff(
+    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER))],
+    container: Annotated[Container, Depends(get_container)],
+) -> CompanyStaffResponse:
+    data = await container.staff_service.list_staff(auth.company_id)
+    return CompanyStaffResponse(**data)
+
+
+@router.post("/me/staff", response_model=dict)
+async def invite_company_staff(
+    body: InviteStaffRequest,
+    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER))],
+    container: Annotated[Container, Depends(get_container)],
+) -> dict:
+    from app.application.services.staff_service import InviteStaffInput
+
+    invite = await container.staff_service.invite(
+        company_id=auth.company_id,
+        invited_by=auth.user_id,
+        data=InviteStaffInput(email=body.email, role=UserRole(body.role)),
+    )
+    return invite
+
+
+@router.delete("/me/staff/{invitation_id}", response_model=dict)
+async def revoke_staff_invite(
+    invitation_id: uuid.UUID,
+    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER))],
+    container: Annotated[Container, Depends(get_container)],
+) -> dict:
+    await container.staff_service.revoke(
+        company_id=auth.company_id,
+        invitation_id=invitation_id,
+    )
+    return {"ok": True}

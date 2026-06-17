@@ -31,6 +31,7 @@ def _to_response(product) -> ProductResponse:
         unit=product.unit,
         default_price=product.default_price,
         gst_rate=product.gst_rate,
+        stock_qty=product.stock_qty,
         is_active=product.is_active,
     )
 

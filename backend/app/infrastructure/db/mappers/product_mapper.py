@@ -17,6 +17,7 @@ class ProductMapper:
             unit=model.unit,
             default_price=model.default_price,
             gst_rate=model.gst_rate,
+            stock_qty=model.stock_qty,
             is_active=model.is_active,
         )
 
@@ -31,6 +32,7 @@ class ProductMapper:
             unit=entity.unit,
             default_price=entity.default_price,
             gst_rate=entity.gst_rate,
+            stock_qty=entity.stock_qty,
             is_active=entity.is_active,
         )
 
@@ -42,4 +44,5 @@ class ProductMapper:
         model.unit = entity.unit
         model.default_price = entity.default_price
         model.gst_rate = entity.gst_rate
+        model.stock_qty = entity.stock_qty
         model.is_active = entity.is_active

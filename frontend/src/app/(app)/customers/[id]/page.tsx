@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { downloadCustomerStatement } from "@/features/customers/api";
-import { useCustomerHistory } from "@/features/customers/hooks";
+import { useCustomerHistory, useCustomerLedger } from "@/features/customers/hooks";
 import { EditCustomerDialog } from "@/components/customers/edit-customer-dialog";
 import { AGING_BUCKET_LABELS, CUSTOMER_STATEMENT, ROUTES } from "@/lib/constants";
 import { formatDate, formatINR, formatPhone, maskGstin } from "@/lib/format";
@@ -18,6 +18,7 @@ export default function CustomerDetailPage() {
   const params = useParams();
   const id = String(params.id);
   const { data, isLoading, isError, error } = useCustomerHistory(id);
+  const { data: ledger } = useCustomerLedger(id);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -153,6 +154,33 @@ export default function CustomerDetailPage() {
           ))}
           {Object.keys(data.aging).length === 0 && (
             <p className="text-sm text-muted-foreground">No outstanding receivables</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Payment ledger</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {ledger?.entries?.length ? (
+            ledger.entries.map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between rounded border p-2">
+                <div>
+                  <p className="font-medium">
+                    {entry.kind} · {entry.reference ?? entry.id.slice(0, 8)}
+                  </p>
+                  <p className="text-muted-foreground">{formatDate(entry.date)}</p>
+                </div>
+                <div className="text-right">
+                  <p>Dr {formatINR(entry.debit)}</p>
+                  <p>Cr {formatINR(entry.credit)}</p>
+                  <p className="text-muted-foreground">Bal {formatINR(entry.balance)}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-muted-foreground">No ledger entries yet.</p>
           )}
         </CardContent>
       </Card>

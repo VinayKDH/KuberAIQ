@@ -276,3 +276,45 @@ class CustomerService:
         path = f"{BLOB_STATEMENT_PREFIX}/{company_id}/{customer_id}.pdf"
         await self._storage.upload(path, pdf_data, "application/pdf")
         return pdf_data, filename
+
+    async def ledger(self, company_id: uuid.UUID, customer_id: uuid.UUID) -> dict:
+        async with self._uow_factory() as uow:
+            customer = await uow.customers.get_by_id(company_id, customer_id)
+            if not customer:
+                raise NotFoundError("Customer not found")
+            invoices, _ = await uow.invoices.search(
+                company_id, customer_id=customer_id, page=1, page_size=1000
+            )
+            payments = await uow.payments.list_by_customer(company_id, customer_id)
+
+        invoice_entries = [
+            {
+                "kind": "INVOICE",
+                "id": str(inv.id),
+                "date": inv.issue_date.isoformat(),
+                "reference": inv.invoice_number,
+                "debit": inv.grand_total.amount,
+                "credit": Decimal("0"),
+                "status": inv.status.value,
+            }
+            for inv in invoices
+            if inv.status != InvoiceStatus.CANCELLED
+        ]
+        payment_entries = [
+            {
+                "kind": "PAYMENT",
+                "id": str(payment.id),
+                "date": payment.paid_on.isoformat(),
+                "reference": payment.reference,
+                "debit": Decimal("0"),
+                "credit": payment.amount,
+                "status": "POSTED",
+            }
+            for payment in payments
+        ]
+        rows = sorted(invoice_entries + payment_entries, key=lambda row: row["date"])
+        balance = Decimal("0")
+        for row in rows:
+            balance += row["debit"] - row["credit"]
+            row["balance"] = balance
+        return {"customer_id": str(customer_id), "entries": rows, "closing_balance": balance}

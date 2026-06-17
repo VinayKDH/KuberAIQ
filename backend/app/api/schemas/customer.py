@@ -43,3 +43,20 @@ class CustomerHistoryResponse(BaseModel):
     total_paid: Decimal
     outstanding: Decimal
     aging: dict[str, Decimal]
+
+
+class CustomerLedgerEntry(BaseModel):
+    kind: str
+    id: str
+    date: str
+    reference: str | None = None
+    debit: Decimal
+    credit: Decimal
+    balance: Decimal
+    status: str | None = None
+
+
+class CustomerLedgerResponse(BaseModel):
+    customer_id: str
+    entries: list[CustomerLedgerEntry]
+    closing_balance: Decimal

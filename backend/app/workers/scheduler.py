@@ -14,6 +14,7 @@ from app.core.constants import (
 from app.workers.jobs import (
     expire_quotations_all_companies,
     expire_subscriptions_past_period,
+    generate_recurring_invoices_daily,
     mark_overdue_all_companies,
     send_compliance_alerts_all_companies,
     send_scheduled_reminders_all_companies,
@@ -68,6 +69,12 @@ def start_scheduler() -> None:
             minute=SUBSCRIPTION_EXPIRY_JOB_MINUTE,
         ),
         id="subscription_expiry",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        generate_recurring_invoices_daily,
+        CronTrigger(hour=2, minute=0),
+        id="recurring_invoices",
         replace_existing=True,
     )
     _scheduler.start()

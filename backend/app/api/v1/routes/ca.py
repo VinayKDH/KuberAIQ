@@ -2,15 +2,17 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import AuthContext, get_container, get_verified_auth_context
 from app.api.schemas.auth import TokenResponse
 from app.api.schemas.ca import (
     CaClientsResponse,
     CaDashboardResponse,
+    CaBulkGstrResponse,
     CaSwitchContextRequest,
 )
 from app.core.container import Container
@@ -85,3 +87,15 @@ async def clear_ca_context(
         raise ForbiddenError("User not found")
     result = await container.ca_service.switch_context(user, None)
     return TokenResponse(**result)
+
+
+@router.get("/reports/gstr1/bulk", response_model=CaBulkGstrResponse)
+async def ca_bulk_gstr1(
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+    from_date: date = Query(..., alias="from"),
+    to_date: date = Query(..., alias="to"),
+) -> CaBulkGstrResponse:
+    _require_ca(auth)
+    data = await container.ca_service.gstr1_bulk(auth.user_id, from_date, to_date)
+    return CaBulkGstrResponse(**data)

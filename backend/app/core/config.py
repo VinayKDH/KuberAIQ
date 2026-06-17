@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     razorpay_key_secret: str | None = None
     razorpay_webhook_secret: str | None = None
     subscription_plan_amount_paise: int = 99900
+    admin_api_key: str | None = None
 
     # Azure OpenAI (used when use_mock_llm is False)
     azure_openai_endpoint: str | None = None

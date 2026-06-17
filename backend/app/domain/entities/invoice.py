@@ -52,6 +52,7 @@ class Invoice:
     place_of_supply: str | None = None
     cancel_reason: str | None = None
     pdf_blob_path: str | None = None
+    payment_link_url: str | None = None
     created_by: uuid.UUID | None = None
     irn: str | None = None
     irn_generated_at: datetime | None = None

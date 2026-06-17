@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2, IndianRupee, ScrollText } from "lucide-react";
 import { AdvisorsPanel } from "@/components/settings/advisors-panel";
 import { BillingSubscriptionPanel } from "@/components/settings/billing-subscription-panel";
+import { StaffPanel } from "@/components/settings/staff-panel";
 import { WhatsappCopilotPanel } from "@/components/settings/whatsapp-copilot-panel";
 import { GstReportPanel } from "@/components/settings/gst-report-panel";
 import { GstrFilingPanel } from "@/components/settings/gstr-filing-panel";
@@ -142,6 +143,7 @@ export default function SettingsPage() {
           {!isCa && <TabsTrigger value="billing">Billing</TabsTrigger>}
           <TabsTrigger value="reports">Reports</TabsTrigger>
           {isOwner && !isCa && <TabsTrigger value="advisors">Advisors</TabsTrigger>}
+          {isOwner && !isCa && <TabsTrigger value="staff">Staff</TabsTrigger>}
           {isOwner && !isCa && <TabsTrigger value="integrations">Integrations</TabsTrigger>}
           {!isCa && <TabsTrigger value="audit">Audit log</TabsTrigger>}
           <TabsTrigger value="account">Account</TabsTrigger>
@@ -282,6 +284,12 @@ export default function SettingsPage() {
         {isOwner && !isCa && (
           <TabsContent value="advisors" className="space-y-4">
             <AdvisorsPanel />
+          </TabsContent>
+        )}
+
+        {isOwner && !isCa && (
+          <TabsContent value="staff" className="space-y-4">
+            <StaffPanel />
           </TabsContent>
         )}
 

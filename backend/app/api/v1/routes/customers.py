@@ -11,6 +11,7 @@ from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.customer import (
     CreateCustomerRequest,
     CustomerHistoryResponse,
+    CustomerLedgerResponse,
     CustomerResponse,
     UpdateCustomerRequest,
 )
@@ -136,6 +137,16 @@ async def customer_history(
         outstanding=history["outstanding"],
         aging=history["aging"],
     )
+
+
+@router.get("/{customer_id}/ledger", response_model=CustomerLedgerResponse)
+async def customer_ledger(
+    customer_id: uuid.UUID,
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> CustomerLedgerResponse:
+    ledger = await container.customer_service.ledger(auth.company_id, customer_id)
+    return CustomerLedgerResponse(**ledger)
 
 
 @router.get("/{customer_id}/statement.pdf")

@@ -21,6 +21,7 @@ from app.infrastructure.ai.mock_llm import MockLlm
 class CopilotGraph:
     def __init__(self, llm: LlmPort | None = None) -> None:
         self._llm = llm or MockLlm()
+        self.model_name = getattr(self._llm, "model_name", self._llm.__class__.__name__)
 
     async def run(
         self,

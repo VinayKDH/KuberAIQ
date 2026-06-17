@@ -45,3 +45,31 @@ class UpdateCompanyRequest(BaseModel):
     employee_count: int | None = Field(default=None, ge=0)
     udyam_number: str | None = Field(default=None, max_length=20)
     has_tds_applicable: bool | None = None
+
+
+class InviteStaffRequest(BaseModel):
+    email: str
+    role: str = "STAFF"
+
+
+class StaffInvitationResponse(BaseModel):
+    id: str
+    company_id: str
+    email: str
+    role: str
+    status: str
+    expires_at: str | None = None
+    accepted_at: str | None = None
+    created_at: str | None = None
+
+
+class StaffMemberResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str | None = None
+    role: str
+
+
+class CompanyStaffResponse(BaseModel):
+    users: list[StaffMemberResponse]
+    invitations: list[StaffInvitationResponse]

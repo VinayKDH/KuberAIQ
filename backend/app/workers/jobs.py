@@ -69,3 +69,11 @@ async def expire_quotations_all_companies() -> None:
         total += await container.quotation_service.expire_overdue(company_id)
     if total:
         logger.info("quotation_expiry_completed", quotations_expired=total)
+
+
+async def generate_recurring_invoices_daily() -> None:
+    """Create draft invoices from recurring templates."""
+    container = build_container()
+    created = await container.recurring_invoice_service.run_due_templates()
+    if created:
+        logger.info("recurring_invoices_generated", created=created)

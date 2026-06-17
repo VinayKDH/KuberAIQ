@@ -4,6 +4,7 @@ import {
   createCustomer,
   fetchCustomer,
   fetchCustomerHistory,
+  fetchCustomerLedger,
   fetchCustomers,
   updateCustomer,
 } from "./api";
@@ -28,6 +29,14 @@ export function useCustomerHistory(id: string) {
   return useQuery({
     queryKey: [...QUERY_KEYS.CUSTOMER(id), "history"],
     queryFn: () => fetchCustomerHistory(id),
+    enabled: !!id,
+  });
+}
+
+export function useCustomerLedger(id: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.CUSTOMER(id), "ledger"],
+    queryFn: () => fetchCustomerLedger(id),
     enabled: !!id,
   });
 }

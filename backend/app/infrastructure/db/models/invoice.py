@@ -42,6 +42,7 @@ class InvoiceModel(Base):
     place_of_supply: Mapped[str | None] = mapped_column(String(2))
     cancel_reason: Mapped[str | None] = mapped_column(Text)
     pdf_blob_path: Mapped[str | None] = mapped_column(String(400))
+    payment_link_url: Mapped[str | None] = mapped_column(String(400))
     irn: Mapped[str | None] = mapped_column(String(64))
     irn_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)

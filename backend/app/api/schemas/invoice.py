@@ -74,6 +74,7 @@ class InvoiceResponse(BaseModel):
     amount_due: Decimal
     place_of_supply: str | None = None
     pdf_blob_path: str | None = None
+    payment_link_url: str | None = None
     irn: str | None = None
     irn_generated_at: datetime | None = None
     document_type: DocumentType = DocumentType.INVOICE
@@ -117,3 +118,16 @@ class GstReportResponse(BaseModel):
     total_tax: Decimal
     grand_total: Decimal
     invoice_count: int
+
+
+class PaymentLinkResponse(BaseModel):
+    url: str | None = None
+    provider: str
+
+
+class CreateRecurringInvoiceTemplateRequest(BaseModel):
+    customer_id: str
+    name: str = Field(min_length=1, max_length=200)
+    items: list[InvoiceItemRequest] = Field(min_length=1)
+    frequency: str = Field(default="MONTHLY")
+    next_run_date: date | None = None

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
+import hashlib
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -22,12 +23,14 @@ from app.api.schemas.invoice import (
     CancelInvoiceRequest,
     CreateCreditNoteRequest,
     CreateInvoiceRequest,
+    CreateRecurringInvoiceTemplateRequest,
     CreditNoteResponse,
     GstReportResponse,
     InvoiceCustomerSummary,
     InvoiceItemResponse,
     InvoiceResponse,
     PdfResponse,
+    PaymentLinkResponse,
     RegisterIrnRequest,
     UpdateInvoiceRequest,
 )
@@ -83,6 +86,7 @@ def _to_response(invoice, *, customer_name: str | None = None) -> InvoiceRespons
         amount_due=invoice.amount_due.amount,
         place_of_supply=invoice.place_of_supply,
         pdf_blob_path=invoice.pdf_blob_path,
+        payment_link_url=invoice.payment_link_url,
         irn=invoice.irn,
         irn_generated_at=invoice.irn_generated_at,
         document_type=invoice.document_type,
@@ -364,6 +368,25 @@ async def register_invoice_irn(
     return _to_response(invoice)
 
 
+@router.post("/{invoice_id}/generate-mock-irn", response_model=InvoiceResponse)
+async def generate_mock_irn(
+    invoice_id: uuid.UUID,
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+    request: Request,
+) -> InvoiceResponse:
+    invoice = await container.invoice_service.get(auth.company_id, invoice_id)
+    digest = hashlib.sha256(f"{invoice_id}:{invoice.grand_total.amount}".encode()).hexdigest().upper()
+    saved = await container.invoice_service.register_irn(
+        company_id=auth.company_id,
+        invoice_id=invoice_id,
+        irn=digest[:64],
+        actor_id=auth.user_id,
+        ip=get_client_ip(request),
+    )
+    return _to_response(saved)
+
+
 @router.post("/{invoice_id}/credit-notes", response_model=CreditNoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_credit_note(
     invoice_id: uuid.UUID,
@@ -452,3 +475,41 @@ async def share_invoice_whatsapp(
         ip=get_client_ip(request),
     )
     return {"provider_message_id": provider_id}
+
+
+@router.post("/{invoice_id}/payment-link", response_model=PaymentLinkResponse)
+async def create_invoice_payment_link(
+    invoice_id: uuid.UUID,
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+    request: Request,
+) -> PaymentLinkResponse:
+    data = await container.invoice_service.create_payment_link(
+        company_id=auth.company_id,
+        invoice_id=invoice_id,
+        actor_id=auth.user_id,
+        ip=get_client_ip(request),
+    )
+    return PaymentLinkResponse(**data)
+
+
+@router.post("/recurring-templates", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def create_recurring_invoice_template(
+    body: CreateRecurringInvoiceTemplateRequest,
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+) -> dict:
+    from app.application.services.recurring_invoice_service import CreateRecurringTemplateInput
+
+    template = await container.recurring_invoice_service.create_template(
+        company_id=auth.company_id,
+        actor_id=auth.user_id,
+        data=CreateRecurringTemplateInput(
+            customer_id=uuid.UUID(body.customer_id),
+            name=body.name,
+            items=[item.model_dump() for item in body.items],
+            frequency=body.frequency,
+            next_run_date=body.next_run_date,
+        ),
+    )
+    return template

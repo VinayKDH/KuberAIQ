@@ -40,6 +40,14 @@ class CollectionService:
         self._uow_factory = uow_factory
         self._notifier = notifier
 
+    @staticmethod
+    def _fallback_channels(primary: ReminderChannel) -> list[ReminderChannel]:
+        if primary == ReminderChannel.WHATSAPP:
+            return [ReminderChannel.WHATSAPP, ReminderChannel.SMS, ReminderChannel.EMAIL]
+        if primary == ReminderChannel.SMS:
+            return [ReminderChannel.SMS, ReminderChannel.EMAIL]
+        return [ReminderChannel.EMAIL]
+
     async def mark_overdue(self, company_id: uuid.UUID) -> int:
         today = date.today()
         count = 0
@@ -255,12 +263,23 @@ class CollectionService:
                     if data.language == "hi"
                     else WHATSAPP_TEMPLATE_REMINDER_EN
                 )
-                provider_id = await self._notifier.send_message(
-                    channel=data.channel,
-                    to=customer.phone.e164,
-                    message=message,
-                    template_name=template_name,
-                )
+                provider_id = None
+                last_error: Exception | None = None
+                for channel in self._fallback_channels(data.channel):
+                    try:
+                        provider_id = await self._notifier.send_message(
+                            channel=channel,
+                            to=customer.phone.e164 if channel != ReminderChannel.EMAIL else (customer.email or customer.phone.e164),
+                            message=message,
+                            template_name=template_name if channel == ReminderChannel.WHATSAPP else None,
+                        )
+                        saved.channel = channel
+                        break
+                    except Exception as exc:  # pragma: no cover - fallback path
+                        last_error = exc
+                        continue
+                if not provider_id and last_error:
+                    raise last_error
                 saved = await uow.reminders.update_status(
                     saved.id,
                     status=ReminderStatus.SENT,

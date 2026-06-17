@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -11,7 +10,7 @@ from app.application.services.collection_service import CollectionService
 from app.application.services.customer_service import CreateCustomerInput, CustomerService
 from app.application.services.dashboard_service import DashboardService
 from app.application.services.invoice_service import CreateInvoiceInput, InvoiceItemInput, InvoiceService
-from app.core.constants import AI_HISTORY_TURNS, AiIntent
+from app.core.constants import AI_HISTORY_TURNS, AI_SOFT_TOKEN_BUDGET_MONTHLY, AiIntent
 from app.domain.enums import InvoiceStatus
 from app.infrastructure.ai.graph.build import CopilotGraph
 from app.infrastructure.ai.interaction_logger import log_ai_confirm, log_ai_interaction
@@ -30,19 +29,11 @@ def _decimal(value: Decimal | float | int | str) -> Decimal:
     return value if isinstance(value, Decimal) else Decimal(str(value))
 
 
-@dataclass
-class ChatSession:
-    id: str
-    turns: list[dict[str, Any]] = field(default_factory=list)
-    pending_action: dict[str, Any] | None = None
-
-
 class AiService:
-    _sessions: dict[str, ChatSession] = {}
-
     def __init__(
         self,
         graph: CopilotGraph,
+        uow_factory,
         customer_service: CustomerService,
         invoice_service: InvoiceService,
         collection_service: CollectionService,
@@ -50,6 +41,7 @@ class AiService:
         product_service=None,
     ) -> None:
         self._graph = graph
+        self._uow_factory = uow_factory
         self._customer_service = customer_service
         self._invoice_service = invoice_service
         self._collection_service = collection_service
@@ -68,9 +60,10 @@ class AiService:
         pending_action: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         sid = session_id or str(uuid.uuid4())
-        if sid not in self._sessions:
-            self._sessions[sid] = ChatSession(id=sid)
-        session = self._sessions[sid]
+        async with self._uow_factory() as uow:
+            session = await uow.ai_sessions.create_or_touch_session(
+                sid, company_id=company_id, user_id=user_id
+            )
 
         normalized = message.strip().lower()
         action_to_confirm = pending_action or session.pending_action
@@ -83,7 +76,8 @@ class AiService:
                     pending_action=action_to_confirm,
                 )
             if normalized in _CANCEL_WORDS:
-                session.pending_action = None
+                async with self._uow_factory() as uow:
+                    await uow.ai_sessions.set_pending_action(sid, company_id, None)
                 return {
                     "session_id": sid,
                     "intent": AiIntent.CLARIFY,
@@ -94,7 +88,10 @@ class AiService:
                     "suggested_actions": [],
                 }
 
-        history = session.turns[-AI_HISTORY_TURNS:]
+        async with self._uow_factory() as uow:
+            history = await uow.ai_sessions.list_recent_turns(
+                sid, company_id=company_id, limit=AI_HISTORY_TURNS
+            )
         result = await self._graph.run(
             company_id=str(company_id),
             user_id=str(user_id),
@@ -111,10 +108,32 @@ class AiService:
             },
         )
         result["session_id"] = sid
-        session.pending_action = result.get("pending_action") if result.get("requires_confirmation") else None
-        session.turns.append({"user": message, "assistant": result})
-        if len(session.turns) > AI_HISTORY_TURNS:
-            session.turns = session.turns[-AI_HISTORY_TURNS:]
+        pending = result.get("pending_action") if result.get("requires_confirmation") else None
+        async with self._uow_factory() as uow:
+            await uow.ai_sessions.set_pending_action(sid, company_id, pending)
+            await uow.ai_sessions.append_turn(
+                sid,
+                company_id=company_id,
+                user_message=message,
+                assistant_payload=result,
+            )
+            tokens_in = len(message.split())
+            tokens_out = len(str(result.get("message", "")).split())
+            total_tokens = tokens_in + tokens_out
+            await uow.ai_usage.add_usage(
+                company_id=company_id,
+                session_id=sid,
+                model_name=self._graph.model_name,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                total_tokens=total_tokens,
+            )
+            monthly = await uow.ai_usage.total_tokens_this_month(company_id)
+        if monthly >= AI_SOFT_TOKEN_BUDGET_MONTHLY:
+            result["message"] = (
+                f"{result.get('message', '')}\n\n"
+                "Usage note: monthly AI budget soft cap reached; responses may be simplified."
+            ).strip()
         log_ai_interaction(
             company_id=str(company_id),
             user_id=str(user_id),
@@ -136,7 +155,8 @@ class AiService:
         session_id: str,
         pending_action: dict[str, Any],
     ) -> dict[str, Any]:
-        session = self._sessions.get(session_id)
+        async with self._uow_factory() as uow:
+            session = await uow.ai_sessions.get_session(session_id, company_id)
         action_type = pending_action.get("type")
         preview = pending_action.get("preview", {})
 
@@ -218,8 +238,14 @@ class AiService:
             }
 
         if session:
-            session.pending_action = None
-            session.turns.append({"user": "confirm", "assistant": result})
+            async with self._uow_factory() as uow:
+                await uow.ai_sessions.set_pending_action(session_id, company_id, None)
+                await uow.ai_sessions.append_turn(
+                    session_id,
+                    company_id=company_id,
+                    user_message="confirm",
+                    assistant_payload=result,
+                )
         log_ai_confirm(
             company_id=str(company_id),
             user_id=str(user_id),
@@ -230,5 +256,6 @@ class AiService:
         )
         return result
 
-    def get_session(self, session_id: str) -> ChatSession | None:
-        return self._sessions.get(session_id)
+    async def get_session(self, company_id: uuid.UUID, session_id: str):
+        async with self._uow_factory() as uow:
+            return await uow.ai_sessions.get_session(session_id, company_id)

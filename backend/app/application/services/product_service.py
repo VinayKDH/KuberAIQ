@@ -19,6 +19,7 @@ class CreateProductInput:
     description: str | None = None
     hsn_sac: str | None = None
     unit: str = "NOS"
+    stock_qty: Decimal = Decimal("0")
 
 
 @dataclass
@@ -29,6 +30,7 @@ class UpdateProductInput:
     unit: str | None = None
     default_price: Decimal | None = None
     gst_rate: Decimal | None = None
+    stock_qty: Decimal | None = None
     is_active: bool | None = None
 
 
@@ -58,6 +60,7 @@ class ProductService:
             unit=data.unit,
             default_price=data.default_price,
             gst_rate=gst_rate,
+            stock_qty=data.stock_qty,
         )
         async with self._uow_factory() as uow:
             saved = await uow.products.create(product)
@@ -125,6 +128,8 @@ class ProductService:
             if data.gst_rate is not None:
                 self._validate_gst_rate(data.gst_rate)
                 product.gst_rate = data.gst_rate
+            if data.stock_qty is not None:
+                product.stock_qty = data.stock_qty
             if data.is_active is not None:
                 if data.is_active:
                     product.activate()

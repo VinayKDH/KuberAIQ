@@ -14,8 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboard } from "@/features/dashboard/hooks";
 import { financialYearStartIso, formatDate, formatINR, todayIso } from "@/lib/format";
+import { getPreferredLanguage, I18N_MESSAGES } from "@/lib/i18n";
 
 export default function DashboardPage() {
+  const i18n = I18N_MESSAGES[getPreferredLanguage()];
   const [fromDate, setFromDate] = useState(financialYearStartIso);
   const [toDate, setToDate] = useState(todayIso);
 
@@ -29,8 +31,8 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Overview</h2>
-          <p className="text-muted-foreground">Your business at a glance</p>
+          <h2 className="text-2xl font-bold tracking-tight">{i18n.dashboardOverview}</h2>
+          <p className="text-muted-foreground">{i18n.dashboardSubtitle}</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="space-y-1">

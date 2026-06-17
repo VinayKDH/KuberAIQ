@@ -41,6 +41,7 @@ class InvoiceMapper:
             place_of_supply=model.place_of_supply,
             cancel_reason=model.cancel_reason,
             pdf_blob_path=model.pdf_blob_path,
+            payment_link_url=model.payment_link_url,
             created_by=model.created_by,
             irn=model.irn,
             irn_generated_at=model.irn_generated_at,
@@ -80,6 +81,7 @@ class InvoiceMapper:
             place_of_supply=entity.place_of_supply,
             cancel_reason=entity.cancel_reason,
             pdf_blob_path=entity.pdf_blob_path,
+            payment_link_url=entity.payment_link_url,
             created_by=entity.created_by,
             irn=entity.irn,
             irn_generated_at=entity.irn_generated_at,
@@ -110,6 +112,7 @@ class InvoiceMapper:
         model.place_of_supply = entity.place_of_supply
         model.cancel_reason = entity.cancel_reason
         model.pdf_blob_path = entity.pdf_blob_path
+        model.payment_link_url = entity.payment_link_url
         model.irn = entity.irn
         model.irn_generated_at = entity.irn_generated_at
         model.document_type = entity.document_type

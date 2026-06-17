@@ -7,6 +7,15 @@ const apiUpstream = (
 
 const nextConfig = {
   output: "standalone",
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: "/manifest.json",
+        headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

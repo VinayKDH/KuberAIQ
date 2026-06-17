@@ -33,6 +33,7 @@ from app.domain.exceptions import (
 from app.domain.services.hsn_gst_lookup import suggest_hsn_from_name
 from app.domain.services.invoice_numbering import financial_year
 from app.domain.value_objects.money import Money
+from app.infrastructure.billing.razorpay_client import RazorpayClient
 
 
 @dataclass
@@ -491,6 +492,54 @@ class InvoiceService:
             )
             return saved
 
+    async def create_payment_link(
+        self,
+        *,
+        company_id: uuid.UUID,
+        invoice_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        ip: str | None = None,
+    ) -> dict:
+        async with self._uow_factory() as uow:
+            invoice = await uow.invoices.get_by_id(company_id, invoice_id)
+            if not invoice:
+                raise NotFoundError("Invoice not found")
+            customer = await uow.customers.get_by_id(company_id, invoice.customer_id)
+            if not customer:
+                raise NotFoundError("Customer not found")
+            if invoice.amount_due.amount <= 0:
+                raise ConflictError("Invoice has no outstanding amount", code=ErrorCode.CONFLICT)
+            if invoice.payment_link_url:
+                return {"url": invoice.payment_link_url, "provider": "razorpay"}
+
+            if self._is_mock_billing_mode():
+                invoice.payment_link_url = (
+                    f"https://payments.mock.kuberaiq.com/invoice/{invoice.id}?amount={invoice.amount_due.amount}"
+                )
+            else:
+                client = RazorpayClient()
+                data = await client.create_payment_link(
+                    amount_paise=int(invoice.amount_due.amount * 100),
+                    customer_name=customer.name,
+                    customer_email=customer.email,
+                    customer_contact=customer.phone.e164.lstrip("+"),
+                    reference_id=f"inv-{invoice.id}",
+                    description=f"Payment for invoice {invoice.invoice_number or invoice.id}",
+                )
+                invoice.payment_link_url = data.get("short_url") or data.get("payment_link")
+            await uow.invoices.update(invoice)
+            await uow.audit.log(
+                company_id=company_id,
+                actor_user_id=actor_id,
+                entity_type=EntityType.INVOICE,
+                entity_id=invoice.id,
+                action=AuditAction.UPDATE,
+                before=None,
+                after={"payment_link_url": invoice.payment_link_url},
+                ip_address=ip,
+            )
+            return {"url": invoice.payment_link_url, "provider": "razorpay"}
+
     async def gst_report(
         self, company_id: uuid.UUID, from_date: date, to_date: date
     ) -> dict:
@@ -593,6 +642,12 @@ class InvoiceService:
             items=self._build_items(items),
             created_by=created_by,
         )
+
+    @staticmethod
+    def _is_mock_billing_mode() -> bool:
+        from app.core.config import settings
+
+        return settings.use_mock_billing
 
     @staticmethod
     def _invoice_to_dict(invoice: Invoice) -> dict:

@@ -61,6 +61,7 @@ export const ROUTES = {
   CA_CLIENTS: "/ca/clients",
   CA_DASHBOARD: "/ca/dashboard",
   SETTINGS: "/settings",
+  EXPENSES: "/expenses",
   TERMS: "/terms",
   PRIVACY: "/privacy",
 } as const;
@@ -89,6 +90,7 @@ export const API_PATHS = {
   QUOTATION_PDF: (id: string) => `/quotations/${id}/pdf` as const,
   QUOTATION_PDF_DOWNLOAD: (id: string) => `/quotations/${id}/pdf/download` as const,
   INVOICES: "/invoices",
+  INVOICE_PAYMENT_LINK: (id: string) => `/invoices/${id}/payment-link` as const,
   INVOICE_CREDIT_NOTES: (id: string) => `/invoices/${id}/credit-notes` as const,
   GST_REPORT: "/invoices/reports/gst",
   GST_REPORT_CSV: "/invoices/reports/gst.csv",
@@ -104,6 +106,7 @@ export const API_PATHS = {
   COLLECTIONS_BULK_SEND: "/collections/reminders/bulk",
   COLLECTIONS_CALL_TODAY: "/collections/call-today",
   CUSTOMER_STATEMENT: (id: string) => `/customers/${id}/statement.pdf` as const,
+  CUSTOMER_LEDGER: (id: string) => `/customers/${id}/ledger` as const,
   DASHBOARD: "/dashboard",
   COMPLIANCE_DASHBOARD: "/compliance/dashboard",
   COMPLIANCE_OBLIGATIONS: "/compliance/obligations",
@@ -117,10 +120,14 @@ export const API_PATHS = {
   CA_CONTEXT: "/ca/context",
   CA_CONTEXT_CLEAR: "/ca/context/clear",
   ADVISORS: "/companies/me/advisors",
+  COMPANY_STAFF: "/companies/me/staff",
+  COMPANY_STAFF_REVOKE: (id: string) => `/companies/me/staff/${id}` as const,
   ADVISOR_REVOKE: (id: string) => `/companies/me/advisors/${id}` as const,
   ME_WHATSAPP_PHONE: "/auth/me/whatsapp-phone",
   AI_CHAT: "/ai/chat",
   AI_CONFIRM: "/ai/confirm",
+  EXPENSES: "/expenses",
+  CA_GSTR1_BULK: "/ca/reports/gstr1/bulk",
 } as const;
 
 export const QUERY_KEYS = {
@@ -170,6 +177,7 @@ export const NAV_ITEMS = [
   { href: ROUTES.COLLECTIONS, label: "Collections", icon: "IndianRupee" },
   { href: ROUTES.COMPLIANCE, label: "Compliance", icon: "ShieldCheck" },
   { href: ROUTES.ASSISTANT, label: "Assistant", icon: "Bot" },
+  { href: ROUTES.EXPENSES, label: "Expenses", icon: "IndianRupee" },
   { href: ROUTES.SETTINGS, label: "Settings", icon: "Settings" },
 ] as const;
 
@@ -217,6 +225,7 @@ export const PAGE_TITLES: Record<string, string> = {
   [ROUTES.CA_CLIENTS]: "Clients",
   [ROUTES.CA_DASHBOARD]: "CA Dashboard",
   [ROUTES.ASSISTANT]: "AI Assistant",
+  [ROUTES.EXPENSES]: "Expenses",
   [ROUTES.SETTINGS]: "Settings",
 };
 

@@ -16,11 +16,14 @@ from app.application.services.compliance_service import ComplianceService
 from app.application.services.company_service import CompanyService
 from app.application.services.customer_service import CustomerService
 from app.application.services.dashboard_service import DashboardService
+from app.application.services.expense_service import ExpenseService
 from app.application.services.invoice_service import InvoiceService
 from app.application.services.gstr_report_service import GstrReportService
 from app.application.services.payment_service import PaymentService
 from app.application.services.product_service import ProductService
 from app.application.services.quotation_service import QuotationService
+from app.application.services.recurring_invoice_service import RecurringInvoiceService
+from app.application.services.staff_service import StaffService
 from app.application.services.whatsapp_inbound_service import WhatsappInboundService
 from app.core.config import settings
 from app.infrastructure.ai.graph.build import CopilotGraph
@@ -30,7 +33,10 @@ from app.infrastructure.auth.entra_auth import EntraAuthProvider
 from app.infrastructure.auth.google_auth import GoogleAuthProvider
 from app.infrastructure.auth.mock_auth import MockAuthProvider
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
+from app.infrastructure.notifications.email_notifier import EmailNotifier, MockEmailNotifier
 from app.infrastructure.notifications.mock_notifier import MockNotifier
+from app.infrastructure.notifications.notification_hub import NotificationHub
+from app.infrastructure.notifications.sms_notifier import MockSmsNotifier, SmsNotifier
 from app.infrastructure.notifications.whatsapp_notifier import WhatsAppNotifier
 from app.infrastructure.pdf.reportlab_generator import ReportLabPdfGenerator
 from app.infrastructure.storage.local_blob import LocalBlobStorage
@@ -58,7 +64,7 @@ def _build_storage():
 class Container:
     uow_factory: Callable
     storage: object
-    notifier: MockNotifier | WhatsAppNotifier
+    notifier: object
     pdf: ReportLabPdfGenerator
     auth_service: AuthService
     llm: MockLlm | AzureOpenAiLlm
@@ -69,12 +75,15 @@ class Container:
     quotation_service: QuotationService
     gstr_report_service: GstrReportService
     payment_service: PaymentService
+    expense_service: ExpenseService
     collection_service: CollectionService
     dashboard_service: DashboardService
     compliance_service: ComplianceService
     company_service: CompanyService
     billing_service: BillingService
     ca_service: CaService
+    staff_service: StaffService
+    recurring_invoice_service: RecurringInvoiceService
     ai_service: AiService
     whatsapp_inbound_service: WhatsappInboundService
 
@@ -83,12 +92,20 @@ class Container:
 def build_container() -> Container:
     uow = _uow_factory()
     storage = _build_storage()
-    notifier = MockNotifier() if settings.use_mock_whatsapp else WhatsAppNotifier()
+    whatsapp_notifier = MockNotifier() if settings.use_mock_whatsapp else WhatsAppNotifier()
+    sms_notifier = MockSmsNotifier() if settings.use_mock_whatsapp else SmsNotifier()
+    email_notifier = MockEmailNotifier() if settings.use_mock_whatsapp else EmailNotifier()
+    notifier = NotificationHub(
+        whatsapp=whatsapp_notifier,
+        sms=sms_notifier,
+        email=email_notifier,
+    )
     pdf = ReportLabPdfGenerator()
     entra = EntraAuthProvider(uow) if not settings.use_mock_auth else MockAuthProvider()
     google = GoogleAuthProvider(uow) if not settings.use_mock_auth else None
     billing_service = BillingService(uow)
     ca_service = CaService(uow)
+    staff_service = StaffService(uow)
     auth_service = AuthService(uow, entra, google, billing_service)
     llm = MockLlm() if settings.use_mock_llm else AzureOpenAiLlm()
     graph = CopilotGraph(llm=llm)
@@ -96,15 +113,18 @@ def build_container() -> Container:
     customer_service = CustomerService(uow, storage, pdf)
     product_service = ProductService(uow)
     invoice_service = InvoiceService(uow, storage, pdf, notifier)
+    recurring_invoice_service = RecurringInvoiceService(uow, invoice_service)
     gstr_report_service = GstrReportService(uow)
     quotation_service = QuotationService(uow, storage, pdf, invoice_service)
     payment_service = PaymentService(uow)
+    expense_service = ExpenseService(uow)
     collection_service = CollectionService(uow, notifier)
     dashboard_service = DashboardService(uow)
     compliance_service = ComplianceService(uow, notifier)
     company_service = CompanyService(uow, billing_service)
     ai_service = AiService(
         graph=graph,
+        uow_factory=uow,
         customer_service=customer_service,
         invoice_service=invoice_service,
         collection_service=collection_service,
@@ -132,12 +152,15 @@ def build_container() -> Container:
         quotation_service=quotation_service,
         gstr_report_service=gstr_report_service,
         payment_service=payment_service,
+        expense_service=expense_service,
         collection_service=collection_service,
         dashboard_service=dashboard_service,
         compliance_service=compliance_service,
         company_service=company_service,
         billing_service=billing_service,
         ca_service=ca_service,
+        staff_service=staff_service,
+        recurring_invoice_service=recurring_invoice_service,
         ai_service=ai_service,
         whatsapp_inbound_service=whatsapp_inbound_service,
     )

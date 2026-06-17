@@ -13,6 +13,7 @@ class CreateProductRequest(BaseModel):
     unit: str = Field(default="NOS", max_length=20)
     default_price: Decimal = Field(ge=0)
     gst_rate: Decimal | None = Field(default=None, ge=0, le=28)
+    stock_qty: Decimal = Field(default=0, ge=0)
 
 
 class UpdateProductRequest(BaseModel):
@@ -22,6 +23,7 @@ class UpdateProductRequest(BaseModel):
     unit: str | None = Field(default=None, max_length=20)
     default_price: Decimal | None = Field(default=None, ge=0)
     gst_rate: Decimal | None = Field(default=None, ge=0, le=28)
+    stock_qty: Decimal | None = Field(default=None, ge=0)
     is_active: bool | None = None
 
 
@@ -39,4 +41,5 @@ class ProductResponse(BaseModel):
     unit: str
     default_price: Decimal
     gst_rate: Decimal
+    stock_qty: Decimal = Decimal("0")
     is_active: bool

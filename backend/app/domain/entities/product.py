@@ -18,6 +18,7 @@ class Product:
     description: str | None = None
     hsn_sac: str | None = None
     unit: str = DEFAULT_UNIT
+    stock_qty: Decimal = Decimal("0")
     is_active: bool = True
 
     def deactivate(self) -> None:

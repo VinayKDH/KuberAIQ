@@ -38,6 +38,7 @@ export interface Invoice {
   amount_due: number | string;
   place_of_supply?: string | null;
   pdf_blob_path?: string | null;
+  payment_link_url?: string | null;
   irn?: string | null;
   irn_generated_at?: string | null;
 }

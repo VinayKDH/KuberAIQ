@@ -5,17 +5,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import UnitOfWork
 from app.infrastructure.db.repositories.audit_repository import SqlAlchemyAuditRepository
+from app.infrastructure.db.repositories.ai_session_repository import SqlAlchemyAiSessionRepository
+from app.infrastructure.db.repositories.ai_usage_repository import SqlAlchemyAiUsageLogRepository
 from app.infrastructure.db.repositories.ca_client_assignment_repository import (
     SqlAlchemyCaClientAssignmentRepository,
 )
 from app.infrastructure.db.repositories.compliance_repository import SqlAlchemyComplianceRepository
 from app.infrastructure.db.repositories.company_repository import SqlAlchemyCompanyRepository
 from app.infrastructure.db.repositories.customer_repository import SqlAlchemyCustomerRepository
+from app.infrastructure.db.repositories.expense_repository import SqlAlchemyExpenseRepository
 from app.infrastructure.db.repositories.invoice_repository import SqlAlchemyInvoiceRepository
 from app.infrastructure.db.repositories.payment_repository import SqlAlchemyPaymentRepository
 from app.infrastructure.db.repositories.product_repository import SqlAlchemyProductRepository
 from app.infrastructure.db.repositories.quotation_repository import SqlAlchemyQuotationRepository
+from app.infrastructure.db.repositories.recurring_invoice_repository import (
+    SqlAlchemyRecurringInvoiceTemplateRepository,
+)
 from app.infrastructure.db.repositories.reminder_repository import SqlAlchemyReminderRepository
+from app.infrastructure.db.repositories.staff_invitation_repository import (
+    SqlAlchemyStaffInvitationRepository,
+)
 from app.infrastructure.db.repositories.subscription_repository import SqlAlchemySubscriptionRepository
 from app.infrastructure.db.repositories.user_repository import SqlAlchemyUserRepository
 
@@ -35,6 +44,11 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.subscriptions = SqlAlchemySubscriptionRepository(session)
         self.compliance = SqlAlchemyComplianceRepository(session)
         self.ca_assignments = SqlAlchemyCaClientAssignmentRepository(session)
+        self.ai_sessions = SqlAlchemyAiSessionRepository(session)
+        self.staff_invitations = SqlAlchemyStaffInvitationRepository(session)
+        self.recurring_templates = SqlAlchemyRecurringInvoiceTemplateRepository(session)
+        self.expenses = SqlAlchemyExpenseRepository(session)
+        self.ai_usage = SqlAlchemyAiUsageLogRepository(session)
 
     async def __aenter__(self) -> SqlAlchemyUnitOfWork:
         return self

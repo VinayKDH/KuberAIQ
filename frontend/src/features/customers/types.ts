@@ -35,3 +35,20 @@ export interface CustomerListParams {
   q?: string;
   sort?: string;
 }
+
+export interface CustomerLedgerEntry {
+  kind: string;
+  id: string;
+  date: string;
+  reference?: string | null;
+  debit: number | string;
+  credit: number | string;
+  balance: number | string;
+  status?: string | null;
+}
+
+export interface CustomerLedger {
+  customer_id: string;
+  entries: CustomerLedgerEntry[];
+  closing_balance: number | string;
+}

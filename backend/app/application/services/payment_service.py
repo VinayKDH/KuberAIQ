@@ -5,6 +5,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+import csv
+from io import StringIO
 
 from app.application.ports.repositories import PaymentRecord
 from app.core.constants import AuditAction, EntityType, ErrorCode
@@ -124,3 +126,29 @@ class PaymentService:
             if not invoice:
                 raise NotFoundError("Invoice not found")
             return await uow.payments.list_by_invoice(invoice_id)
+
+    async def suggest_matches_from_csv(self, company_id: uuid.UUID, csv_text: str) -> list[dict]:
+        rows = list(csv.DictReader(StringIO(csv_text)))
+        suggestions: list[dict] = []
+        async with self._uow_factory() as uow:
+            invoices = await uow.invoices.list_collectible(company_id)
+            by_number = {inv.invoice_number: inv for inv in invoices if inv.invoice_number}
+
+        for row in rows:
+            reference = (row.get("reference") or row.get("invoice_number") or "").strip()
+            amount = Decimal(str(row.get("amount") or "0"))
+            match = by_number.get(reference)
+            if not match:
+                for inv in invoices:
+                    if abs(inv.amount_due.amount - amount) <= Decimal("1.00"):
+                        match = inv
+                        break
+            suggestions.append(
+                {
+                    "reference": reference,
+                    "amount": amount,
+                    "matched_invoice_id": str(match.id) if match else None,
+                    "matched_invoice_number": match.invoice_number if match else None,
+                }
+            )
+        return suggestions

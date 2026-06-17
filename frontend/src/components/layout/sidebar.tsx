@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { APP_NAME, NAV_ITEMS, NAV_ITEMS_CA, ROUTES, USER_ROLE } from "@/lib/constants";
 import { getStoredUser } from "@/lib/auth";
+import { getPreferredLanguage, I18N_MESSAGES } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const iconMap = {
@@ -38,6 +39,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const user = getStoredUser();
   const navItems = user?.role === USER_ROLE.CA ? NAV_ITEMS_CA : NAV_ITEMS;
   const homeHref = user?.role === USER_ROLE.CA ? ROUTES.CA_DASHBOARD : ROUTES.DASHBOARD;
+  const i18n = I18N_MESSAGES[getPreferredLanguage()];
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -73,7 +75,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       </nav>
       <div className="border-t border-sidebar-border p-4">
         <p className="text-xs text-muted-foreground">
-          {user?.role === USER_ROLE.CA ? "CA Compliance Portal" : "GST Billing & Collections"}
+          {user?.role === USER_ROLE.CA ? i18n.sidebarFooterCa : i18n.sidebarFooterMsme}
         </p>
       </div>
     </aside>
