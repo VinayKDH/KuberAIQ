@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
 
-from app.api.deps import AuthContext, get_verified_auth_context, get_container
+from app.api.deps import AuthContext, get_tenant_context, get_verified_auth_context, get_container
 from app.api.schemas.auth import (
     EntraCallbackRequest,
     GoogleCallbackRequest,
@@ -14,12 +14,15 @@ from app.api.schemas.auth import (
     MockLoginRequest,
     RefreshRequest,
     TokenResponse,
+    UpdateWhatsappPhoneRequest,
     UserResponse,
 )
+from app.domain.value_objects.phone import Phone
+from app.domain.exceptions import InvalidPhone
 from app.application.ports.repositories import UserRecord
 from app.core.config import settings
 from app.core.constants import CA_EMAIL_DOMAIN, DEMO_USER_EMAIL, LEGACY_DEMO_USER_EMAIL
-from app.core.errors import ForbiddenError, NotFoundError, UnauthorizedError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationAppError
 from app.core.container import Container
 from app.domain.enums import UserRole
 
@@ -33,6 +36,7 @@ def _user_response(user) -> UserResponse:
         full_name=user.full_name,
         role=user.role.value if hasattr(user.role, "value") else str(user.role),
         company_id=str(user.company_id) if user.company_id else None,
+        whatsapp_phone=user.whatsapp_phone,
     )
 
 
@@ -140,3 +144,29 @@ async def me(
         subscription_status=billing["subscription_status"],
         subscription_active=billing["subscription_active"],
     )
+
+
+@router.patch("/me/whatsapp-phone", response_model=UserResponse)
+async def update_whatsapp_phone(
+    body: UpdateWhatsappPhoneRequest,
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> UserResponse:
+    if auth.role != UserRole.OWNER:
+        raise ForbiddenError("Only the business owner can link WhatsApp copilot")
+
+    normalized: str | None = None
+    if body.phone:
+        try:
+            normalized = Phone(body.phone.strip()).value
+        except InvalidPhone as exc:
+            raise ValidationAppError(str(exc)) from exc
+
+    async with container.uow_factory() as uow:
+        if normalized:
+            existing = await uow.users.find_owner_by_whatsapp_phone(normalized)
+            if existing and existing.id != auth.user_id:
+                raise ConflictError("This WhatsApp number is linked to another KuberAIQ account")
+        user = await uow.users.update_whatsapp_phone(auth.user_id, normalized)
+        await uow.commit()
+    return _user_response(user)

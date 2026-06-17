@@ -9,7 +9,8 @@ export const PUBLIC_WEB_URL =
   process.env.NEXT_PUBLIC_WEB_URL ?? "https://www.kuberaiq.com";
 export const PUBLIC_API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "https://api.kuberaiq.com";
-export const PUBLIC_APEX_DOMAIN = "kuberaiq.com";
+export const PUBLIC_APEX_DOMAIN =
+  process.env.NEXT_PUBLIC_APEX_DOMAIN ?? "kuberaiq.com";
 export const LOCAL_API_URL = "http://localhost:8000";
 
 export const API_NETWORK_ERROR =
@@ -117,6 +118,7 @@ export const API_PATHS = {
   CA_CONTEXT_CLEAR: "/ca/context/clear",
   ADVISORS: "/companies/me/advisors",
   ADVISOR_REVOKE: (id: string) => `/companies/me/advisors/${id}` as const,
+  ME_WHATSAPP_PHONE: "/auth/me/whatsapp-phone",
   AI_CHAT: "/ai/chat",
   AI_CONFIRM: "/ai/confirm",
 } as const;
@@ -555,6 +557,18 @@ export const PAYMENTS_SETTINGS = {
   SAVE_LABEL: "Save payment settings",
 } as const;
 
+export const WHATSAPP_COPILOT_SETTINGS = {
+  TITLE: "WhatsApp AI copilot",
+  DESCRIPTION:
+    "Link your WhatsApp number to chat with the same AI assistant you use on the web — ask about invoices, collections, and compliance.",
+  PHONE_LABEL: "Your WhatsApp mobile number",
+  PHONE_HINT: "10-digit Indian mobile (the number you message from).",
+  SAVE_LABEL: "Save WhatsApp number",
+  SAVED: "WhatsApp number linked for AI copilot.",
+  CLEARED: "WhatsApp copilot link removed.",
+  SAVE_ERROR: "Could not save WhatsApp number.",
+} as const;
+
 export const CUSTOMER_STATEMENT = {
   DOWNLOAD_LABEL: "Download statement",
   DOWNLOADING: "Preparing PDF…",
@@ -593,6 +607,10 @@ export const ONBOARDING_COPY = {
   PROGRESS: (step: number, total: number) => `Step ${step} of ${total}`,
 } as const;
 
+export const SUPPORT_EMAIL = "support@kuberaiq.com";
+export const PRIVACY_EMAIL = "privacy@kuberaiq.com";
+export const SECURITY_EMAIL = "security@kuberaiq.com";
+
 export const LEGAL_COPY = {
   TERMS_TITLE: "Terms of Service",
   PRIVACY_TITLE: "Privacy Policy",
@@ -600,4 +618,7 @@ export const LEGAL_COPY = {
   FOOTER_TERMS: "Terms",
   FOOTER_PRIVACY: "Privacy",
   AGREE_LABEL: "I agree to the Terms of Service and Privacy Policy",
+  TERMS_CONTACT: `Questions about these Terms: ${SUPPORT_EMAIL}.`,
+  PRIVACY_CONTACT: `Data protection queries: ${PRIVACY_EMAIL}. We will respond within timelines required under applicable law.`,
+  SECURITY_CONTACT: `Report suspected breaches to ${SECURITY_EMAIL}.`,
 } as const;

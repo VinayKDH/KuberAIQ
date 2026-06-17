@@ -51,8 +51,9 @@ echo "  2. Verify token: \${WHATSAPP_VERIFY_TOKEN} (same value in $ENV_FILE)"
 echo "  3. Subscribe to: messages (and message status if available)"
 echo "  4. Approved templates: payment_reminder_en, payment_reminder_hi (body with {{1}} for message text)"
 echo "  5. Set WHATSAPP_PHONE_NUMBER_ID + WHATSAPP_ACCESS_TOKEN in $ENV_FILE"
-echo "  6. Set USE_MOCK_WHATSAPP=false (or leave unset — deploy auto-disables mock when creds present)"
-echo "  7. Redeploy API: ENV_FILE=$ENV_FILE ./scripts/deploy-prod.sh"
+echo "  6. Owner links mobile: Settings → Integrations → WhatsApp AI copilot"
+echo "  7. Set USE_MOCK_WHATSAPP=false (or leave unset — deploy auto-disables mock when creds present)"
+echo "  8. Redeploy API: ENV_FILE=$ENV_FILE ./scripts/deploy-prod.sh"
 echo ""
 
 if [[ "$missing" -eq 1 ]]; then

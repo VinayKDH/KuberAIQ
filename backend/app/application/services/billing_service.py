@@ -13,7 +13,7 @@ from app.core.constants import (
     SUBSCRIPTION_PLAN_STARTER_LABEL,
     SUBSCRIPTION_STARTER_AMOUNT_PAISE,
 )
-from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationAppError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationAppError
 from app.domain.enums import SubscriptionStatus, UserRole
 from app.infrastructure.auth.token_service import TokenService
 from app.infrastructure.billing.razorpay_client import RazorpayClient
@@ -201,7 +201,7 @@ class BillingService:
             return
         client = RazorpayClient()
         if not client.verify_webhook_signature(body, signature):
-            raise ValidationAppError("Invalid webhook signature")
+            raise UnauthorizedError("Invalid webhook signature")
 
         import json
 

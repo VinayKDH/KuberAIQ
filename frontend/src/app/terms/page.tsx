@@ -57,10 +57,7 @@ export default function TermsPage() {
         </p>
 
         <h2 className="text-lg font-semibold text-foreground">7. Contact</h2>
-        <p>
-          Questions about these Terms: support@kuberaiq.com (replace with your operational email
-          before launch).
-        </p>
+        <p>{LEGAL_COPY.TERMS_CONTACT}</p>
       </section>
     </LegalDocument>
   );

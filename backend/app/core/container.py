@@ -21,6 +21,7 @@ from app.application.services.gstr_report_service import GstrReportService
 from app.application.services.payment_service import PaymentService
 from app.application.services.product_service import ProductService
 from app.application.services.quotation_service import QuotationService
+from app.application.services.whatsapp_inbound_service import WhatsappInboundService
 from app.core.config import settings
 from app.infrastructure.ai.graph.build import CopilotGraph
 from app.infrastructure.ai.azure_openai_llm import AzureOpenAiLlm
@@ -75,6 +76,7 @@ class Container:
     billing_service: BillingService
     ca_service: CaService
     ai_service: AiService
+    whatsapp_inbound_service: WhatsappInboundService
 
 
 @lru_cache
@@ -109,6 +111,12 @@ def build_container() -> Container:
         dashboard_service=dashboard_service,
         product_service=product_service,
     )
+    whatsapp_inbound_service = WhatsappInboundService(
+        uow,
+        ai_service,
+        billing_service,
+        notifier,
+    )
 
     return Container(
         uow_factory=uow,
@@ -131,4 +139,5 @@ def build_container() -> Container:
         billing_service=billing_service,
         ca_service=ca_service,
         ai_service=ai_service,
+        whatsapp_inbound_service=whatsapp_inbound_service,
     )

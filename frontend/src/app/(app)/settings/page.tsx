@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2, IndianRupee, ScrollText } from "lucide-react";
 import { AdvisorsPanel } from "@/components/settings/advisors-panel";
 import { BillingSubscriptionPanel } from "@/components/settings/billing-subscription-panel";
+import { WhatsappCopilotPanel } from "@/components/settings/whatsapp-copilot-panel";
 import { GstReportPanel } from "@/components/settings/gst-report-panel";
 import { GstrFilingPanel } from "@/components/settings/gstr-filing-panel";
 import { Button } from "@/components/ui/button";
@@ -141,6 +142,7 @@ export default function SettingsPage() {
           {!isCa && <TabsTrigger value="billing">Billing</TabsTrigger>}
           <TabsTrigger value="reports">Reports</TabsTrigger>
           {isOwner && !isCa && <TabsTrigger value="advisors">Advisors</TabsTrigger>}
+          {isOwner && !isCa && <TabsTrigger value="integrations">Integrations</TabsTrigger>}
           {!isCa && <TabsTrigger value="audit">Audit log</TabsTrigger>}
           <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
@@ -283,6 +285,12 @@ export default function SettingsPage() {
           </TabsContent>
         )}
 
+        {isOwner && !isCa && (
+          <TabsContent value="integrations" className="space-y-4">
+            <WhatsappCopilotPanel isOwner={isOwner} />
+          </TabsContent>
+        )}
+
         {!isCa && (
           <TabsContent value="audit" className="space-y-4">
             <Card>
@@ -334,7 +342,7 @@ export default function SettingsPage() {
               </div>
               <Separator />
               <p className="text-sm text-muted-foreground">
-                Production sign-in uses Microsoft Entra ID. Local development uses mock login.
+                Production sign-in uses Google. Link WhatsApp under Integrations to use the AI copilot on mobile.
               </p>
             </CardContent>
           </Card>

@@ -57,16 +57,10 @@ export default function PrivacyPage() {
         </p>
 
         <h2 className="text-lg font-semibold text-foreground">6. Security</h2>
-        <p>
-          We use encryption in transit (TLS), tenant isolation, access controls, and audit logging.
-          No system is perfectly secure — report suspected breaches to security@kuberaiq.com.
-        </p>
+        <p>{LEGAL_COPY.SECURITY_CONTACT}</p>
 
         <h2 className="text-lg font-semibold text-foreground">7. Contact &amp; grievance</h2>
-        <p>
-          Data protection queries: privacy@kuberaiq.com (replace with your operational email
-          before launch). We will respond within timelines required under applicable law.
-        </p>
+        <p>{LEGAL_COPY.PRIVACY_CONTACT}</p>
       </section>
     </LegalDocument>
   );

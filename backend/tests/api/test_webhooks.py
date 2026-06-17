@@ -50,7 +50,7 @@ async def test_whatsapp_webhook_inbound_without_secret(client: AsyncClient) -> N
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "received"
-    assert body["processed"] == 1
+    assert body["statuses_logged"] == 1
 
 
 @pytest.mark.asyncio
@@ -92,3 +92,24 @@ async def test_whatsapp_webhook_accepts_valid_signature(
         },
     )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_razorpay_webhook_rejects_bad_signature(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core import config as config_mod
+
+    monkeypatch.setattr(config_mod.settings, "use_mock_billing", False)
+    monkeypatch.setattr(config_mod.settings, "razorpay_key_id", "rzp_test")
+    monkeypatch.setattr(config_mod.settings, "razorpay_key_secret", "secret")
+    monkeypatch.setattr(config_mod.settings, "razorpay_webhook_secret", "whsec_test")
+    response = await client.post(
+        "/api/v1/billing/webhooks/razorpay",
+        content=b'{"event":"payment.captured"}',
+        headers={
+            "Content-Type": "application/json",
+            "X-Razorpay-Signature": "invalid",
+        },
+    )
+    assert response.status_code == 401

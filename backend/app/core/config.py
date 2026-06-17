@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     # Azure OpenAI (used when use_mock_llm is False)
     azure_openai_endpoint: str | None = None
     azure_openai_api_key: str | None = None
-    azure_openai_deployment: str = "gpt-5"
+    azure_openai_deployment: str = "gpt-4o"
     azure_openai_api_version: str = "2024-08-01-preview"
 
     # Azure Blob (used when use_mock_blob is False)

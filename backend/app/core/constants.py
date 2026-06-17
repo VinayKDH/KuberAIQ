@@ -508,6 +508,11 @@ WHATSAPP_TEMPLATE_REMINDER_EN = "payment_reminder_en"
 WHATSAPP_TEMPLATE_REMINDER_HI = "payment_reminder_hi"
 WHATSAPP_TEMPLATE_INVOICE_SHARE = "invoice_share"
 WHATSAPP_TEMPLATE_COMPLIANCE_REMINDER = "compliance_reminder"
+WHATSAPP_COPILOT_MAX_REPLY_CHARS = 4000
+WHATSAPP_COPILOT_UNLINKED_REPLY = (
+    "Hi! Link this WhatsApp number in KuberAIQ: Settings → Integrations → WhatsApp AI copilot. "
+    "https://www.kuberaiq.com/settings"
+)
 
 # --- Reminder languages ----------------------------------------------------
 REMINDER_LANGUAGES: tuple[str, ...] = ("en", "hi")

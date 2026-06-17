@@ -64,6 +64,7 @@ class SqlAlchemyUserRepository:
             email=record.email.lower(),
             full_name=record.full_name,
             role=record.role,
+            whatsapp_phone=record.whatsapp_phone,
         )
         self._session.add(model)
         await self._session.flush()
@@ -85,6 +86,26 @@ class SqlAlchemyUserRepository:
         await self._session.flush()
         return self._to_record(model)
 
+    async def find_owner_by_whatsapp_phone(self, phone: str) -> UserRecord | None:
+        stmt = select(UserModel).where(
+            UserModel.whatsapp_phone == phone,
+            UserModel.role == UserRole.OWNER,
+            UserModel.company_id.is_not(None),
+            UserModel.deleted_at.is_(None),
+            UserModel.is_active.is_(True),
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_record(model) if model else None
+
+    async def update_whatsapp_phone(self, user_id: uuid.UUID, phone: str | None) -> UserRecord:
+        stmt = select(UserModel).where(UserModel.id == user_id, UserModel.deleted_at.is_(None))
+        result = await self._session.execute(stmt)
+        model = result.scalar_one()
+        model.whatsapp_phone = phone
+        await self._session.flush()
+        return self._to_record(model)
+
     @staticmethod
     def _to_record(model: UserModel) -> UserRecord:
         return UserRecord(
@@ -95,4 +116,5 @@ class SqlAlchemyUserRepository:
             email=model.email,
             full_name=model.full_name,
             role=UserRole(model.role),
+            whatsapp_phone=model.whatsapp_phone,
         )

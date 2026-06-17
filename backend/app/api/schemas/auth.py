@@ -30,6 +30,11 @@ class UserResponse(BaseModel):
     full_name: str | None
     role: str
     company_id: str | None
+    whatsapp_phone: str | None = None
+
+
+class UpdateWhatsappPhoneRequest(BaseModel):
+    phone: str | None = Field(default=None, max_length=13)
 
 
 class TokenResponse(BaseModel):

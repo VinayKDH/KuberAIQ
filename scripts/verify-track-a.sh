@@ -120,8 +120,26 @@ if [[ "$USE_MOCK_AUTH" == "false" ]]; then
   else
     fail "mock-login should return 403, got $MOCK_CODE"
   fi
+  ADVISORS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/v1/companies/me/advisors")
+  if [[ "$ADVISORS_CODE" == "401" ]]; then
+    pass "advisors route protected (401)"
+  else
+    fail "advisors route should return 401 unauth, got $ADVISORS_CODE"
+  fi
 else
   warn "Skipping mock-login check (USE_MOCK_AUTH=true)"
+fi
+echo ""
+
+APEX_DOMAIN="${PUBLIC_APEX_DOMAIN:-kuberaiq.com}"
+echo "==> Apex canonical URL"
+APEX_HEADERS=$(curl -sI --max-time 10 "https://${APEX_DOMAIN}" 2>/dev/null || true)
+if echo "$APEX_HEADERS" | grep -qi "^location:.*www\\."; then
+  pass "Apex redirects to www (${APEX_DOMAIN})"
+elif echo "$APEX_HEADERS" | grep -qE "^HTTP/.* 30[18]"; then
+  pass "Apex returns redirect (${APEX_DOMAIN})"
+else
+  warn "Apex ${APEX_DOMAIN} does not redirect to www — configure Hostinger redirect or point apex DNS at Azure"
 fi
 echo ""
 

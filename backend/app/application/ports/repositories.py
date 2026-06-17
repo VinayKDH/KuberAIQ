@@ -182,6 +182,8 @@ class UserRepository(Protocol):
     async def create(self, record: "UserRecord") -> "UserRecord": ...
     async def link_google_sub(self, user_id: uuid.UUID, google_sub: str) -> "UserRecord": ...
     async def assign_company(self, user_id: uuid.UUID, company_id: uuid.UUID) -> "UserRecord": ...
+    async def find_owner_by_whatsapp_phone(self, phone: str) -> "UserRecord | None": ...
+    async def update_whatsapp_phone(self, user_id: uuid.UUID, phone: str | None) -> "UserRecord": ...
 
 
 class SubscriptionRepository(Protocol):
@@ -302,6 +304,7 @@ class UserRecord:
         role: "UserRole",
         entra_oid: str | None = None,
         google_sub: str | None = None,
+        whatsapp_phone: str | None = None,
     ):
         self.id = id
         self.company_id = company_id
@@ -310,6 +313,7 @@ class UserRecord:
         self.role = role
         self.entra_oid = entra_oid
         self.google_sub = google_sub
+        self.whatsapp_phone = whatsapp_phone
 
 
 class SubscriptionRecord:
