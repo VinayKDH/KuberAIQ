@@ -11,6 +11,7 @@ from app.application.services.customer_service import CreateCustomerInput, Custo
 from app.application.services.dashboard_service import DashboardService
 from app.application.services.invoice_service import CreateInvoiceInput, InvoiceItemInput, InvoiceService
 from app.core.constants import AI_HISTORY_TURNS, AI_SOFT_TOKEN_BUDGET_MONTHLY, AiIntent
+from app.infrastructure.ai.conversation_context import is_confirmable_pending
 from app.domain.enums import InvoiceStatus
 from app.infrastructure.ai.graph.build import CopilotGraph
 from app.infrastructure.ai.interaction_logger import log_ai_confirm, log_ai_interaction
@@ -66,7 +67,15 @@ class AiService:
             )
 
         normalized = message.strip().lower()
+        clarify_pending = (
+            session.pending_action
+            if session.pending_action and session.pending_action.get("type") == AiIntent.CLARIFY
+            else None
+        )
         action_to_confirm = pending_action or session.pending_action
+        if not is_confirmable_pending(action_to_confirm):
+            action_to_confirm = None
+
         if not confirmed and action_to_confirm:
             if normalized in _CONFIRM_WORDS:
                 return await self.confirm(
@@ -99,6 +108,7 @@ class AiService:
             channel=channel,
             confirmed=confirmed,
             history=history,
+            clarify_pending=clarify_pending,
             services={
                 "customer": self._customer_service,
                 "invoice": self._invoice_service,
@@ -108,7 +118,15 @@ class AiService:
             },
         )
         result["session_id"] = sid
-        pending = result.get("pending_action") if result.get("requires_confirmation") else None
+        pending_action_payload = result.get("pending_action") or {}
+        if result.get("requires_confirmation"):
+            pending = result.get("pending_action")
+        elif pending_action_payload.get("type") == AiIntent.CLARIFY:
+            pending = result.get("pending_action")
+        elif result.get("intent") != AiIntent.CLARIFY:
+            pending = None
+        else:
+            pending = clarify_pending
         async with self._uow_factory() as uow:
             await uow.ai_sessions.set_pending_action(sid, company_id, pending)
             await uow.ai_sessions.append_turn(
@@ -210,6 +228,30 @@ class AiService:
                 "requires_confirmation": False,
                 "pending_action": None,
                 "data": {"customer_id": str(customer.id), "name": customer.name},
+                "suggested_actions": [],
+            }
+        elif action_type == AiIntent.CREATE_CUSTOMER_AND_INVOICE:
+            from app.infrastructure.ai.tools.executor import ToolExecutor
+
+            executor = ToolExecutor(
+                {
+                    "customer": self._customer_service,
+                    "invoice": self._invoice_service,
+                }
+            )
+            combined = await executor.create_customer_and_invoice(
+                company_id, user_id, preview
+            )
+            result = {
+                "session_id": session_id,
+                "intent": action_type,
+                "message": (
+                    f"Customer {combined['customer_name']} created. "
+                    f"Invoice {combined['invoice_number']} created successfully."
+                ),
+                "requires_confirmation": False,
+                "pending_action": None,
+                "data": combined,
                 "suggested_actions": [],
             }
         elif action_type == AiIntent.BULK_SEND_REMINDERS:

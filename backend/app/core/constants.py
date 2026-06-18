@@ -5,6 +5,7 @@ here so behaviour is consistent and changes happen in one place.
 """
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 
 # --- App metadata ----------------------------------------------------------
@@ -35,54 +36,151 @@ HSN_EXACT_GST_RATES: dict[str, str] = {
     "0403": "5",   # yoghurt, buttermilk
     "0405": "12",  # butter, ghee
     "0406": "5",   # paneer, cheese
+    "0407": "0",   # eggs
     "0409": "5",   # honey
+    "0701": "0",   # fresh vegetables
     "0713": "0",   # pulses
+    "0803": "0",   # fresh fruits
+    "0901": "5",   # coffee
+    "0902": "5",   # tea
+    "0910": "5",   # spices
     "1001": "0",   # wheat
     "1006": "0",   # rice
+    "1209": "0",   # seeds
+    "1507": "5",   # edible oil
+    "1701": "5",   # sugar
+    "1902": "18",  # pasta / noodles
+    "1905": "18",  # biscuits (also 5% for bread — catalogue uses 18% for snacks)
+    "2103": "12",  # sauces / pickles
+    "2105": "18",  # ice cream
     "2106": "18",  # food preparations
+    "2201": "18",  # mineral water
+    "2202": "28",  # soft drinks
+    "2501": "0",   # salt
+    "2517": "5",   # sand / aggregate
     "2523": "28",  # cement
     "2710": "18",  # petroleum products
     "3004": "12",  # medicaments
+    "3102": "5",   # fertilizer
+    "3209": "28",  # paint
+    "3214": "18",  # waterproofing
+    "3305": "18",  # hair / cosmetics
+    "3401": "18",  # soap / detergent
+    "3506": "18",  # adhesives
+    "3808": "18",  # disinfectants / pesticides
+    "3824": "28",  # ready-mix concrete
+    "3917": "18",  # plastic pipes / conduit
+    "3919": "18",  # packaging tape
+    "3922": "18",  # bathroom accessories
     "3923": "18",  # plastic articles
+    "3925": "18",  # water tanks
+    "4011": "28",  # tyres
+    "4013": "28",  # tubes
+    "4016": "18",  # rubber articles
+    "4412": "18",  # plywood
+    "4819": "12",  # corrugated boxes
+    "4820": "12",  # stationery paper
+    "5208": "5",   # cotton fabric
+    "5407": "12",  # synthetic fabric
+    "6109": "5",   # garments
+    "6204": "5",   # women's / ethnic wear
+    "6302": "5",   # towels / linen
+    "6403": "5",   # footwear
+    "6506": "18",  # safety headgear
+    "6802": "28",  # marble / granite
+    "6901": "12",  # bricks
     "6907": "28",  # ceramic tiles
+    "6910": "18",  # sanitaryware
+    "7005": "18",  # glass
+    "7210": "18",  # roofing sheets
+    "7214": "18",  # steel bars
+    "7216": "18",  # structural steel
+    "7217": "18",  # wire
+    "7219": "18",  # stainless steel
+    "7318": "18",  # fasteners
+    "7408": "18",  # copper wire
+    "7604": "18",  # aluminium profiles
+    "7606": "18",  # aluminium sheets
+    "8205": "18",  # hand tools
+    "8311": "18",  # welding consumables
+    "8413": "18",  # pumps
+    "8414": "18",  # fans
+    "8415": "18",  # air conditioners
+    "8418": "18",  # refrigerators
+    "8424": "12",  # sprinklers / irrigation
+    "8443": "18",  # printers
+    "8450": "18",  # washing machines
+    "8467": "18",  # power tools
     "8471": "18",  # computers
+    "8481": "18",  # taps / valves
+    "8504": "18",  # inverters
+    "8507": "18",  # batteries
+    "8516": "18",  # heaters / microwaves
     "8517": "18",  # telecom equipment
-    "9963": "18",  # SAC — restaurant services
+    "8528": "18",  # TVs / monitors
+    "8536": "18",  # switches
+    "8539": "18",  # lamps / bulbs
+    "8544": "18",  # cables
+    "8708": "28",  # auto parts
+    "9015": "18",  # measuring instruments
+    "9032": "18",  # stabilizers
+    "9403": "18",  # furniture
+    "9608": "12",  # pens
+    "9619": "12",  # sanitary napkins
+    "9963": "18",  # SAC — restaurant / hotel
+    "9965": "18",  # SAC — freight
+    "9971": "18",  # SAC — insurance
+    "9973": "18",  # SAC — equipment rental
     "9983": "18",  # SAC — professional services
     "9987": "18",  # SAC — maintenance services
+    "9989": "18",  # SAC — printing
+    "9992": "18",  # SAC — education / training
+    "9997": "18",  # SAC — beauty / fitness
 }
 # Prefix fallbacks — longest match wins (stored longest-first)
 HSN_PREFIX_GST_RATES: tuple[tuple[str, str], ...] = (
+    ("9989", "18"),
+    ("9997", "18"),
+    ("9992", "18"),
+    ("9973", "18"),
+    ("9971", "18"),
+    ("9965", "18"),
     ("9987", "18"),
     ("9983", "18"),
     ("9963", "18"),
     ("0406", "5"),
     ("0402", "5"),
-    ("04", "5"),    # dairy chapter
-    ("25", "28"),   # mineral products (cement)
-    ("69", "28"),   # ceramic products
+    ("07", "0"),    # vegetables
+    ("08", "0"),    # fruits
+    ("09", "5"),    # coffee, tea, spices
+    ("10", "0"),    # cereals
+    ("12", "0"),    # oil seeds
+    ("15", "5"),    # fats / oils
+    ("19", "18"),   # prepared foods
+    ("22", "18"),   # beverages (exact codes override)
+    ("25", "28"),   # mineral products
+    ("32", "18"),   # paints / chemicals
+    ("39", "18"),   # plastics
+    ("40", "28"),   # rubber
+    ("44", "18"),   # wood
+    ("48", "12"),   # paper
+    ("52", "5"),    # cotton
+    ("61", "5"),    # garments
+    ("62", "5"),    # apparel
+    ("63", "5"),    # made-up textiles
+    ("64", "5"),    # footwear
+    ("68", "28"),   # stone
+    ("69", "28"),   # ceramics
+    ("72", "18"),   # iron & steel
+    ("76", "18"),   # aluminium
+    ("82", "18"),   # tools
     ("84", "18"),   # machinery
     ("85", "18"),   # electronics
+    ("87", "28"),   # vehicles / parts
+    ("94", "18"),   # furniture
+    ("04", "5"),    # dairy chapter
 )
-# Product-name keyword → (HSN/SAC, GST rate) for catalogue suggestions
-PRODUCT_NAME_HSN_HINTS: dict[str, tuple[str, str]] = {
-    "paneer": ("0406", "5"),
-    "khoya": ("0402", "5"),
-    "mawa": ("0402", "5"),
-    "milk": ("0401", "0"),
-    "curd": ("0403", "5"),
-    "yoghurt": ("0403", "5"),
-    "yogurt": ("0403", "5"),
-    "butter": ("0405", "12"),
-    "ghee": ("0405", "12"),
-    "cement": ("2523", "28"),
-    "opc": ("2523", "28"),
-    "rice": ("1006", "0"),
-    "wheat": ("1001", "0"),
-    "honey": ("0409", "5"),
-    "computer": ("8471", "18"),
-    "laptop": ("8471", "18"),
-}
+# Product-name hints live in app.core.gst_product_catalog.GST_PRODUCT_CATALOG
 DEFAULT_PRODUCT_GST_RATE = Decimal("18")
 GST_TOLERANCE = Decimal("0.02")  # acceptable rounding delta when validating totals
 GSTIN_LENGTH = 15
@@ -169,6 +267,55 @@ AI_MAX_TOKENS_CLASSIFY = 256
 AI_MAX_TOKENS_EXTRACT = 512
 AI_MAX_TOKENS_GENERATE = 1024
 AI_SOFT_TOKEN_BUDGET_MONTHLY = 200000
+
+AI_CUSTOMER_NAME_STOP_WORDS = frozenset(
+    {
+        "of",
+        "the",
+        "a",
+        "an",
+        "for",
+        "with",
+        "and",
+        "to",
+        "at",
+        "in",
+        "on",
+        "item",
+        "items",
+        "product",
+        "products",
+    }
+)
+
+AI_INVOICE_UNIT_ALIASES: dict[str, str] = {
+    "bag": "BAG",
+    "bags": "BAG",
+    "kg": "KG",
+    "kgs": "KG",
+    "kilo": "KG",
+    "kilos": "KG",
+    "nos": "NOS",
+    "no": "NOS",
+    "unit": "NOS",
+    "units": "NOS",
+    "pc": "PCS",
+    "pcs": "PCS",
+    "piece": "PCS",
+    "pieces": "PCS",
+    "liter": "LTR",
+    "liters": "LTR",
+    "litre": "LTR",
+    "litres": "LTR",
+    "ltr": "LTR",
+}
+
+AI_INVOICE_LINE_ITEM_PATTERN = re.compile(
+    r"^(\d+(?:\.\d+)?)\s*"
+    r"(bags?|kg|kgs?|nos|units?|pcs?|pieces?|liters?|litres?|ltr|litre)\s+"
+    r"(?:of\s+)?(.+)$",
+    re.I,
+)
 
 # --- Error codes (stable, client-facing) -----------------------------------
 class ErrorCode:
@@ -449,7 +596,63 @@ class AiIntent:
     GET_DASHBOARD = "get_dashboard"
     FIND_CUSTOMER = "find_customer"
     CREATE_CUSTOMER = "create_customer"
+    CREATE_CUSTOMER_AND_INVOICE = "create_customer_and_invoice"
     CLARIFY = "clarify"
+
+
+class AiAwaiting:
+    """Slots the copilot is waiting to fill from the user's next message."""
+
+    CUSTOMER_NAME = "customer_name"
+    CUSTOMER_PHONE = "customer_phone"
+    INVOICE_CUSTOMER = "invoice_customer"
+    CREATE_MISSING_CUSTOMER = "create_missing_customer"
+
+
+AI_CONTEXT_CONFIRM_WORDS = frozenset(
+    {"yes", "y", "confirm", "ok", "okay", "proceed", "go ahead", "sure", "do it"}
+)
+
+AI_CONTEXT_CANCEL_WORDS = frozenset({"no", "n", "cancel", "stop", "abort", "never mind"})
+
+AI_CONTEXT_PRONOUN_PHRASES = (
+    "them",
+    "that customer",
+    "same customer",
+    "this customer",
+    "for him",
+    "for her",
+    "for them",
+    "that one",
+    "same one",
+)
+
+AI_CONTEXT_REMINDER_FOLLOW_UPS = (
+    "send reminder",
+    "remind them",
+    "send it",
+    "whatsapp them",
+    "remind that customer",
+)
+
+AI_CONTEXT_INVOICE_FOLLOW_UPS = (
+    "invoice them",
+    "bill them",
+    "create invoice for them",
+    "invoice that customer",
+    "bill that customer",
+)
+
+AI_CONTEXT_CREATE_CUSTOMER_AFFIRMATIONS = (
+    "create them",
+    "add them",
+    "create customer",
+    "add customer",
+    "yes create",
+    "yes add",
+    "create first",
+    "add first",
+)
 
 
 # --- PDF / storage ---------------------------------------------------------

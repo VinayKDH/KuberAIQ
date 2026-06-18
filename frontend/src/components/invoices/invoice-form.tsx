@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LineItemDescriptionField } from "@/components/shared/line-item-description-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -179,12 +180,23 @@ export function InvoiceForm({ onSubmit, isSubmitting }: InvoiceFormProps) {
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Description</Label>
-                <Input
+                <LineItemDescriptionField
                   value={line.description}
-                  onChange={(e) => updateLine(index, { description: e.target.value })}
-                  placeholder="OPC 53 Grade Cement"
-                  required
+                  onChange={(description) =>
+                    updateLine(index, { description, product_id: undefined })
+                  }
+                  disabled={Boolean(line.product_id)}
+                  onTaxMatch={({ hsn_sac, gst_rate }) =>
+                    updateLine(index, { hsn_sac, gst_rate, product_id: undefined })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>HSN/SAC</Label>
+                <Input
+                  value={line.hsn_sac ?? ""}
+                  onChange={(e) => updateLine(index, { hsn_sac: e.target.value || undefined })}
+                  placeholder="2523"
                 />
               </div>
               <div className="space-y-2">

@@ -1,6 +1,7 @@
 """HSN/SAC → GST rate lookup and product-name suggestions for Indian GST."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -9,8 +10,11 @@ from app.core.constants import (
     DEFAULT_PRODUCT_GST_RATE,
     HSN_EXACT_GST_RATES,
     HSN_PREFIX_GST_RATES,
-    PRODUCT_NAME_HSN_HINTS,
 )
+from app.core.gst_product_catalog import GST_PRODUCT_CATALOG, GstProductCatalogEntry
+
+_WORD_BOUNDARY = re.compile(r"[^\w]+", re.UNICODE)
+_MIN_NAME_MATCH_SCORE = 200
 
 
 @dataclass(frozen=True)
@@ -18,6 +22,7 @@ class HsnSuggestion:
     hsn_sac: str
     gst_rate: Decimal
     source: str
+    matched_label: str | None = None
 
 
 def _normalize_hsn(hsn_sac: str) -> str:
@@ -38,15 +43,53 @@ def lookup_gst_rate(hsn_sac: str | None) -> Decimal | None:
     return None
 
 
+def _keyword_score(query: str, keyword: str) -> int:
+    """Higher score = better match (longer keyword / whole-word beats substring)."""
+    q = query.lower().strip()
+    k = keyword.lower().strip()
+    if len(k) < 2 or not q:
+        return 0
+    if q == k:
+        return 1000 + len(k)
+    padded = f" {_WORD_BOUNDARY.sub(' ', q)} "
+    token = f" {k} "
+    if token in padded:
+        return 500 + len(k)
+    if k in q:
+        return 200 + len(k)
+    return 0
+
+
+def _best_catalog_match(name: str) -> tuple[int, GstProductCatalogEntry, str] | None:
+    best: tuple[int, GstProductCatalogEntry, str] | None = None
+    for entry in GST_PRODUCT_CATALOG:
+        for keyword in entry.keywords:
+            score = _keyword_score(name, keyword)
+            if score <= 0:
+                continue
+            if best is None or score > best[0]:
+                best = (score, entry, keyword)
+    return best
+
+
 def suggest_hsn_from_name(name: str) -> HsnSuggestion | None:
-    """Suggest HSN/SAC and GST rate from a product name keyword match."""
-    lowered = name.strip().lower()
-    if not lowered:
+    """Suggest HSN/SAC and GST rate by matching product name to GST catalogue."""
+    cleaned = name.strip()
+    if not cleaned:
         return None
-    for keyword, (hsn_sac, rate) in PRODUCT_NAME_HSN_HINTS.items():
-        if keyword in lowered:
-            return HsnSuggestion(hsn_sac=hsn_sac, gst_rate=Decimal(rate), source="name_hint")
-    return None
+
+    match = _best_catalog_match(cleaned)
+    if match is None or match[0] < _MIN_NAME_MATCH_SCORE:
+        return None
+
+    _, entry, _keyword = match
+    rate = lookup_gst_rate(entry.hsn_sac) or Decimal(entry.gst_rate)
+    return HsnSuggestion(
+        hsn_sac=entry.hsn_sac,
+        gst_rate=rate,
+        source="catalog",
+        matched_label=entry.label,
+    )
 
 
 def resolve_product_tax_fields(

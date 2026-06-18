@@ -130,8 +130,22 @@ export default function AssistantPage() {
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    const cancelled = pendingAction;
     setPendingAction(null);
+    if (sessionId && cancelled) {
+      try {
+        const response = await chatMutation.mutateAsync({
+          message: "cancel",
+          session_id: sessionId,
+          channel: ASSISTANT_CHANNEL,
+        });
+        appendAssistantMessage(response);
+        return;
+      } catch {
+        /* fall through to local message */
+      }
+    }
     setMessages((prev) => [
       ...prev,
       {

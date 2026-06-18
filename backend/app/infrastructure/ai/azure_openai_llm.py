@@ -111,7 +111,10 @@ class AzureOpenAiLlm:
                 max_tokens=AI_MAX_TOKENS_EXTRACT,
                 json_mode=True,
             )
-            return json.loads(raw)
+            from app.infrastructure.ai.entity_extractor import merge_extracted_entities
+
+            llm_entities = json.loads(raw)
+            return merge_extracted_entities(llm_entities, message, intent)
         except Exception as exc:
             logger.warning("azure_openai_extract_fallback", error=str(exc))
             return await self._fallback.extract_entities(message, intent)

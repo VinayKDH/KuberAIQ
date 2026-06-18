@@ -10,7 +10,11 @@ from app.infrastructure.ai.graph.agents.dashboard_agent import run_dashboard_age
 from app.infrastructure.ai.graph.agents.clarify_agent import run_clarify_agent
 from app.infrastructure.ai.graph.agents.help_agent import run_help_agent
 from app.infrastructure.ai.graph.agents.invoice_agent import run_invoice_agent
-from app.infrastructure.ai.session_context import augment_message_with_history
+from app.infrastructure.ai.conversation_context import (
+    augment_message_with_history,
+    build_conversation_context,
+    is_confirmable_pending,
+)
 from app.infrastructure.ai.serialization import serialize_chat_response
 from app.infrastructure.ai.graph.router import route_message
 from app.infrastructure.ai.guardrails import validate_response
@@ -33,9 +37,11 @@ class CopilotGraph:
         confirmed: bool = False,
         services: dict[str, Any] | None = None,
         history: list[dict[str, Any]] | None = None,
+        clarify_pending: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         history = history or []
-        resolved_message = augment_message_with_history(message, history)
+        conversation_context = build_conversation_context(history, clarify_pending)
+        resolved_message = augment_message_with_history(message, history, clarify_pending)
         state: dict[str, Any] = {
             "company_id": company_id,
             "user_id": user_id,
@@ -46,6 +52,8 @@ class CopilotGraph:
             "services": services or {},
             "llm": self._llm,
             "history": history,
+            "conversation_context": conversation_context,
+            "clarify_pending": clarify_pending,
         }
         routed = await route_message(state, self._llm)
         state.update(routed)

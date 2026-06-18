@@ -29,6 +29,7 @@ export interface HsnLookupResult {
   hsn_sac: string | null;
   gst_rate: number | string | null;
   source: string | null;
+  matched_label?: string | null;
 }
 
 export interface UpdateProductInput {

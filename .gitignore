@@ -25,6 +25,7 @@ dist/
 .env.*
 !.env.example
 !.env.prod.example
+!.env.gcp.example
 *.pem
 *.key
 

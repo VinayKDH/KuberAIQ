@@ -11,7 +11,21 @@ export const PUBLIC_API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "https://api.kuberaiq.com";
 export const PUBLIC_APEX_DOMAIN =
   process.env.NEXT_PUBLIC_APEX_DOMAIN ?? "kuberaiq.com";
+/** Cloud Run default host suffix — same-origin API proxy via Next.js rewrites. */
+export const CLOUD_RUN_HOST_SUFFIX = ".run.app";
 export const LOCAL_API_URL = "http://localhost:8000";
+
+export function isCloudRunHostname(hostname: string): boolean {
+  return hostname.endsWith(CLOUD_RUN_HOST_SUFFIX);
+}
+
+export function usesSameOriginApi(hostname: string): boolean {
+  return (
+    hostname === PUBLIC_APEX_DOMAIN ||
+    hostname.endsWith(`.${PUBLIC_APEX_DOMAIN}`) ||
+    isCloudRunHostname(hostname)
+  );
+}
 
 export const API_NETWORK_ERROR =
   "Cannot reach the API. Check your connection and open https://www.kuberaiq.com (not kuberaiq.com).";
@@ -231,6 +245,8 @@ export const PAGE_TITLES: Record<string, string> = {
 
 export const DEFAULT_PAGE_SIZE = 20;
 export const DEFAULT_DUE_DAYS = 15;
+export const HSN_LOOKUP_MIN_CHARS = 3;
+export const HSN_LOOKUP_DEBOUNCE_MS = 400;
 
 export const GST_RATES = [0, 5, 12, 18, 28] as const;
 
@@ -338,6 +354,7 @@ export const PRODUCT_FORM = {
   DEFAULT_PRICE: "Default price (₹)",
   GST_RATE: "GST rate",
   GST_AUTO_FILLED: "Auto-filled from HSN/SAC — you can override",
+  GST_MATCHED: "Matched GST catalogue:",
   DEACTIVATE: "Deactivate",
   DEACTIVATE_CONFIRM: "Deactivate this product? It will no longer appear in the catalog picker.",
 } as const;

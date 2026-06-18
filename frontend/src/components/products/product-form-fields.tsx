@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useHsnLookupFromName } from "@/features/products/use-hsn-lookup";
 import { lookupHsnGst } from "@/features/products/api";
 import type { Product } from "@/features/products/types";
 import { GST_RATES, INVOICE_UNITS, PRODUCT_FORM } from "@/lib/constants";
@@ -53,36 +54,32 @@ interface ProductFormFieldsProps {
 
 export function ProductFormFields({ values, onChange }: ProductFormFieldsProps) {
   const [gstAutoFilled, setGstAutoFilled] = useState(false);
+  const [hsnManuallyEdited, setHsnManuallyEdited] = useState(false);
+  const [matchedLabel, setMatchedLabel] = useState<string | null>(null);
+  const { result, loading } = useHsnLookupFromName(values.name, hsnManuallyEdited);
 
-  const applyLookup = (hsn_sac?: string | null, gst_rate?: number | string | null) => {
-    if (hsn_sac && !values.hsnSac.trim()) {
-      onChange("hsnSac", hsn_sac);
+  useEffect(() => {
+    if (hsnManuallyEdited || !result?.hsn_sac) {
+      if (!result?.hsn_sac) setMatchedLabel(null);
+      return;
     }
-    if (gst_rate != null && gst_rate !== "") {
-      onChange("gstRate", String(gst_rate));
+    setMatchedLabel(result.matched_label ?? null);
+    onChange("hsnSac", result.hsn_sac);
+    if (result.gst_rate != null && result.gst_rate !== "") {
+      onChange("gstRate", String(result.gst_rate));
       setGstAutoFilled(true);
     }
-  };
+  }, [result, hsnManuallyEdited, onChange]);
 
   const handleHsnBlur = async () => {
     const hsn = values.hsnSac.trim();
     if (!hsn) return;
     try {
-      const result = await lookupHsnGst({ hsn_sac: hsn });
-      if (result.gst_rate != null && result.gst_rate !== "") {
-        onChange("gstRate", String(result.gst_rate));
+      const lookupResult = await lookupHsnGst({ hsn_sac: hsn });
+      if (lookupResult.gst_rate != null && lookupResult.gst_rate !== "") {
+        onChange("gstRate", String(lookupResult.gst_rate));
         setGstAutoFilled(true);
       }
-    } catch {
-      /* lookup is best-effort */
-    }
-  };
-
-  const handleNameBlur = async () => {
-    if (values.hsnSac.trim() || !values.name.trim()) return;
-    try {
-      const result = await lookupHsnGst({ name: values.name.trim() });
-      applyLookup(result.hsn_sac, result.gst_rate);
     } catch {
       /* lookup is best-effort */
     }
@@ -95,11 +92,22 @@ export function ProductFormFields({ values, onChange }: ProductFormFieldsProps) 
         <Input
           id="product-name"
           value={values.name}
-          onChange={(e) => onChange("name", e.target.value)}
-          onBlur={handleNameBlur}
+          onChange={(e) => {
+            setHsnManuallyEdited(false);
+            setGstAutoFilled(false);
+            onChange("name", e.target.value);
+          }}
           placeholder="OPC 53 Grade Cement"
           required
         />
+        {loading && (
+          <p className="text-xs text-muted-foreground">Matching GST catalogue…</p>
+        )}
+        {!loading && matchedLabel && (
+          <p className="text-xs text-muted-foreground">
+            {PRODUCT_FORM.GST_MATCHED} {matchedLabel}
+          </p>
+        )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="product-description">{PRODUCT_FORM.DESCRIPTION_FIELD}</Label>
@@ -117,7 +125,9 @@ export function ProductFormFields({ values, onChange }: ProductFormFieldsProps) 
             id="product-hsn"
             value={values.hsnSac}
             onChange={(e) => {
+              setHsnManuallyEdited(true);
               setGstAutoFilled(false);
+              setMatchedLabel(null);
               onChange("hsnSac", e.target.value);
             }}
             onBlur={handleHsnBlur}

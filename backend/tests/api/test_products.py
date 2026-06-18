@@ -63,7 +63,7 @@ async def test_hsn_lookup_by_name(client: AsyncClient, auth_headers: dict[str, s
     body = response.json()
     assert body["hsn_sac"] == "0406"
     assert body["gst_rate"] == "5"
-    assert body["source"] == "name_hint"
+    assert body["source"] == "catalog"
 
 
 @pytest.mark.asyncio

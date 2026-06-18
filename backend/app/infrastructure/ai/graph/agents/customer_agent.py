@@ -4,7 +4,8 @@ from __future__ import annotations
 import uuid
 
 from app.application.ports.llm import LlmPort
-from app.core.constants import AiIntent
+from app.core.constants import AiAwaiting, AiIntent
+from app.infrastructure.ai.conversation_context import build_clarify_pending
 from app.infrastructure.ai.tools.executor import ToolExecutor
 
 
@@ -20,13 +21,61 @@ async def run_customer_agent(state: dict) -> dict:
     if any(word in lower for word in ("create", "add", "new")):
         name = entities.get("name")
         phone = entities.get("phone")
-        if not name or not phone:
+        if phone and not name:
+            clarify = build_clarify_pending(
+                awaiting=AiAwaiting.CUSTOMER_NAME,
+                context={"phone": phone},
+            )
             return {
                 "response": {
                     "intent": AiIntent.CLARIFY,
-                    "message": "Please provide customer name and 10-digit phone. Example: Add customer Raj Traders 9876543210",
+                    "message": (
+                        f"I have phone {phone}. What is the customer or business name? "
+                        "Example: Add customer Raj Traders 9876543210"
+                    ),
                     "requires_confirmation": False,
-                    "pending_action": None,
+                    "pending_action": clarify,
+                    "data": {"awaiting_phone": phone},
+                    "suggested_actions": [
+                        {
+                            "label": f"Use Customer {phone[-4:]}",
+                            "value": f"Add customer Customer {phone[-4:]} {phone}",
+                        },
+                    ],
+                }
+            }
+        if name and not phone:
+            clarify = build_clarify_pending(
+                awaiting=AiAwaiting.CUSTOMER_PHONE,
+                context={"name": name},
+            )
+            return {
+                "response": {
+                    "intent": AiIntent.CLARIFY,
+                    "message": (
+                        f"I have name {name}. What is their 10-digit mobile number? "
+                        "Example: 9876543210 or Name Kamal Joshi. Phone 9876543210"
+                    ),
+                    "requires_confirmation": False,
+                    "pending_action": clarify,
+                    "data": {"awaiting_name": name},
+                    "suggested_actions": [],
+                }
+            }
+        if not name or not phone:
+            clarify = build_clarify_pending(
+                awaiting=AiAwaiting.CUSTOMER_NAME,
+                context={},
+            )
+            return {
+                "response": {
+                    "intent": AiIntent.CLARIFY,
+                    "message": (
+                        "Please provide customer name and 10-digit phone. "
+                        "Example: Add customer Raj Traders 9876543210"
+                    ),
+                    "requires_confirmation": False,
+                    "pending_action": clarify,
                     "data": None,
                     "suggested_actions": [],
                 }
@@ -35,14 +84,26 @@ async def run_customer_agent(state: dict) -> dict:
         if state.get("confirmed"):
             executor = ToolExecutor(services)
             result = await executor.create_customer(company_id, uuid.UUID(state["user_id"]), preview)
+            ctx = state.get("conversation_context") or {}
+            original_invoice = ctx.get("original_invoice_message")
+            message = f"Customer {result['name']} created."
+            suggested: list[dict[str, str]] = []
+            if original_invoice:
+                message += f" You can now continue with your invoice."
+                suggested.append(
+                    {
+                        "label": f"Invoice {result['name']}",
+                        "value": original_invoice,
+                    }
+                )
             return {
                 "response": {
                     "intent": AiIntent.CREATE_CUSTOMER,
-                    "message": f"Customer {result['name']} created.",
+                    "message": message,
                     "requires_confirmation": False,
                     "pending_action": None,
                     "data": result,
-                    "suggested_actions": [],
+                    "suggested_actions": suggested,
                 }
             }
         return {

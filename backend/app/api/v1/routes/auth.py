@@ -21,7 +21,12 @@ from app.domain.value_objects.phone import Phone
 from app.domain.exceptions import InvalidPhone
 from app.application.ports.repositories import UserRecord
 from app.core.config import settings
-from app.core.constants import CA_EMAIL_DOMAIN, DEMO_USER_EMAIL, LEGACY_DEMO_USER_EMAIL
+from app.core.constants import (
+    CA_EMAIL_DOMAIN,
+    DEMO_CA_EMAIL,
+    DEMO_USER_EMAIL,
+    LEGACY_DEMO_USER_EMAIL,
+)
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationAppError
 from app.core.container import Container
 from app.domain.enums import UserRole
@@ -54,7 +59,27 @@ async def mock_login(
         if not user:
             email = body.email.strip().lower()
             _, _, domain = email.partition("@")
-            if domain.endswith("test.kuberaiq.com"):
+            if email in {DEMO_USER_EMAIL.lower(), LEGACY_DEMO_USER_EMAIL.lower()}:
+                user = await uow.users.create(
+                    UserRecord(
+                        id=uuid.uuid4(),
+                        company_id=None,
+                        email=DEMO_USER_EMAIL,
+                        full_name="Demo Owner",
+                        role=UserRole.OWNER,
+                    )
+                )
+            elif email == DEMO_CA_EMAIL.lower():
+                user = await uow.users.create(
+                    UserRecord(
+                        id=uuid.uuid4(),
+                        company_id=None,
+                        email=DEMO_CA_EMAIL,
+                        full_name="Demo CA",
+                        role=UserRole.CA,
+                    )
+                )
+            elif domain.endswith("test.kuberaiq.com"):
                 local_part = email.split("@", 1)[0]
                 user = await uow.users.create(
                     UserRecord(
@@ -79,7 +104,11 @@ async def mock_login(
             else:
                 raise NotFoundError(f"No user found for {body.email}")
             await uow.commit()
-    result = await container.billing_service.build_token_response(user)
+    if settings.use_mock_billing:
+        await container.billing_service.ensure_subscription(user.id)
+        result = await container.billing_service.mock_activate(user.id)
+    else:
+        result = await container.billing_service.build_token_response(user)
     return TokenResponse(**result)
 
 

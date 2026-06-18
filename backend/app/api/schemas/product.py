@@ -31,6 +31,7 @@ class HsnLookupResponse(BaseModel):
     hsn_sac: str | None = None
     gst_rate: Decimal | None = None
     source: str | None = None
+    matched_label: str | None = None
 
 
 class ProductResponse(BaseModel):

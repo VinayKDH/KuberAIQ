@@ -72,6 +72,7 @@ async def lookup_hsn_gst(
                 hsn_sac=suggestion.hsn_sac,
                 gst_rate=suggestion.gst_rate,
                 source=suggestion.source,
+                matched_label=suggestion.matched_label,
             )
     return HsnLookupResponse()
 

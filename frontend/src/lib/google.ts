@@ -4,6 +4,7 @@ import {
   OAUTH_PROVIDER_GOOGLE,
   PUBLIC_WEB_URL,
   ROUTES,
+  usesSameOriginApi,
 } from "@/lib/constants";
 import { apiClient } from "@/lib/api-client";
 import { storeSession, type AuthTokens } from "@/lib/auth";
@@ -17,6 +18,9 @@ import {
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
 function getGoogleRedirectUri(): string {
+  if (typeof window !== "undefined" && usesSameOriginApi(window.location.hostname)) {
+    return `${window.location.origin}${ROUTES.AUTH_CALLBACK}`;
+  }
   return (
     process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI ||
     `${PUBLIC_WEB_URL}${ROUTES.AUTH_CALLBACK}`

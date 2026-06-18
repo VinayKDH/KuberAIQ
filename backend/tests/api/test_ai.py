@@ -145,6 +145,167 @@ async def test_ai_chat_yes_confirms_pending_invoice(client: AsyncClient, auth_he
 
 
 @pytest.mark.asyncio
+async def test_ai_chat_create_customer_name_then_labeled_phone(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    first = await client.post(
+        "/api/v1/ai/chat",
+        json={"message": "create customer kamal joshi"},
+        headers=auth_headers,
+    )
+    assert first.status_code == 200
+    body = first.json()
+    assert body["intent"] == "clarify"
+    session_id = body["session_id"]
+
+    second = await client.post(
+        "/api/v1/ai/chat",
+        json={"message": "Name Kamal Joshi. Phone 9258843443", "session_id": session_id},
+        headers=auth_headers,
+    )
+    assert second.status_code == 200
+    follow = second.json()
+    assert follow["requires_confirmation"] is True
+    assert follow["pending_action"]["type"] == "create_customer"
+    assert follow["pending_action"]["preview"]["name"] == "Kamal Joshi"
+    assert follow["pending_action"]["preview"]["phone"] == "9258843443"
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_phone_then_name_multiturn(client: AsyncClient, auth_headers: dict) -> None:
+    first = await client.post(
+        "/api/v1/ai/chat",
+        json={"message": "Add customer for 9000000000"},
+        headers=auth_headers,
+    )
+    assert first.status_code == 200
+    body = first.json()
+    assert body["intent"] == "clarify"
+    session_id = body["session_id"]
+
+    second = await client.post(
+        "/api/v1/ai/chat",
+        json={"message": "Raj Traders", "session_id": session_id},
+        headers=auth_headers,
+    )
+    assert second.status_code == 200
+    follow = second.json()
+    assert follow["requires_confirmation"] is True
+    assert follow["pending_action"]["type"] == "create_customer"
+    assert follow["pending_action"]["preview"]["name"] == "Raj Traders"
+    assert follow["pending_action"]["preview"]["phone"] == "9000000000"
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_missing_customer_phone_multiturn(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    chat = await client.post(
+        "/api/v1/ai/chat",
+        json={"message": "Create the invoice for Unknown Co"},
+        headers=auth_headers,
+    )
+    assert chat.status_code == 200
+    body = chat.json()
+    assert body["intent"] == "clarify"
+    assert "Unknown Co" in body["message"]
+    session_id = body["session_id"]
+
+    phone = await client.post(
+        "/api/v1/ai/chat",
+        json={"message": "9111199999", "session_id": session_id},
+        headers=auth_headers,
+    )
+    assert phone.status_code == 200
+    follow = phone.json()
+    assert follow["requires_confirmation"] is True
+    assert follow["pending_action"]["type"] == "create_customer_and_invoice"
+    assert follow["pending_action"]["preview"]["customer"]["name"] == "Unknown Co"
+    assert follow["pending_action"]["preview"]["customer"]["phone"] == "9111199999"
+
+    confirm = await client.post(
+        "/api/v1/ai/confirm",
+        json={
+            "session_id": session_id,
+            "pending_action": follow["pending_action"],
+        },
+        headers=auth_headers,
+    )
+    assert confirm.status_code == 200
+    result = confirm.json()
+    assert "invoice" in result["message"].lower()
+    assert "created" in result["message"].lower()
+    assert result["data"]["customer_name"] == "Unknown Co"
+    assert result["data"]["invoice_number"]
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_new_customer_with_phone_in_invoice_message(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    chat = await client.post(
+        "/api/v1/ai/chat",
+        json={
+            "message": "Create invoice for Brand New Co 9112233445 for 5 bags at 400",
+        },
+        headers=auth_headers,
+    )
+    assert chat.status_code == 200
+    body = chat.json()
+    assert body["requires_confirmation"] is True
+    assert body["pending_action"]["type"] == "create_customer_and_invoice"
+    assert body["pending_action"]["preview"]["customer"]["name"] == "Brand New Co"
+    assert body["pending_action"]["preview"]["customer"]["phone"] == "9112233445"
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_multi_item_invoice(client: AsyncClient, auth_headers: dict) -> None:
+    cust = await client.post(
+        "/api/v1/customers",
+        json={"name": "AIMLGYAN", "phone": "9876501234"},
+        headers=auth_headers,
+    )
+    assert cust.status_code == 201
+
+    chat = await client.post(
+        "/api/v1/ai/chat",
+        json={
+            "message": (
+                "Create the invoice of 50 bags of cement and 2 litre of roof sealant "
+                "for AIMLGYAN"
+            ),
+        },
+        headers=auth_headers,
+    )
+    assert chat.status_code == 200
+    body = chat.json()
+    assert body["requires_confirmation"] is True
+    assert "AIMLGYAN" in body["message"]
+    assert "cement" in body["message"].lower()
+    assert "sealant" in body["message"].lower()
+    items = body["pending_action"]["preview"]["items"]
+    assert len(items) == 2
+    assert items[0]["hsn_sac"]
+    assert float(items[0]["gst_rate"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_add_customer_phone_only_clarifies(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    chat = await client.post(
+        "/api/v1/ai/chat",
+        json={"message": "Add customer for 9000000000"},
+        headers=auth_headers,
+    )
+    assert chat.status_code == 200
+    body = chat.json()
+    assert body["intent"] == "clarify"
+    assert "9000000000" in body["message"]
+    assert body["requires_confirmation"] is False
+
+
+@pytest.mark.asyncio
 async def test_ai_bulk_reminder_confirm(client: AsyncClient, auth_headers: dict) -> None:
     chat = await client.post(
         "/api/v1/ai/chat",

@@ -74,6 +74,25 @@ class ToolExecutor:
         )
         return {"customer_id": str(customer.id), "name": customer.name}
 
+    async def create_customer_and_invoice(
+        self, company_id: uuid.UUID, user_id: uuid.UUID, preview: dict
+    ) -> dict:
+        customer_data = preview["customer"]
+        customer = await self.create_customer(company_id, user_id, customer_data)
+        invoice_preview = {
+            "customer_id": customer["customer_id"],
+            "customer_name": customer["name"],
+            **preview["invoice"],
+        }
+        invoice = await self.create_invoice(company_id, user_id, invoice_preview)
+        return {
+            "customer_id": customer["customer_id"],
+            "customer_name": customer["name"],
+            "invoice_id": invoice["invoice_id"],
+            "invoice_number": invoice["invoice_number"],
+            "grand_total": invoice["grand_total"],
+        }
+
     async def list_overdue(self, company_id: uuid.UUID) -> list[dict]:
         collection = self._services["collection"]
         return await collection.list_overdue(company_id)
