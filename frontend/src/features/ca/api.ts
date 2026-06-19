@@ -6,6 +6,7 @@ import type {
   CaDashboardResponse,
   AdvisorsResponse,
   InviteAdvisorPayload,
+  CaBulkGstrResponse,
 } from "./types";
 
 export function fetchCaClients() {
@@ -43,4 +44,14 @@ export function inviteAdvisor(body: InviteAdvisorPayload) {
 
 export function revokeAdvisor(assignmentId: string) {
   return apiClient(API_PATHS.ADVISOR_REVOKE(assignmentId), { method: "DELETE" });
+}
+
+export function fetchCaBulkGstr1(params: {
+  from: string;
+  to: string;
+  companyIds?: string[];
+}) {
+  const search = new URLSearchParams({ from: params.from, to: params.to });
+  params.companyIds?.forEach((id) => search.append("company_ids", id));
+  return apiClient<CaBulkGstrResponse>(`${API_PATHS.CA_GSTR1_BULK}?${search.toString()}`);
 }

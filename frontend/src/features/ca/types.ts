@@ -29,6 +29,18 @@ export interface CaDashboardClient {
   gstin?: string | null;
   upcoming_filings: CaUpcomingFiling[];
   health_score?: number | null;
+  overdue_total?: number | null;
+}
+
+export interface CaBulkGstrResponse {
+  from: string;
+  to: string;
+  items: Array<{
+    company_id: string;
+    company_name: string;
+    gstin?: string | null;
+    report: Record<string, unknown>;
+  }>;
 }
 
 export interface CaDashboardResponse {

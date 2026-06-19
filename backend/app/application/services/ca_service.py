@@ -200,13 +200,25 @@ class CaService:
 
         return {"clients": clients, "client_count": len(clients)}
 
-    async def gstr1_bulk(self, ca_user_id: uuid.UUID, from_date, to_date) -> dict:
+    async def gstr1_bulk(
+        self,
+        ca_user_id: uuid.UUID,
+        from_date,
+        to_date,
+        *,
+        company_ids: list[uuid.UUID] | None = None,
+    ) -> dict:
         from app.application.services.gstr_report_service import GstrReportService
 
         service = GstrReportService(self._uow_factory)
         async with self._uow_factory() as uow:
             assignments = await uow.ca_assignments.list_active_for_ca(ca_user_id)
-            companies = [await uow.companies.get_by_id(row.company_id) for row in assignments]
+            if company_ids is not None:
+                allowed = {row.company_id for row in assignments}
+                company_ids = [cid for cid in company_ids if cid in allowed]
+            else:
+                company_ids = [row.company_id for row in assignments]
+            companies = [await uow.companies.get_by_id(cid) for cid in company_ids]
         items = []
         for company in companies:
             if not company:

@@ -138,3 +138,36 @@ async def test_owner_lists_advisors(client: AsyncClient) -> None:
     items = resp.json()["items"]
     assert len(items) >= 1
     assert any(i["ca_email"] == DEMO_CA_EMAIL for i in items)
+
+
+@pytest.mark.asyncio
+async def test_ca_bulk_gstr1_export(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    resp = await client.get(
+        "/api/v1/ca/reports/gstr1/bulk",
+        params={"from": "2025-04-01", "to": "2026-03-31"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "items" in body
+    assert body["from"] == "2025-04-01"
+    assert body["to"] == "2026-03-31"
+
+    filtered = await client.get(
+        "/api/v1/ca/reports/gstr1/bulk",
+        params={
+            "from": "2025-04-01",
+            "to": "2026-03-31",
+            "company_ids": [str(DEMO_COMPANY_ID)],
+        },
+        headers=headers,
+    )
+    assert filtered.status_code == 200
+    filtered_body = filtered.json()
+    assert len(filtered_body["items"]) <= 1
+    if filtered_body["items"]:
+        assert filtered_body["items"][0]["company_id"] == str(DEMO_COMPANY_ID)

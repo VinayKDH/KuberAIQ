@@ -132,14 +132,20 @@ export default function OnboardingPage() {
     setError(null);
     setLoading(true);
     try {
-      if (!skip && upiId.trim()) {
+      if (!skip) {
+        setStoredMsmeSegment(msmeSegment);
         await apiClient(API_PATHS.COMPANY_ME, {
           method: "PATCH",
           body: {
-            upi_id: upiId.trim(),
-            upi_payee_name: upiPayeeName.trim() || legalName,
-            auto_reminders_enabled: autoReminders,
-            default_reminder_language: reminderLanguage,
+            msme_segment: msmeSegment,
+            ...(upiId.trim()
+              ? {
+                  upi_id: upiId.trim(),
+                  upi_payee_name: upiPayeeName.trim() || legalName,
+                  auto_reminders_enabled: autoReminders,
+                  default_reminder_language: reminderLanguage,
+                }
+              : {}),
           },
         });
       }

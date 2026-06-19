@@ -17,6 +17,24 @@ export function getStoredMsmeSegment(): MsmeLoginSegmentId {
   return isMsmeSegmentId(saved) ? saved : DEFAULT_SEGMENT;
 }
 
+export function resolveMsmeSegment(
+  apiSegment?: string | null,
+  localSegment?: MsmeLoginSegmentId,
+): MsmeLoginSegmentId {
+  if (isMsmeSegmentId(apiSegment)) return apiSegment;
+  return localSegment ?? getStoredMsmeSegment();
+}
+
+export async function persistMsmeSegment(segmentId: MsmeLoginSegmentId): Promise<void> {
+  setStoredMsmeSegment(segmentId);
+  const { apiClient } = await import("@/lib/api-client");
+  const { API_PATHS } = await import("@/lib/constants");
+  await apiClient(API_PATHS.COMPANY_ME, {
+    method: "PATCH",
+    body: { msme_segment: segmentId },
+  });
+}
+
 export function setStoredMsmeSegment(id: MsmeLoginSegmentId): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(LOGIN_STORAGE_KEYS.MSME_SEGMENT, id);

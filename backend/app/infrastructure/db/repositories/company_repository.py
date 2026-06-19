@@ -63,6 +63,7 @@ class SqlAlchemyCompanyRepository:
             employee_count=record.employee_count,
             udyam_number=record.udyam_number,
             has_tds_applicable=record.has_tds_applicable,
+            msme_segment=record.msme_segment,
         )
         self._session.add(model)
         await self._session.flush()
@@ -90,6 +91,7 @@ class SqlAlchemyCompanyRepository:
         model.employee_count = record.employee_count
         model.udyam_number = record.udyam_number
         model.has_tds_applicable = record.has_tds_applicable
+        model.msme_segment = record.msme_segment
         await self._session.flush()
         return self._to_record(model)
 
@@ -112,4 +114,5 @@ class SqlAlchemyCompanyRepository:
             employee_count=model.employee_count,
             udyam_number=model.udyam_number,
             has_tds_applicable=model.has_tds_applicable,
+            msme_segment=model.msme_segment,
         )

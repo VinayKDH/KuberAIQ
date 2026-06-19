@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Download, MessageCircle } from "lucide-react";
+import { ArrowLeft, Download, MessageCircle, Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { GstSummary } from "@/components/invoices/gst-summary";
 import { CreditNoteDialog } from "@/components/invoices/credit-note-dialog";
 import { InvoiceIrnPanel } from "@/components/invoices/invoice-irn-panel";
+import { useCompanyProfile } from "@/features/company/hooks";
 import {
   useCancelInvoice,
   useCreditNotes,
@@ -50,7 +51,9 @@ import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   ROUTES,
+  UPI_PAY_COPY,
 } from "@/lib/constants";
+import { buildUpiPayUrl } from "@/lib/upi";
 import { formatDate, formatINR, todayIso } from "@/lib/format";
 
 export default function InvoiceDetailPage() {
@@ -58,6 +61,7 @@ export default function InvoiceDetailPage() {
   const id = String(params.id);
   const { data: invoice, isLoading, isError, error } = useInvoice(id);
   const { data: payments } = useInvoicePayments(id);
+  const { data: company } = useCompanyProfile();
   const issueInvoice = useIssueInvoice();
   const cancelInvoice = useCancelInvoice();
   const recordPayment = useRecordPayment();
@@ -99,6 +103,15 @@ export default function InvoiceDetailPage() {
   const canCancel = !["PAID", "CANCELLED"].includes(invoice.status);
   const canCredit = ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(invoice.status);
   const canShare = !["DRAFT", "CANCELLED"].includes(invoice.status);
+  const upiPayUrl =
+    company?.upi_id && canPay
+      ? buildUpiPayUrl({
+          vpa: company.upi_id,
+          payeeName: company.upi_payee_name ?? company.legal_name,
+          amount: Number(invoice.amount_due),
+          note: `${UPI_PAY_COPY.UPI_NOTE_PREFIX} ${invoice.invoice_number ?? id}`,
+        })
+      : null;
 
   return (
     <div className="space-y-6">
@@ -161,6 +174,20 @@ export default function InvoiceDetailPage() {
                 <MessageCircle className="mr-1 h-4 w-4" />
                 Share on WhatsApp
               </Button>
+              {upiPayUrl ? (
+                <a
+                  href={upiPayUrl}
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Smartphone className="mr-1 h-4 w-4" />
+                  {UPI_PAY_COPY.PAY_WITH_UPI}
+                </a>
+              ) : canPay && !company?.upi_id ? (
+                <Button variant="ghost" size="sm" disabled title={UPI_PAY_COPY.UPI_NOT_CONFIGURED}>
+                  <Smartphone className="mr-1 h-4 w-4" />
+                  {UPI_PAY_COPY.PAY_WITH_UPI}
+                </Button>
+              ) : null}
               <Button
                 variant="outline"
                 disabled={createPaymentLink.isPending}

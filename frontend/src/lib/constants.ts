@@ -173,6 +173,8 @@ export const QUERY_KEYS = {
   CA_CLIENTS: ["ca", "clients"] as const,
   CA_DASHBOARD: ["ca", "dashboard"] as const,
   ADVISORS: ["advisors"] as const,
+  CA_GSTR1_BULK: (from: string, to: string, companyIds?: string[]) =>
+    ["ca", "gstr1-bulk", from, to, companyIds?.join(",") ?? "all"] as const,
 } as const;
 
 export const NAV_ITEMS_CA = [
@@ -506,7 +508,25 @@ export const CA_COPY = {
   CA_FIRM: "CA firm name (optional)",
   INVITE_SENT: "Invitation sent.",
   INVITE_ERROR: "Could not send invitation.",
+  PORTFOLIO_CLIENTS: "Active clients",
+  PORTFOLIO_OVERDUE: "Total overdue",
+  PORTFOLIO_DUE_SOON: "Filings due soon",
+  HEALTH_GSTIN_MISSING: "GSTIN missing",
+  HEALTH_OVERDUE_HIGH: "High overdue",
+  BULK_GSTR_TITLE: "Bulk GSTR-1 export",
+  BULK_GSTR_DESC: "Download JSON summaries for selected clients in one export.",
+  BULK_GSTR_SELECT: "Select clients",
+  BULK_GSTR_EXPORT: "Export GSTR-1",
+  BULK_GSTR_EXPORTING: "Exporting…",
+  BULK_GSTR_EMPTY: "Select at least one client.",
+  BULK_GSTR_SUCCESS: "Export ready — JSON downloaded.",
+  BULK_GSTR_ERROR: "Bulk export failed.",
+  OPEN_CLIENT_WORKSPACE: "Open workspace",
 } as const;
+
+export const CA_OVERDUE_ALERT_THRESHOLD = 10_000;
+
+export const CA_FILING_DUE_SOON_DAYS = 7;
 
 export const E_INVOICE_TURNOVER_THRESHOLD = 1_000_000;
 
@@ -835,6 +855,51 @@ export const MSME_QUICK_START_COPY = {
     hi: "हम आपके MSME सेगमेंट के अनुसार इनवॉइस, प्रोडक्ट और AI सुझाव अनुकूलित करते हैं।",
   },
   SAVED: { en: "Business type updated.", hi: "व्यवसाय प्रकार अपडेट हो गया।" },
+} as const;
+
+export const MSME_COMPLIANCE_TIPS: Record<
+  MsmeLoginSegmentId,
+  Array<{ en: string; hi: string }>
+> = {
+  kirana: [
+    { en: "File GSTR-1 monthly if registered — even nil returns matter.", hi: "रजिस्टर्ड होने पर मासिक GSTR-1 भरें — निल रिटर्न भी ज़रूरी हैं।" },
+    { en: "Track udhaar separately — overdue hurts cash flow.", hi: "उधार अलग ट्रैक करें — बकाया कैश फ्लो को नुकसान पहुँचाता है।" },
+  ],
+  trader: [
+    { en: "Match HSN on invoices with GSTR-1 B2B lines before filing.", hi: "फाइलिंग से पहले इनवॉइस HSN को GSTR-1 B2B से मिलाएँ।" },
+    { en: "Reconcile outward supplies quarterly if on QRMP.", hi: "QRMP पर हों तो तिमाही आउटवर्ड सप्लाई रिकॉन्साइल करें।" },
+  ],
+  manufacturing: [
+    { en: "Keep purchase registers ready for ITC matching in GSTR-3B.", hi: "GSTR-3B ITC मैचिंग के लिए खरीद रजिस्टर तैयार रखें।" },
+    { en: "Record e-way bills for inter-state dispatches above threshold.", hi: "सीमा पार डिस्पैच पर ई-वे बिल रिकॉर्ड करें।" },
+  ],
+  services: [
+    { en: "Use SAC codes on service invoices for clean GSTR-1 exports.", hi: "साफ GSTR-1 के लिए सेवा इनवॉइस पर SAC कोड लगाएँ।" },
+    { en: "Track TDS on professional fees if applicable.", hi: "लागू हो तो प्रोफेशनल फीस पर TDS ट्रैक करें।" },
+  ],
+  construction: [
+    { en: "Separate material vs labour lines for GST rate accuracy.", hi: "GST दर सटीकता के लिए सामग्री और मजदूरी अलग दिखाएँ।" },
+    { en: "File GSTR-1 before the 11th to avoid late fees.", hi: "देरी शुल्क से बचने के लिए 11 तारीख से पहले GSTR-1 भरें।" },
+  ],
+  food: [
+    { en: "Restaurant GST rates differ — verify 5% vs 12% on supplies.", hi: "रेस्टोरेंट GST दरें अलग हैं — 5% बनाम 12% जाँचें।" },
+    { en: "Daily sales summary helps monthly GSTR-1 close faster.", hi: "दैनिक बिक्री सारांश से मासिक GSTR-1 जल्दी बंद होता है।" },
+  ],
+};
+
+export const UPI_PAY_COPY = {
+  PAY_WITH_UPI: "Pay with UPI",
+  UPI_NOT_CONFIGURED: "Add your UPI ID in Settings to enable one-tap payment links.",
+  UPI_NOTE_PREFIX: "Invoice",
+} as const;
+
+export const DASHBOARD_METRICS = {
+  revenue: { en: "Revenue (Paid)", hi: "रेवेन्यू (प्राप्त)" },
+  revenueDesc: { en: "Total collected in period", hi: "अवधि में कुल वसूली" },
+  pending: { en: "Pending", hi: "लंबित" },
+  pendingDesc: { en: "Issued, not yet due", hi: "जारी, अभी देय नहीं" },
+  overdue: { en: "Overdue", hi: "बकाया" },
+  overdueDesc: { en: "Past due receivables", hi: "देय तिथि बीत चुकी वसूली" },
 } as const;
 
 export const ASSISTANT_QUERY_PARAM = "q";

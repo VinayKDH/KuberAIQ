@@ -36,6 +36,7 @@ class CompanyModel(Base):
     employee_count: Mapped[int | None] = mapped_column(Integer)
     udyam_number: Mapped[str | None] = mapped_column(String(20))
     has_tds_applicable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    msme_segment: Mapped[str | None] = mapped_column(String(30))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

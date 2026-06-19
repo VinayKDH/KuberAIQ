@@ -5,29 +5,27 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMsmeSegment } from "@/features/company/hooks";
 import {
   ASSISTANT_QUERY_PARAM,
   MSME_QUICK_START_ACTIONS,
   MSME_QUICK_START_COPY,
   ROUTES,
-  type MsmeLoginSegmentId,
 } from "@/lib/constants";
 import { getPreferredLanguage } from "@/lib/i18n";
 import {
   dismissQuickStart,
   getMsmeSegmentLabel,
-  getStoredMsmeSegment,
   isQuickStartDismissed,
 } from "@/lib/msme-segment";
 
 export function MsmeQuickStartCard() {
   const lang = getPreferredLanguage();
+  const segmentId = useMsmeSegment();
   const [visible, setVisible] = useState(false);
-  const [segmentId, setSegmentId] = useState<MsmeLoginSegmentId>("kirana");
 
   useEffect(() => {
     if (isQuickStartDismissed()) return;
-    setSegmentId(getStoredMsmeSegment());
     setVisible(true);
   }, []);
 

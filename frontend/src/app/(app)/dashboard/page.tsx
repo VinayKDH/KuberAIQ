@@ -8,17 +8,21 @@ import { CashflowForecastChart } from "@/components/dashboard/cashflow-forecast-
 import { ComplianceAlertCard } from "@/components/dashboard/compliance-alert-card";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { TopProductsCard } from "@/components/dashboard/top-products-card";
+import { ComplianceAlertsPreviewPanel } from "@/components/compliance/compliance-alerts-preview";
+import { MsmeComplianceTipsCard } from "@/components/msme/msme-compliance-tips-card";
 import { MsmeQuickStartCard } from "@/components/msme/msme-quick-start-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboard } from "@/features/dashboard/hooks";
+import { DASHBOARD_METRICS } from "@/lib/constants";
 import { financialYearStartIso, formatDate, formatINR, todayIso } from "@/lib/format";
 import { getPreferredLanguage, I18N_MESSAGES } from "@/lib/i18n";
 
 export default function DashboardPage() {
-  const i18n = I18N_MESSAGES[getPreferredLanguage()];
+  const lang = getPreferredLanguage();
+  const i18n = I18N_MESSAGES[lang];
   const [fromDate, setFromDate] = useState(financialYearStartIso);
   const [toDate, setToDate] = useState(todayIso);
 
@@ -62,6 +66,11 @@ export default function DashboardPage() {
 
       <MsmeQuickStartCard />
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <MsmeComplianceTipsCard />
+        <ComplianceAlertsPreviewPanel />
+      </div>
+
       {isError && (
         <Card className="border-destructive/50">
           <CardContent className="flex items-center gap-2 pt-6 text-destructive">
@@ -93,26 +102,26 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
-          title="Revenue (Paid)"
+          title={DASHBOARD_METRICS.revenue[lang]}
           value={data?.revenue ?? 0}
           icon={IndianRupee}
-          description="Total collected in period"
+          description={DASHBOARD_METRICS.revenueDesc[lang]}
           loading={isLoading}
         />
         <MetricCard
-          title="Pending"
+          title={DASHBOARD_METRICS.pending[lang]}
           value={data?.pending ?? 0}
           icon={Clock}
           variant="warning"
-          description="Issued, not yet due"
+          description={DASHBOARD_METRICS.pendingDesc[lang]}
           loading={isLoading}
         />
         <MetricCard
-          title="Overdue"
+          title={DASHBOARD_METRICS.overdue[lang]}
           value={data?.overdue ?? 0}
           icon={AlertCircle}
           variant="danger"
-          description="Past due receivables"
+          description={DASHBOARD_METRICS.overdueDesc[lang]}
           loading={isLoading}
         />
       </div>

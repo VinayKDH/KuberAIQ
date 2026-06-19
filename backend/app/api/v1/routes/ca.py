@@ -95,7 +95,10 @@ async def ca_bulk_gstr1(
     container: Annotated[Container, Depends(get_container)],
     from_date: date = Query(..., alias="from"),
     to_date: date = Query(..., alias="to"),
+    company_ids: list[uuid.UUID] | None = Query(default=None),
 ) -> CaBulkGstrResponse:
     _require_ca(auth)
-    data = await container.ca_service.gstr1_bulk(auth.user_id, from_date, to_date)
+    data = await container.ca_service.gstr1_bulk(
+        auth.user_id, from_date, to_date, company_ids=company_ids
+    )
     return CaBulkGstrResponse(**data)

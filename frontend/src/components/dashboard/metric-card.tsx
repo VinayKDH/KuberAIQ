@@ -11,6 +11,7 @@ interface MetricCardProps {
   description?: string;
   variant?: "default" | "warning" | "danger";
   loading?: boolean;
+  formatAsCurrency?: boolean;
 }
 
 const variantStyles = {
@@ -26,6 +27,7 @@ export function MetricCard({
   description,
   variant = "default",
   loading,
+  formatAsCurrency = true,
 }: MetricCardProps) {
   return (
     <Card>
@@ -38,7 +40,7 @@ export function MetricCard({
           <Skeleton className="h-8 w-32" />
         ) : (
           <div className={cn("text-2xl font-bold", variantStyles[variant])}>
-            {formatINR(value)}
+            {formatAsCurrency ? formatINR(value) : value.toLocaleString("en-IN")}
           </div>
         )}
         {description && (

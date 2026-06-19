@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass
 
 from app.application.ports.repositories import CompanyRecord, UserRecord
-from app.core.constants import DEFAULT_INVOICE_PREFIX, AuditAction, EntityType, ErrorCode
+from app.core.constants import DEFAULT_INVOICE_PREFIX, AuditAction, EntityType, ErrorCode, MSME_SEGMENT_IDS
 from app.core.errors import ConflictError, ForbiddenError, ValidationAppError
 from app.domain.exceptions import DomainError, InvalidGstin
 from app.domain.value_objects.gstin import Gstin
@@ -36,6 +36,7 @@ class UpdateCompanyInput:
     employee_count: int | None = None
     udyam_number: str | None = None
     has_tds_applicable: bool | None = None
+    msme_segment: str | None = None
 
 
 class CompanyService:
@@ -115,6 +116,14 @@ class CompanyService:
             if not company:
                 raise ValidationAppError("Company not found")
 
+            if data.msme_segment is not None:
+                segment = data.msme_segment.strip().lower() if data.msme_segment else None
+                if segment and segment not in MSME_SEGMENT_IDS:
+                    raise ValidationAppError("Invalid MSME business segment")
+                msme_segment_value = segment or None
+            else:
+                msme_segment_value = company.msme_segment
+
             gstin_value = company.gstin
             state_code = company.state_code
             if data.gstin is not None:
@@ -173,6 +182,9 @@ class CompanyService:
                     data.has_tds_applicable
                     if data.has_tds_applicable is not None
                     else company.has_tds_applicable
+                ),
+                msme_segment=(
+                    msme_segment_value
                 ),
             )
             saved = await uow.companies.update(updated)

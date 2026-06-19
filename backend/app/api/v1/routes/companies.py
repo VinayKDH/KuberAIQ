@@ -42,6 +42,7 @@ def _company_response(record) -> CompanyResponse:
         employee_count=record.employee_count,
         udyam_number=record.udyam_number,
         has_tds_applicable=record.has_tds_applicable,
+        msme_segment=record.msme_segment,
     )
 
 

@@ -7,6 +7,7 @@ import {
   fetchAdvisors,
   fetchCaClients,
   fetchCaDashboard,
+  fetchCaBulkGstr1,
   inviteAdvisor,
   revokeAdvisor,
   switchCaContext,
@@ -84,5 +85,11 @@ export function useRevokeAdvisor() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ADVISORS });
     },
+  });
+}
+
+export function useCaBulkGstr1() {
+  return useMutation({
+    mutationFn: fetchCaBulkGstr1,
   });
 }

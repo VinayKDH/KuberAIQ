@@ -2,14 +2,17 @@
 
 import { AlertCircle, Building2 } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { CaBulkGstrPanel } from "@/components/ca/ca-bulk-gstr-panel";
+import { CaClientHealthBadges } from "@/components/ca/ca-client-health-badges";
+import { CaDashboardSummary } from "@/components/ca/ca-dashboard-summary";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCaDashboard } from "@/features/ca/hooks";
 import { CA_COPY, ROUTES } from "@/lib/constants";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatINR } from "@/lib/format";
 
 export default function CaDashboardPage() {
   const { data, isLoading } = useCaDashboard();
+  const clients = data?.clients ?? [];
 
   return (
     <div className="space-y-6">
@@ -26,24 +29,38 @@ export default function CaDashboardPage() {
         </Link>
       </div>
 
+      <CaDashboardSummary clients={clients} loading={isLoading} />
+
+      {!isLoading && clients.length > 0 && <CaBulkGstrPanel clients={clients} />}
+
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading filing overview…</p>
-      ) : data?.clients.length ? (
+      ) : clients.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
-          {data.clients.map((client) => (
+          {clients.map((client) => (
             <Card key={client.company_id}>
               <CardHeader>
-                <div className="flex items-start gap-2">
-                  <Building2 className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <CardTitle className="text-base">{client.company_name}</CardTitle>
-                    {client.gstin && (
-                      <CardDescription>GSTIN {client.gstin}</CardDescription>
-                    )}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <CardTitle className="text-base">{client.company_name}</CardTitle>
+                      {client.gstin ? (
+                        <CardDescription>GSTIN {client.gstin}</CardDescription>
+                      ) : (
+                        <CardDescription className="text-destructive">No GSTIN on file</CardDescription>
+                      )}
+                    </div>
                   </div>
+                  <CaClientHealthBadges client={client} />
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                {(client.overdue_total ?? 0) > 0 && (
+                  <p className="text-sm text-destructive">
+                    Overdue receivables: {formatINR(client.overdue_total ?? 0)}
+                  </p>
+                )}
                 {client.health_score != null && (
                   <p className="text-sm">
                     Compliance health:{" "}

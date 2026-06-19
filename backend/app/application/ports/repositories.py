@@ -274,6 +274,7 @@ class CompanyRecord:
         employee_count: int | None = None,
         udyam_number: str | None = None,
         has_tds_applicable: bool = False,
+        msme_segment: str | None = None,
     ):
         self.id = id
         self.legal_name = legal_name
@@ -291,6 +292,7 @@ class CompanyRecord:
         self.employee_count = employee_count
         self.udyam_number = udyam_number
         self.has_tds_applicable = has_tds_applicable
+        self.msme_segment = msme_segment
 
 
 class UserRecord:

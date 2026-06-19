@@ -74,3 +74,21 @@ async def test_company_upi_and_reminder_settings(
     assert body["upi_id"] == "demo@upi"
     assert body["auto_reminders_enabled"] is False
     assert body["default_reminder_language"] == "hi"
+
+
+@pytest.mark.asyncio
+async def test_company_msme_segment(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    patch = await client.patch(
+        "/api/v1/companies/me",
+        json={"msme_segment": "kirana"},
+        headers=auth_headers,
+    )
+    assert patch.status_code == 200
+    assert patch.json()["msme_segment"] == "kirana"
+
+    invalid = await client.patch(
+        "/api/v1/companies/me",
+        json={"msme_segment": "invalid-segment"},
+        headers=auth_headers,
+    )
+    assert invalid.status_code == 400

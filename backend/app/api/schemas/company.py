@@ -21,6 +21,7 @@ class CompanyResponse(BaseModel):
     employee_count: int | None = None
     udyam_number: str | None = None
     has_tds_applicable: bool = False
+    msme_segment: str | None = None
 
 
 class OnboardCompanyRequest(BaseModel):
@@ -45,6 +46,7 @@ class UpdateCompanyRequest(BaseModel):
     employee_count: int | None = Field(default=None, ge=0)
     udyam_number: str | None = Field(default=None, max_length=20)
     has_tds_applicable: bool | None = None
+    msme_segment: str | None = Field(default=None, max_length=30)
 
 
 class InviteStaffRequest(BaseModel):
