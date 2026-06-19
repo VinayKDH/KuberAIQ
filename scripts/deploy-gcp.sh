@@ -179,6 +179,30 @@ gcloud run deploy "$API_SERVICE" \
 API_URL="$(gcloud run services describe "$API_SERVICE" --region "$REGION" --project "$PROJECT_ID" --format='value(status.url)')"
 echo "API URL: $API_URL"
 
+echo "==> Running database migrations"
+cd "$ROOT/backend"
+unset CORS_ORIGINS
+MIGRATE_DATABASE_URL="$DATABASE_URL"
+if [[ -n "${GCP_CLOUDSQL_CONNECTION_NAME:-}" && -n "${GCP_DB_PASSWORD:-}" ]]; then
+  PUBLIC_IP="$(gcloud sql instances describe "${GCP_CLOUDSQL_INSTANCE:-}" --project "$PROJECT_ID" --format='value(ipAddresses[0].ipAddress)' 2>/dev/null || true)"
+  if [[ -n "$PUBLIC_IP" ]]; then
+    MYIP="$(curl -sf ifconfig.me 2>/dev/null || true)"
+    if [[ -n "$MYIP" ]]; then
+      gcloud sql instances patch "${GCP_CLOUDSQL_INSTANCE:-}" --project "$PROJECT_ID" \
+        --authorized-networks="${MYIP}/32" --quiet >/dev/null 2>&1 || true
+    fi
+    MIGRATE_DATABASE_URL="postgresql+asyncpg://${GCP_DB_USER:-kuberaiq}:${GCP_DB_PASSWORD}@${PUBLIC_IP}:5432/${DB_NAME}"
+  fi
+fi
+if ! DATABASE_URL="$MIGRATE_DATABASE_URL" alembic upgrade head; then
+  echo "WARNING: Migration failed. Apps are deployed — retry:"
+  echo "  cd backend && DATABASE_URL=... alembic upgrade head"
+else
+  CURRENT_REV="$(DATABASE_URL="$MIGRATE_DATABASE_URL" alembic current 2>/dev/null | awk '{print $1}' | head -1 || true)"
+  echo "    Alembic at: ${CURRENT_REV:-unknown}"
+fi
+cd "$ROOT"
+
 echo "==> Building and pushing Web image"
 WEB_BUILD_URL="${WEB_URL_FOR_BUILD:-https://${WEB_SERVICE}-${REGION}.a.run.app}"
 WEB_MOCK_AUTH="${USE_MOCK_AUTH:-true}"
