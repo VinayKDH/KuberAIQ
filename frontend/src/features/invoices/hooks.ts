@@ -15,8 +15,18 @@ import {
   createCreditNote,
   fetchCreditNotes,
   createInvoicePaymentLink,
+  fetchRecurringTemplates,
+  createRecurringTemplate,
+  updateRecurringTemplate,
 } from "./api";
-import type { CreateInvoiceInput, CreateCreditNoteInput, InvoiceListParams, RecordPaymentInput } from "./types";
+import type {
+  CreateInvoiceInput,
+  CreateCreditNoteInput,
+  CreateRecurringTemplateInput,
+  InvoiceListParams,
+  RecordPaymentInput,
+  UpdateRecurringTemplateInput,
+} from "./types";
 
 export function useInvoices(params?: InvoiceListParams) {
   return useQuery({
@@ -156,6 +166,37 @@ export function useCreateCreditNote() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INVOICE(invoiceId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CREDIT_NOTES(invoiceId) });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useRecurringTemplates() {
+  return useQuery({
+    queryKey: QUERY_KEYS.RECURRING_TEMPLATES,
+    queryFn: async () => {
+      const data = await fetchRecurringTemplates();
+      return data.items;
+    },
+  });
+}
+
+export function useCreateRecurringTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateRecurringTemplateInput) => createRecurringTemplate(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.RECURRING_TEMPLATES });
+    },
+  });
+}
+
+export function useUpdateRecurringTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateRecurringTemplateInput }) =>
+      updateRecurringTemplate(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.RECURRING_TEMPLATES });
     },
   });
 }

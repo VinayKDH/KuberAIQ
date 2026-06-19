@@ -103,3 +103,42 @@ export interface CreditNote {
 export interface CreateCreditNoteInput {
   reason: string;
 }
+
+export interface RecurringInvoiceTemplate {
+  id: string;
+  company_id: string;
+  customer_id: string;
+  name: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    gst_rate: number;
+  }>;
+  frequency: string;
+  next_run_date: string;
+  is_active: boolean;
+}
+
+export interface CreateRecurringTemplateInput {
+  customer_id: string;
+  name: string;
+  frequency: string;
+  next_run_date?: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    gst_rate: number;
+  }>;
+}
+
+export interface UpdateRecurringTemplateInput {
+  name?: string;
+  frequency?: string;
+  next_run_date?: string;
+  is_active?: boolean;
+  items?: CreateRecurringTemplateInput["items"];
+}

@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 
 from app.application.ports.repositories import RecurringInvoiceTemplateRecord
 from app.application.services.invoice_service import CreateInvoiceInput, InvoiceItemInput
+from app.core.constants import RECURRING_INVOICE_FREQUENCIES
 from app.core.errors import NotFoundError
 from app.domain.enums import InvoiceStatus
 
@@ -42,13 +43,49 @@ class RecurringInvoiceService:
                     company_id=company_id,
                     customer_id=data.customer_id,
                     name=data.name.strip(),
-                    items_json=data.items,
+                    items_json=self._normalize_items(data.items),
                     frequency=data.frequency,
                     next_run_date=data.next_run_date or date.today(),
                     created_by=actor_id,
                 )
             )
         return self._to_dict(record)
+
+    async def list_templates(self, company_id: uuid.UUID) -> list[dict]:
+        async with self._uow_factory() as uow:
+            records = await uow.recurring_templates.list_for_company(company_id)
+        return [self._to_dict(record) for record in records]
+
+    async def update_template(
+        self,
+        *,
+        company_id: uuid.UUID,
+        template_id: uuid.UUID,
+        name: str | None = None,
+        frequency: str | None = None,
+        next_run_date: date | None = None,
+        is_active: bool | None = None,
+        items: list[dict] | None = None,
+    ) -> dict:
+        if frequency is not None and frequency not in RECURRING_INVOICE_FREQUENCIES:
+            raise ValueError("Invalid frequency")
+        async with self._uow_factory() as uow:
+            record = await uow.recurring_templates.get_by_id(company_id, template_id)
+            if not record:
+                raise NotFoundError("Recurring template not found")
+            if name is not None:
+                record.name = name.strip()
+            if frequency is not None:
+                record.frequency = frequency
+            if next_run_date is not None:
+                record.next_run_date = next_run_date
+            if is_active is not None:
+                record.is_active = is_active
+            if items is not None:
+                record.items_json = self._normalize_items(items)
+            updated = await uow.recurring_templates.update(record)
+            await uow.commit()
+        return self._to_dict(updated)
 
     async def run_due_templates(self) -> int:
         today = date.today()
@@ -93,6 +130,17 @@ class RecurringInvoiceService:
         if frequency == "DAILY":
             return current + timedelta(days=1)
         return current + timedelta(days=30)
+
+    @staticmethod
+    def _normalize_items(items: list[dict]) -> list[dict]:
+        normalized: list[dict] = []
+        for item in items:
+            row = dict(item)
+            for key in ("quantity", "unit_price", "gst_rate"):
+                if key in row and row[key] is not None:
+                    row[key] = float(row[key])
+            normalized.append(row)
+        return normalized
 
     @staticmethod
     def _to_dict(record: RecurringInvoiceTemplateRecord) -> dict:

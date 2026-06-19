@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Sparkles, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, FileText, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMsmeSegment } from "@/features/company/hooks";
+import { createCustomer } from "@/features/customers/api";
+import { useCreateInvoice } from "@/features/invoices/hooks";
 import {
   ASSISTANT_QUERY_PARAM,
   MSME_QUICK_START_ACTIONS,
   MSME_QUICK_START_COPY,
+  MSME_STARTER_CUSTOMERS,
+  MSME_STARTER_PRODUCTS,
   ROUTES,
 } from "@/lib/constants";
 import { getPreferredLanguage } from "@/lib/i18n";
@@ -17,12 +22,20 @@ import {
   dismissQuickStart,
   getMsmeSegmentLabel,
   isQuickStartDismissed,
+  isSampleInvoiceCreated,
+  markSampleInvoiceCreated,
 } from "@/lib/msme-segment";
+import { todayIso } from "@/lib/format";
 
 export function MsmeQuickStartCard() {
   const lang = getPreferredLanguage();
   const segmentId = useMsmeSegment();
+  const router = useRouter();
+  const createInvoice = useCreateInvoice();
   const [visible, setVisible] = useState(false);
+  const [sampleDone, setSampleDone] = useState(() => isSampleInvoiceCreated());
+  const [samplePending, setSamplePending] = useState(false);
+  const [sampleError, setSampleError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isQuickStartDismissed()) return;
@@ -38,6 +51,46 @@ export function MsmeQuickStartCard() {
     setVisible(false);
   };
 
+  const handleSampleInvoice = async () => {
+    setSampleError(null);
+    setSamplePending(true);
+    try {
+      const starterCustomer = MSME_STARTER_CUSTOMERS[segmentId][0];
+      const starterProduct = MSME_STARTER_PRODUCTS[segmentId][0];
+      const customer = await createCustomer({
+        name: starterCustomer.name,
+        phone: starterCustomer.phone,
+        gstin: starterCustomer.gstin,
+      });
+      const issueDate = todayIso();
+      const due = new Date();
+      due.setDate(due.getDate() + 15);
+      const invoice = await createInvoice.mutateAsync({
+        customer_id: customer.id,
+        issue_date: issueDate,
+        due_date: due.toISOString().slice(0, 10),
+        status: "DRAFT",
+        items: [
+          {
+            description: starterProduct.name,
+            quantity: 1,
+            unit: starterProduct.unit,
+            unit_price: starterProduct.default_price,
+            gst_rate: starterProduct.gst_rate,
+            hsn_sac: starterProduct.hsn_sac,
+          },
+        ],
+      });
+      markSampleInvoiceCreated();
+      setSampleDone(true);
+      router.push(`${ROUTES.INVOICES}/${invoice.id}`);
+    } catch (err) {
+      setSampleError(err instanceof Error ? err.message : "Could not create sample invoice");
+    } finally {
+      setSamplePending(false);
+    }
+  };
+
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
       <CardHeader className="pb-3">
@@ -49,7 +102,8 @@ export function MsmeQuickStartCard() {
             <div>
               <CardTitle className="text-base">{MSME_QUICK_START_COPY.TITLE[lang]}</CardTitle>
               <CardDescription>
-                {getMsmeSegmentLabel(segmentId, lang)} · {actions.length} suggested actions
+                {getMsmeSegmentLabel(segmentId, lang)} · {actions.length}{" "}
+                {MSME_QUICK_START_COPY.SUGGESTED_ACTIONS[lang]}
               </CardDescription>
             </div>
           </div>
@@ -81,6 +135,22 @@ export function MsmeQuickStartCard() {
             </Link>
           );
         })}
+        {!sampleDone && (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="h-8 text-xs"
+            disabled={samplePending}
+            onClick={handleSampleInvoice}
+          >
+            <FileText className="mr-1.5 h-3.5 w-3.5" />
+            {samplePending
+              ? MSME_QUICK_START_COPY.SAMPLE_INVOICE_CREATING[lang]
+              : MSME_QUICK_START_COPY.SAMPLE_INVOICE[lang]}
+          </Button>
+        )}
+        {sampleError && <p className="w-full text-xs text-destructive">{sampleError}</p>}
       </CardContent>
     </Card>
   );

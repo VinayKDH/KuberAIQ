@@ -83,3 +83,42 @@ export function markStarterProductsImported(segmentId: MsmeLoginSegmentId): void
   }
   window.localStorage.setItem(LOGIN_STORAGE_KEYS.STARTER_PRODUCTS_IMPORTED, JSON.stringify(imported));
 }
+
+export function isStarterCustomersImported(segmentId: MsmeLoginSegmentId): boolean {
+  if (typeof window === "undefined") return false;
+  const raw = window.localStorage.getItem(LOGIN_STORAGE_KEYS.STARTER_CUSTOMERS_IMPORTED);
+  if (!raw) return false;
+  try {
+    const imported = JSON.parse(raw) as string[];
+    return imported.includes(segmentId);
+  } catch {
+    return false;
+  }
+}
+
+export function markStarterCustomersImported(segmentId: MsmeLoginSegmentId): void {
+  if (typeof window === "undefined") return;
+  const raw = window.localStorage.getItem(LOGIN_STORAGE_KEYS.STARTER_CUSTOMERS_IMPORTED);
+  let imported: string[] = [];
+  if (raw) {
+    try {
+      imported = JSON.parse(raw) as string[];
+    } catch {
+      imported = [];
+    }
+  }
+  if (!imported.includes(segmentId)) {
+    imported.push(segmentId);
+  }
+  window.localStorage.setItem(LOGIN_STORAGE_KEYS.STARTER_CUSTOMERS_IMPORTED, JSON.stringify(imported));
+}
+
+export function isSampleInvoiceCreated(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(LOGIN_STORAGE_KEYS.SAMPLE_INVOICE_CREATED) === "1";
+}
+
+export function markSampleInvoiceCreated(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LOGIN_STORAGE_KEYS.SAMPLE_INVOICE_CREATED, "1");
+}

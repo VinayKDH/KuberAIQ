@@ -17,6 +17,7 @@ import {
   ASSISTANT_QUERY_PARAM,
   MSME_ASSISTANT_PROMPTS,
   MSME_QUICK_START_COPY,
+  MSME_SCREEN_COPY,
 } from "@/lib/constants";
 import { getPreferredLanguage } from "@/lib/i18n";
 import { getStoredMsmeSegment } from "@/lib/msme-segment";
@@ -25,6 +26,7 @@ import { cn } from "@/lib/utils";
 export default function AssistantPage() {
   const searchParams = useSearchParams();
   const lang = getPreferredLanguage();
+  const assistantCopy = MSME_SCREEN_COPY.assistant;
   const segmentId = getStoredMsmeSegment();
   const quickPrompts = MSME_ASSISTANT_PROMPTS[segmentId];
   const initialPromptHandled = useRef(false);
@@ -32,8 +34,7 @@ export default function AssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content:
-        "Hi! I'm your KuberAIQ assistant. Ask me to create invoices, check overdue payments, or summarize your dashboard.",
+      content: assistantCopy.welcome[lang],
       timestamp: new Date(),
     },
   ]);
@@ -228,7 +229,8 @@ export default function AssistantPage() {
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col space-y-4">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">AI Assistant</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{assistantCopy.title[lang]}</h2>
+        <p className="text-muted-foreground">{assistantCopy.subtitle[lang]}</p>
         <p className="text-muted-foreground">
           Natural language commands for invoices, collections, and reports
         </p>

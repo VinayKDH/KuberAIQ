@@ -3,11 +3,14 @@ import { API_PATHS } from "@/lib/constants";
 import type {
   CreateCreditNoteInput,
   CreateInvoiceInput,
+  CreateRecurringTemplateInput,
   CreditNote,
   Invoice,
   InvoiceListParams,
   Payment,
   RecordPaymentInput,
+  RecurringInvoiceTemplate,
+  UpdateRecurringTemplateInput,
 } from "./types";
 
 export function fetchInvoices(params?: InvoiceListParams) {
@@ -85,6 +88,24 @@ export function fetchCreditNotes(invoiceId: string) {
 export function createCreditNote(invoiceId: string, input: CreateCreditNoteInput) {
   return apiClient<CreditNote>(API_PATHS.INVOICE_CREDIT_NOTES(invoiceId), {
     method: "POST",
+    body: input,
+  });
+}
+
+export function fetchRecurringTemplates() {
+  return apiClient<{ items: RecurringInvoiceTemplate[] }>(API_PATHS.INVOICES_RECURRING_TEMPLATES);
+}
+
+export function createRecurringTemplate(input: CreateRecurringTemplateInput) {
+  return apiClient<RecurringInvoiceTemplate>(API_PATHS.INVOICES_RECURRING_TEMPLATES, {
+    method: "POST",
+    body: input,
+  });
+}
+
+export function updateRecurringTemplate(id: string, input: UpdateRecurringTemplateInput) {
+  return apiClient<RecurringInvoiceTemplate>(`${API_PATHS.INVOICES_RECURRING_TEMPLATES}/${id}`, {
+    method: "PATCH",
     body: input,
   });
 }

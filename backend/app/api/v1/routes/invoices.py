@@ -6,7 +6,7 @@ from datetime import date
 import hashlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
 
 from app.api.deps import (
@@ -24,6 +24,9 @@ from app.api.schemas.invoice import (
     CreateCreditNoteRequest,
     CreateInvoiceRequest,
     CreateRecurringInvoiceTemplateRequest,
+    RecurringInvoiceTemplateListResponse,
+    RecurringInvoiceTemplateResponse,
+    UpdateRecurringInvoiceTemplateRequest,
     CreditNoteResponse,
     GstReportResponse,
     InvoiceCustomerSummary,
@@ -280,6 +283,59 @@ async def gstr3b_report_csv(
     )
 
 
+@router.post("/recurring-templates", response_model=RecurringInvoiceTemplateResponse, status_code=status.HTTP_201_CREATED)
+async def create_recurring_invoice_template(
+    body: CreateRecurringInvoiceTemplateRequest,
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+) -> RecurringInvoiceTemplateResponse:
+    from app.application.services.recurring_invoice_service import CreateRecurringTemplateInput
+
+    template = await container.recurring_invoice_service.create_template(
+        company_id=auth.company_id,
+        actor_id=auth.user_id,
+        data=CreateRecurringTemplateInput(
+            customer_id=uuid.UUID(body.customer_id),
+            name=body.name,
+            items=[item.model_dump() for item in body.items],
+            frequency=body.frequency,
+            next_run_date=body.next_run_date,
+        ),
+    )
+    return RecurringInvoiceTemplateResponse(**template)
+
+
+@router.get("/recurring-templates", response_model=RecurringInvoiceTemplateListResponse)
+async def list_recurring_invoice_templates(
+    auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
+    container: Annotated[Container, Depends(get_container)],
+) -> RecurringInvoiceTemplateListResponse:
+    items = await container.recurring_invoice_service.list_templates(auth.company_id)
+    return RecurringInvoiceTemplateListResponse(items=items)
+
+
+@router.patch("/recurring-templates/{template_id}", response_model=RecurringInvoiceTemplateResponse)
+async def update_recurring_invoice_template(
+    template_id: uuid.UUID,
+    body: UpdateRecurringInvoiceTemplateRequest,
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+) -> RecurringInvoiceTemplateResponse:
+    try:
+        template = await container.recurring_invoice_service.update_template(
+            company_id=auth.company_id,
+            template_id=template_id,
+            name=body.name,
+            frequency=body.frequency,
+            next_run_date=body.next_run_date,
+            is_active=body.is_active,
+            items=[item.model_dump() for item in body.items] if body.items else None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return RecurringInvoiceTemplateResponse(**template)
+
+
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
 async def get_invoice(
     invoice_id: uuid.UUID,
@@ -491,25 +547,3 @@ async def create_invoice_payment_link(
         ip=get_client_ip(request),
     )
     return PaymentLinkResponse(**data)
-
-
-@router.post("/recurring-templates", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_recurring_invoice_template(
-    body: CreateRecurringInvoiceTemplateRequest,
-    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
-    container: Annotated[Container, Depends(get_container)],
-) -> dict:
-    from app.application.services.recurring_invoice_service import CreateRecurringTemplateInput
-
-    template = await container.recurring_invoice_service.create_template(
-        company_id=auth.company_id,
-        actor_id=auth.user_id,
-        data=CreateRecurringTemplateInput(
-            customer_id=uuid.UUID(body.customer_id),
-            name=body.name,
-            items=[item.model_dump() for item in body.items],
-            frequency=body.frequency,
-            next_run_date=body.next_run_date,
-        ),
-    )
-    return template

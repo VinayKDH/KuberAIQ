@@ -104,6 +104,7 @@ export const API_PATHS = {
   QUOTATION_PDF: (id: string) => `/quotations/${id}/pdf` as const,
   QUOTATION_PDF_DOWNLOAD: (id: string) => `/quotations/${id}/pdf/download` as const,
   INVOICES: "/invoices",
+  INVOICES_RECURRING_TEMPLATES: "/invoices/recurring-templates",
   INVOICE_PAYMENT_LINK: (id: string) => `/invoices/${id}/payment-link` as const,
   INVOICE_CREDIT_NOTES: (id: string) => `/invoices/${id}/credit-notes` as const,
   GST_REPORT: "/invoices/reports/gst",
@@ -154,6 +155,7 @@ export const QUERY_KEYS = {
   DASHBOARD: (from?: string, to?: string) => ["dashboard", from, to] as const,
   INVOICES: (params?: object) => ["invoices", params] as const,
   INVOICE: (id: string) => ["invoices", id] as const,
+  RECURRING_TEMPLATES: ["invoices", "recurring-templates"] as const,
   PRODUCTS: (params?: object) => ["products", params] as const,
   PRODUCT: (id: string) => ["products", id] as const,
   QUOTATIONS: (params?: object) => ["quotations", params] as const,
@@ -735,6 +737,8 @@ export const LOGIN_STORAGE_KEYS = {
   REMEMBER_EMAIL: "kuberaiq_remember_email",
   QUICK_START_DISMISSED: "kuberaiq_msme_quickstart_dismissed",
   STARTER_PRODUCTS_IMPORTED: "kuberaiq_starter_products_imported",
+  STARTER_CUSTOMERS_IMPORTED: "kuberaiq_starter_customers_imported",
+  SAMPLE_INVOICE_CREATED: "kuberaiq_sample_invoice_created",
 } as const;
 
 export interface MsmeStarterProduct {
@@ -869,6 +873,117 @@ export const MSME_ASSISTANT_PROMPTS: Record<MsmeLoginSegmentId, string[]> = {
   ],
 };
 
+export interface MsmeStarterCustomer {
+  name: string;
+  phone: string;
+  gstin?: string;
+}
+
+export const MSME_STARTER_CUSTOMERS: Record<MsmeLoginSegmentId, MsmeStarterCustomer[]> = {
+  kirana: [
+    { name: "Ramesh General Store", phone: "9876543210" },
+    { name: "Priya Kirana", phone: "9876543211" },
+    { name: "Suresh Wholesale", phone: "9876543212", gstin: "29AABCU9603R1ZM" },
+  ],
+  trader: [
+    { name: "ABC Traders", phone: "9876501234", gstin: "27AABCU9603R1ZX" },
+    { name: "Metro Distributors", phone: "9876501235" },
+    { name: "Sharma Hardware", phone: "9876501236" },
+  ],
+  manufacturing: [
+    { name: "Textile Mills Pvt Ltd", phone: "9876511111", gstin: "24AABCU9603R1ZA" },
+    { name: "Patel Fabrics", phone: "9876511112" },
+  ],
+  services: [
+    { name: "Tech Solutions LLP", phone: "9876522222", gstin: "29AABCU9603R1ZB" },
+    { name: "Consulting Client", phone: "9876522223" },
+    { name: "AMC Customer", phone: "9876522224" },
+  ],
+  construction: [
+    { name: "Site — Green Valley", phone: "9876533333" },
+    { name: "BuildRight Contractors", phone: "9876533334", gstin: "29AABCU9603R1ZC" },
+    { name: "AIMLGYAN Site", phone: "9876533335" },
+  ],
+  food: [
+    { name: "Walk-in Customer", phone: "9876544444" },
+    { name: "Catering — Sharma Wedding", phone: "9876544445" },
+    { name: "Supplier Cafe", phone: "9876544446" },
+  ],
+};
+
+export const MSME_SCREEN_COPY = {
+  invoices: {
+    title: { en: "Invoices", hi: "इनवॉइस" },
+    subtitle: { en: "Manage GST invoices and payments", hi: "GST इनवॉइस और पेमेंट प्रबंधित करें" },
+    newInvoice: { en: "New Invoice", hi: "नया इनवॉइस" },
+    search: { en: "Search invoices…", hi: "इनवॉइस खोजें…" },
+    empty: { en: "No invoices yet.", hi: "अभी कोई इनवॉइस नहीं।" },
+    loadError: { en: "Failed to load invoices", hi: "इनवॉइस लोड नहीं हो सके" },
+  },
+  collections: {
+    title: { en: "Collections", hi: "वसूली" },
+    subtitle: { en: "Overdue invoices and payment reminders", hi: "बकाया इनवॉइस और पेमेंट रिमाइंडर" },
+    overdue: { en: "Overdue", hi: "बकाया" },
+    sendReminder: { en: "Send reminder", hi: "रिमाइंडर भेजें" },
+    empty: { en: "No overdue invoices.", hi: "कोई बकाया इनवॉइस नहीं।" },
+  },
+  settings: {
+    title: { en: "Settings", hi: "सेटिंग्स" },
+    subtitle: { en: "Company profile, payments, and integrations", hi: "कंपनी प्रोफाइल, पेमेंट और इंटीग्रेशन" },
+    companyTab: { en: "Company", hi: "कंपनी" },
+    paymentsTab: { en: "Payments", hi: "पेमेंट" },
+    reportsTab: { en: "Reports", hi: "रिपोर्ट" },
+    integrationsTab: { en: "Integrations", hi: "इंटीग्रेशन" },
+    save: { en: "Save changes", hi: "बदलाव सहेजें" },
+    saving: { en: "Saving…", hi: "सहेज रहे हैं…" },
+  },
+  assistant: {
+    title: { en: "AI Assistant", hi: "AI असिस्टेंट" },
+    subtitle: { en: "Ask about invoices, collections, and compliance", hi: "इनवॉइस, वसूली और कंप्लायंस के बारे में पूछें" },
+    welcome: {
+      en: "Hi! I'm your KuberAIQ assistant. Ask me to create invoices, check overdue payments, or summarize your dashboard.",
+      hi: "नमस्ते! मैं आपका KuberAIQ असिस्टेंट हूँ। इनवॉइस बनाने, बकाया पेमेंट देखने या डैशबोर्ड सारांश के लिए पूछें।",
+    },
+    placeholder: { en: "Ask anything about your business…", hi: "अपने व्यवसाय के बारे में कुछ भी पूछें…" },
+    send: { en: "Send", hi: "भेजें" },
+  },
+  customers: {
+    title: { en: "Customers", hi: "ग्राहक" },
+    subtitle: { en: "Manage your customer directory", hi: "अपनी ग्राहक सूची प्रबंधित करें" },
+    search: { en: "Search by name or phone…", hi: "नाम या फ़ोन से खोजें…" },
+    empty: { en: "No customers yet.", hi: "अभी कोई ग्राहक नहीं।" },
+  },
+} as const;
+
+export const RECURRING_INVOICE_FREQUENCIES = [
+  { value: "MONTHLY", label: { en: "Monthly", hi: "मासिक" } },
+  { value: "WEEKLY", label: { en: "Weekly", hi: "साप्ताहिक" } },
+] as const;
+
+export const RECURRING_COPY = {
+  TITLE: { en: "Recurring invoices", hi: "रिकरिंग इनवॉइस" },
+  DESC: {
+    en: "Auto-create draft invoices on a schedule for repeat customers.",
+    hi: "दोहराए जाने वाले ग्राहकों के लिए शेड्यूल पर ड्राफ्ट इनवॉइस बनाएं।",
+  },
+  EMPTY: { en: "No recurring templates yet.", hi: "अभी कोई रिकरिंग टेम्पलेट नहीं।" },
+  CREATE: { en: "New template", hi: "नया टेम्पलेट" },
+  NAME: { en: "Template name", hi: "टेम्पलेट नाम" },
+  CUSTOMER: { en: "Customer", hi: "ग्राहक" },
+  FREQUENCY: { en: "Frequency", hi: "आवृत्ति" },
+  NEXT_RUN: { en: "Next run date", hi: "अगली तारीख" },
+  AMOUNT: { en: "Amount (₹)", hi: "राशि (₹)" },
+  DESCRIPTION: { en: "Line item description", hi: "आइटम विवरण" },
+  ACTIVE: { en: "Active", hi: "सक्रिय" },
+  PAUSED: { en: "Paused", hi: "रुका हुआ" },
+  ENABLE: { en: "Enable", hi: "चालू करें" },
+  DISABLE: { en: "Disable", hi: "बंद करें" },
+  SAVE: { en: "Save template", hi: "टेम्पलेट सहेजें" },
+  SAVING: { en: "Saving…", hi: "सहेज रहे हैं…" },
+  SAVED: { en: "Template saved.", hi: "टेम्पलेट सहेजा गया।" },
+  ERROR: { en: "Could not save template.", hi: "टेम्पलेट सहेज नहीं हो सका।" },
+} as const;
+
 export const MSME_QUICK_START_COPY = {
   TITLE: { en: "Quick start for your business", hi: "आपके व्यवसाय के लिए त्वरित शुरुआत" },
   DISMISS: { en: "Dismiss", hi: "बंद करें" },
@@ -887,6 +1002,16 @@ export const MSME_QUICK_START_COPY = {
     hi: "हम आपके MSME सेगमेंट के अनुसार इनवॉइस, प्रोडक्ट और AI सुझाव अनुकूलित करते हैं।",
   },
   SAVED: { en: "Business type updated.", hi: "व्यवसाय प्रकार अपडेट हो गया।" },
+  IMPORT_CUSTOMERS_TITLE: { en: "Import starter customers", hi: "स्टार्टर ग्राहक इम्पोर्ट करें" },
+  IMPORT_CUSTOMERS_DESC: {
+    en: "Add sample customers for your business type — edit anytime.",
+    hi: "अपने व्यवसाय के नमूना ग्राहक जोड़ें — बाद में बदल सकते हैं।",
+  },
+  IMPORT_CUSTOMERS_BUTTON: { en: "Import {count} customers", hi: "{count} ग्राहक इम्पोर्ट करें" },
+  SAMPLE_INVOICE: { en: "Create sample invoice", hi: "नमूना इनवॉइस बनाएं" },
+  SAMPLE_INVOICE_CREATING: { en: "Creating…", hi: "बन रहा है…" },
+  SAMPLE_INVOICE_DONE: { en: "Sample invoice created.", hi: "नमूना इनवॉइस बन गया।" },
+  SUGGESTED_ACTIONS: { en: "suggested actions", hi: "सुझाए गए कदम" },
 } as const;
 
 export const MSME_COMPLIANCE_TIPS: Record<

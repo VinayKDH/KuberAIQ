@@ -449,6 +449,7 @@ MSME_SEGMENT_IDS: tuple[str, ...] = (
     "construction",
     "food",
 )
+RECURRING_INVOICE_FREQUENCIES: tuple[str, ...] = ("MONTHLY", "WEEKLY", "DAILY")
 CA_OVERDUE_ALERT_THRESHOLD = 10_000
 CA_FILING_DUE_SOON_DAYS = 7
 CA_FILING_CHECKLIST_IDS: tuple[str, ...] = ("gst_gstr1", "gst_gstr3b", "it_itr")

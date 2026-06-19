@@ -34,7 +34,8 @@ import {
   useSendReminder,
 } from "@/features/collections/hooks";
 import { apiClient } from "@/lib/api-client";
-import { API_PATHS, COLLECTIONS_COPY, DEFAULT_PAGE_SIZE, QUERY_KEYS, ROUTES } from "@/lib/constants";
+import { API_PATHS, COLLECTIONS_COPY, DEFAULT_PAGE_SIZE, MSME_SCREEN_COPY, QUERY_KEYS, ROUTES } from "@/lib/constants";
+import { getPreferredLanguage } from "@/lib/i18n";
 import { formatDate, formatINR, formatPhone } from "@/lib/format";
 
 interface CompanyReminderSettings {
@@ -42,6 +43,8 @@ interface CompanyReminderSettings {
 }
 
 export default function CollectionsPage() {
+  const lang = getPreferredLanguage();
+  const copy = MSME_SCREEN_COPY.collections;
   const { data: company } = useQuery({
     queryKey: QUERY_KEYS.COMPANY,
     queryFn: () => apiClient<CompanyReminderSettings>(API_PATHS.COMPANY_ME),
@@ -81,8 +84,8 @@ export default function CollectionsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Collections</h2>
-          <p className="text-muted-foreground">Track and follow up on overdue invoices</p>
+          <h2 className="text-2xl font-bold tracking-tight">{copy.title[lang]}</h2>
+          <p className="text-muted-foreground">{copy.subtitle[lang]}</p>
         </div>
         <Dialog
           open={bulkOpen}

@@ -19,7 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api-client";
 import { getStoredUser } from "@/lib/auth";
-import { API_PATHS, PAYMENTS_SETTINGS, QUERY_KEYS, REMINDER_LANGUAGES, USER_ROLE } from "@/lib/constants";
+import { API_PATHS, PAYMENTS_SETTINGS, QUERY_KEYS, REMINDER_LANGUAGES, MSME_SCREEN_COPY, USER_ROLE } from "@/lib/constants";
+import { getPreferredLanguage } from "@/lib/i18n";
 
 interface CompanyProfile {
   id: string;
@@ -45,6 +46,8 @@ interface AuditLogList {
 }
 
 export default function SettingsPage() {
+  const lang = getPreferredLanguage();
+  const settingsCopy = MSME_SCREEN_COPY.settings;
   const user = getStoredUser();
   const { data: company, refetch } = useQuery({
     queryKey: QUERY_KEYS.COMPANY,
@@ -132,7 +135,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{settingsCopy.title[lang]}</h2>
+        <p className="text-muted-foreground">{settingsCopy.subtitle[lang]}</p>
         <p className="text-muted-foreground">
           {isCa ? "GSTR reports and account" : "Manage your company and account preferences"}
         </p>
@@ -140,12 +144,12 @@ export default function SettingsPage() {
 
       <Tabs defaultValue={defaultTab}>
         <TabsList>
-          {!isCa && <TabsTrigger value="company">Company</TabsTrigger>}
+          {!isCa && <TabsTrigger value="company">{settingsCopy.companyTab[lang]}</TabsTrigger>}
           {!isCa && <TabsTrigger value="billing">Billing</TabsTrigger>}
-          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="reports">{settingsCopy.reportsTab[lang]}</TabsTrigger>
           {isOwner && !isCa && <TabsTrigger value="advisors">Advisors</TabsTrigger>}
           {isOwner && !isCa && <TabsTrigger value="staff">Staff</TabsTrigger>}
-          {isOwner && !isCa && <TabsTrigger value="integrations">Integrations</TabsTrigger>}
+          {isOwner && !isCa && <TabsTrigger value="integrations">{settingsCopy.integrationsTab[lang]}</TabsTrigger>}
           {!isCa && <TabsTrigger value="audit">Audit log</TabsTrigger>}
           <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>

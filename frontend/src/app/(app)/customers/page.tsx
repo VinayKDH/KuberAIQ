@@ -14,12 +14,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
+import { StarterCustomersBanner } from "@/components/customers/starter-customers-banner";
 import { useCustomers } from "@/features/customers/hooks";
 import { useDebounce } from "@/hooks/use-debounce";
-import { DEFAULT_PAGE_SIZE, ROUTES } from "@/lib/constants";
+import { DEFAULT_PAGE_SIZE, MSME_SCREEN_COPY, ROUTES } from "@/lib/constants";
+import { getPreferredLanguage } from "@/lib/i18n";
 import { formatDate, formatPhone, maskGstin } from "@/lib/format";
 
 export default function CustomersPage() {
+  const lang = getPreferredLanguage();
+  const copy = MSME_SCREEN_COPY.customers;
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
   const { data, isLoading, isError, error } = useCustomers({
@@ -32,16 +36,18 @@ export default function CustomersPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Customers</h2>
-          <p className="text-muted-foreground">Manage your customer directory</p>
+          <h2 className="text-2xl font-bold tracking-tight">{copy.title[lang]}</h2>
+          <p className="text-muted-foreground">{copy.subtitle[lang]}</p>
         </div>
         <AddCustomerDialog />
       </div>
 
+      <StarterCustomersBanner customerCount={data?.total ?? 0} />
+
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search by name or phone…"
+          placeholder={copy.search[lang]}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"

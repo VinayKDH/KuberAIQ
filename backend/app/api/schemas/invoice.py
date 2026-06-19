@@ -131,3 +131,26 @@ class CreateRecurringInvoiceTemplateRequest(BaseModel):
     items: list[InvoiceItemRequest] = Field(min_length=1)
     frequency: str = Field(default="MONTHLY")
     next_run_date: date | None = None
+
+
+class UpdateRecurringInvoiceTemplateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    items: list[InvoiceItemRequest] | None = None
+    frequency: str | None = None
+    next_run_date: date | None = None
+    is_active: bool | None = None
+
+
+class RecurringInvoiceTemplateResponse(BaseModel):
+    id: str
+    company_id: str
+    customer_id: str
+    name: str
+    items: list[dict]
+    frequency: str
+    next_run_date: str
+    is_active: bool
+
+
+class RecurringInvoiceTemplateListResponse(BaseModel):
+    items: list[RecurringInvoiceTemplateResponse]

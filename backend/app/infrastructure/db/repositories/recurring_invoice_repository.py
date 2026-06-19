@@ -31,6 +31,28 @@ class SqlAlchemyRecurringInvoiceTemplateRepository:
         await self._session.flush()
         return self._to_record(model)
 
+    async def list_for_company(self, company_id: uuid.UUID) -> list[RecurringInvoiceTemplateRecord]:
+        stmt = (
+            select(RecurringInvoiceTemplateModel)
+            .where(RecurringInvoiceTemplateModel.company_id == company_id)
+            .order_by(RecurringInvoiceTemplateModel.next_run_date)
+        )
+        models = (await self._session.execute(stmt)).scalars().all()
+        return [self._to_record(model) for model in models]
+
+    async def get_by_id(
+        self, company_id: uuid.UUID, template_id: uuid.UUID
+    ) -> RecurringInvoiceTemplateRecord | None:
+        model = (
+            await self._session.execute(
+                select(RecurringInvoiceTemplateModel).where(
+                    RecurringInvoiceTemplateModel.id == template_id,
+                    RecurringInvoiceTemplateModel.company_id == company_id,
+                )
+            )
+        ).scalar_one_or_none()
+        return self._to_record(model) if model else None
+
     async def list_due_templates(self, as_of) -> list[RecurringInvoiceTemplateRecord]:
         stmt = select(RecurringInvoiceTemplateModel).where(
             RecurringInvoiceTemplateModel.is_active.is_(True),

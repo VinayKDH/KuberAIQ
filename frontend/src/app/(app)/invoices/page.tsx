@@ -17,17 +17,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useInvoices } from "@/features/invoices/hooks";
+import { RecurringTemplatesPanel } from "@/components/invoices/recurring-templates-panel";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   DEFAULT_PAGE_SIZE,
   INVOICE_STATUS_FILTER_OPTIONS,
   INVOICE_STATUS_LABELS,
   INVOICE_STATUS_VARIANTS,
+  MSME_SCREEN_COPY,
   ROUTES,
 } from "@/lib/constants";
+import { getPreferredLanguage } from "@/lib/i18n";
 import { formatDate, formatINR } from "@/lib/format";
 
 export default function InvoicesPage() {
+  const lang = getPreferredLanguage();
+  const copy = MSME_SCREEN_COPY.invoices;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const debouncedSearch = useDebounce(search);
@@ -43,22 +48,24 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Invoices</h2>
-          <p className="text-muted-foreground">Manage GST invoices and payments</p>
+          <h2 className="text-2xl font-bold tracking-tight">{copy.title[lang]}</h2>
+          <p className="text-muted-foreground">{copy.subtitle[lang]}</p>
         </div>
         <Link href={ROUTES.INVOICES_NEW}>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            New Invoice
+            {copy.newInvoice[lang]}
           </Button>
         </Link>
       </div>
+
+      <RecurringTemplatesPanel />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search invoices…"
+            placeholder={copy.search[lang]}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -75,7 +82,7 @@ export default function InvoicesPage() {
 
       {isError && (
         <p className="text-sm text-destructive">
-          {error instanceof Error ? error.message : "Failed to load invoices"}
+          {error instanceof Error ? error.message : copy.loadError[lang]}
         </p>
       )}
 
