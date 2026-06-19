@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Info, Phone, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,7 @@ import { formatDate, formatINR, formatPhone } from "@/lib/format";
 
 interface CompanyReminderSettings {
   auto_reminders_enabled?: boolean;
+  default_reminder_language?: string;
 }
 
 export default function CollectionsPage() {
@@ -63,6 +64,13 @@ export default function CollectionsPage() {
   const [reminderTarget, setReminderTarget] = useState<string | null>(null);
   const [reminderLanguage, setReminderLanguage] = useState<"en" | "hi">("en");
   const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const lang = company?.default_reminder_language;
+    if (lang === "hi" || lang === "en") {
+      setReminderLanguage(lang);
+    }
+  }, [company?.default_reminder_language]);
   const preview = useReminderPreview(reminderTarget ?? "", !!reminderTarget, reminderLanguage);
   const sendReminder = useSendReminder(reminderLanguage);
 

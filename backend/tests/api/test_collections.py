@@ -110,7 +110,31 @@ async def test_reminder_preview(client: AsyncClient, auth_headers: dict) -> None
 
 
 @pytest.mark.asyncio
-async def test_collections_call_today(client: AsyncClient, auth_headers: dict) -> None:
+async def test_reminder_preview_hindi(client: AsyncClient, auth_headers: dict) -> None:
+    cust = await client.post(
+        "/api/v1/customers",
+        json={"name": "Hindi Co", "phone": "9876512399"},
+        headers=auth_headers,
+    )
+    customer_id = cust.json()["id"]
+    inv = await client.post(
+        "/api/v1/invoices",
+        json={
+            "customer_id": customer_id,
+            "issue_date": "2026-06-01",
+            "due_date": "2026-06-06",
+            "status": "ISSUED",
+            "items": [{"description": "Goods", "quantity": 1, "unit_price": 500, "gst_rate": 18}],
+        },
+        headers=auth_headers,
+    )
+    invoice_id = inv.json()["id"]
+    preview = await client.get(
+        f"/api/v1/collections/reminders/preview?invoice_id={invoice_id}&language=hi",
+        headers=auth_headers,
+    )
+    assert preview.status_code == 200
+    assert "नमस्ते" in preview.json()["message"]
     phone = f"9{__import__('random').randint(100000000, 999999999)}"
     cust = await client.post(
         "/api/v1/customers",

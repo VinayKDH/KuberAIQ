@@ -11,8 +11,10 @@ from app.application.ports.notifier import NotifierPort
 from app.application.ports.repositories import ReminderRecord
 from app.core.constants import (
     CALL_TODAY_LIMIT,
+    DEFAULT_REMINDER_LANGUAGE,
     REMINDER_COOLDOWN_HOURS,
     REMINDER_SCHEDULE_DAYS_BEFORE_DUE,
+    WHATSAPP_REMINDER_BODY,
     WHATSAPP_TEMPLATE_REMINDER_EN,
     WHATSAPP_TEMPLATE_REMINDER_HI,
     AuditAction,
@@ -137,33 +139,26 @@ class CollectionService:
         days_until_due: int | None = None,
     ) -> str:
         number = invoice_number or "invoice"
+        lang = "hi" if language == "hi" else "en"
         if trigger == ReminderTrigger.DUE_SOON:
-            if language == "hi":
-                return (
-                    f"नमस्ते {customer_name}, आपका बिल {number} "
-                    f"₹{amount_due} {days_until_due or REMINDER_SCHEDULE_DAYS_BEFORE_DUE} दिन में देय है। कृपया समय पर भुगतान करें।"
-                )
-            return (
-                f"Hi {customer_name}, invoice {number} for ₹{amount_due} is due in "
-                f"{days_until_due or REMINDER_SCHEDULE_DAYS_BEFORE_DUE} days. Please pay on time."
+            days = days_until_due or REMINDER_SCHEDULE_DAYS_BEFORE_DUE
+            return WHATSAPP_REMINDER_BODY["due_soon"][lang].format(
+                customer_name=customer_name,
+                invoice_number=number,
+                amount_due=amount_due,
+                days=days,
             )
         if trigger == ReminderTrigger.DUE_TODAY:
-            if language == "hi":
-                return (
-                    f"नमस्ते {customer_name}, आपका बिल {number} "
-                    f"₹{amount_due} आज देय है। कृपया भुगतान करें।"
-                )
-            return (
-                f"Hi {customer_name}, invoice {number} for ₹{amount_due} is due today. Please pay today."
+            return WHATSAPP_REMINDER_BODY["due_today"][lang].format(
+                customer_name=customer_name,
+                invoice_number=number,
+                amount_due=amount_due,
             )
-        if language == "hi":
-            return (
-                f"नमस्ते {customer_name}, आपका बिल {number} "
-                f"₹{amount_due} बकाया है ({days_overdue} दिन)। कृपया भुगतान करें।"
-            )
-        return (
-            f"Hi {customer_name}, invoice {number} has "
-            f"₹{amount_due} due ({days_overdue} days overdue). Please pay at earliest."
+        return WHATSAPP_REMINDER_BODY["overdue"][lang].format(
+            customer_name=customer_name,
+            invoice_number=number,
+            amount_due=amount_due,
+            days_overdue=days_overdue,
         )
 
     async def preview_reminder(
@@ -359,13 +354,20 @@ class CollectionService:
         actor_id: uuid.UUID,
         ip: str | None = None,
     ) -> list[ReminderRecord]:
+        async with self._uow_factory() as uow:
+            company = await uow.companies.get_by_id(company_id)
+        language = (
+            company.default_reminder_language
+            if company and company.default_reminder_language
+            else DEFAULT_REMINDER_LANGUAGE
+        )
         preview = await self.bulk_preview(company_id)
         results = []
         for item in preview["invoices"]:
             reminder = await self.send_reminder(
                 company_id=company_id,
                 actor_id=actor_id,
-                data=SendReminderInput(invoice_id=item["invoice"].id),
+                data=SendReminderInput(invoice_id=item["invoice"].id, language=language),
                 ip=ip,
             )
             results.append(reminder)

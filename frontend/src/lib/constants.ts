@@ -9,6 +9,8 @@ export const PUBLIC_WEB_URL =
   process.env.NEXT_PUBLIC_WEB_URL ?? "https://www.kuberaiq.com";
 export const PUBLIC_API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "https://api.kuberaiq.com";
+export const WHATSAPP_WEBHOOK_URL = `${PUBLIC_API_URL}/api/v1/webhooks/whatsapp`;
+export const HEALTH_INTEGRATIONS_URL = `${PUBLIC_API_URL}/health/integrations`;
 export const PUBLIC_APEX_DOMAIN =
   process.env.NEXT_PUBLIC_APEX_DOMAIN ?? "kuberaiq.com";
 /** Cloud Run default host suffix — same-origin API proxy via Next.js rewrites. */
@@ -647,6 +649,15 @@ export const WHATSAPP_COPILOT_SETTINGS = {
   SAVED: "WhatsApp number linked for AI copilot.",
   CLEARED: "WhatsApp copilot link removed.",
   SAVE_ERROR: "Could not save WhatsApp number.",
+  STATUS_LINKED: "Linked",
+  STATUS_NOT_LINKED: "Not linked",
+  WEBHOOK_LABEL: "Webhook URL (for Meta Console)",
+  WEBHOOK_COPIED: "Webhook URL copied.",
+  MODE_LABEL: "WhatsApp mode",
+  MODE_MOCK: "Mock (no live sends)",
+  MODE_LIVE: "Live",
+  MODE_UNKNOWN: "Unknown",
+  HEALTH_ERROR: "Could not load integration status.",
 } as const;
 
 export const CUSTOMER_STATEMENT = {

@@ -727,6 +727,20 @@ WHATSAPP_TEMPLATE_REMINDER_EN = "payment_reminder_en"
 WHATSAPP_TEMPLATE_REMINDER_HI = "payment_reminder_hi"
 WHATSAPP_TEMPLATE_INVOICE_SHARE = "invoice_share"
 WHATSAPP_TEMPLATE_COMPLIANCE_REMINDER = "compliance_reminder"
+WHATSAPP_REMINDER_BODY: dict[str, dict[str, str]] = {
+    "due_soon": {
+        "en": "Hi {customer_name}, invoice {invoice_number} for ₹{amount_due} is due in {days} days. Please pay on time.",
+        "hi": "नमस्ते {customer_name}, आपका बिल {invoice_number} ₹{amount_due} {days} दिन में देय है। कृपया समय पर भुगतान करें।",
+    },
+    "due_today": {
+        "en": "Hi {customer_name}, invoice {invoice_number} for ₹{amount_due} is due today. Please pay today.",
+        "hi": "नमस्ते {customer_name}, आपका बिल {invoice_number} ₹{amount_due} आज देय है। कृपया भुगतान करें।",
+    },
+    "overdue": {
+        "en": "Hi {customer_name}, invoice {invoice_number} has ₹{amount_due} due ({days_overdue} days overdue). Please pay at earliest.",
+        "hi": "नमस्ते {customer_name}, आपका बिल {invoice_number} ₹{amount_due} बकाया है ({days_overdue} दिन)। कृपया भुगतान करें।",
+    },
+}
 WHATSAPP_COPILOT_MAX_REPLY_CHARS = 4000
 WHATSAPP_COPILOT_UNLINKED_REPLY = (
     "Hi! Link this WhatsApp number in KuberAIQ: Settings → Integrations → WhatsApp AI copilot. "
