@@ -603,12 +603,16 @@ export const PAYMENTS_SETTINGS = {
   SAVE_LABEL: "Save payment settings",
 } as const;
 
+export const INDIA_MOBILE_PHONE_REGEX = /^[6-9]\d{9}$/;
+
 export const WHATSAPP_COPILOT_SETTINGS = {
   TITLE: "WhatsApp AI copilot",
   DESCRIPTION:
     "Link your WhatsApp number to chat with the same AI assistant you use on the web — ask about invoices, collections, and compliance.",
   PHONE_LABEL: "Your WhatsApp mobile number",
-  PHONE_HINT: "10-digit Indian mobile (the number you message from).",
+  PHONE_HINT:
+    "10-digit Indian mobile starting with 6–9 (e.g. 9876543210). Optional: +91 prefix. Use the same number you message from on WhatsApp.",
+  PHONE_INVALID: "Enter a valid 10-digit Indian mobile number (starting with 6–9).",
   SAVE_LABEL: "Save WhatsApp number",
   SAVED: "WhatsApp number linked for AI copilot.",
   CLEARED: "WhatsApp copilot link removed.",

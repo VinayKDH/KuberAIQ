@@ -34,7 +34,7 @@ class UserResponse(BaseModel):
 
 
 class UpdateWhatsappPhoneRequest(BaseModel):
-    phone: str | None = Field(default=None, max_length=13)
+    phone: str | None = Field(default=None, max_length=20)
 
 
 class TokenResponse(BaseModel):

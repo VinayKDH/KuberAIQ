@@ -41,8 +41,29 @@ function isFetchNetworkError(err: unknown): boolean {
   );
 }
 
+function formatValidationDetails(details: unknown): string | null {
+  if (!Array.isArray(details) || details.length === 0) return null;
+  const parts = details
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const field = "field" in item && typeof item.field === "string" ? item.field : "";
+      const issue = "issue" in item && typeof item.issue === "string" ? item.issue : "";
+      if (!issue) return null;
+      return field ? `${field}: ${issue}` : issue;
+    })
+    .filter((part): part is string => Boolean(part));
+  return parts.length > 0 ? parts.join("; ") : null;
+}
+
 export function formatApiError(err: unknown, fallback = "Request failed"): string {
-  if (err instanceof NetworkError || err instanceof ApiError) {
+  if (err instanceof ApiError) {
+    const detailText = formatValidationDetails(err.details);
+    if (detailText && err.message === "Request validation failed") {
+      return detailText;
+    }
+    return err.message;
+  }
+  if (err instanceof NetworkError) {
     return err.message;
   }
   if (err instanceof Error) {

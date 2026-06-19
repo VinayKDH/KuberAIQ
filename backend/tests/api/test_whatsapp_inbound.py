@@ -65,6 +65,50 @@ async def test_update_whatsapp_phone_owner(client: AsyncClient, db_engine) -> No
 
 
 @pytest.mark.asyncio
+async def test_update_whatsapp_phone_accepts_formatted_input(client: AsyncClient, db_engine) -> None:
+    company_id = uuid.uuid4()
+    owner_id = uuid.uuid4()
+    session_factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    async with session_factory() as session:
+        session.add(
+            CompanyModel(
+                id=company_id,
+                legal_name="WA Formatted Co",
+                state_code="29",
+            )
+        )
+        session.add(
+            UserModel(
+                id=owner_id,
+                company_id=company_id,
+                email="wa-formatted@test.kuberaiq.com",
+                full_name="WA Formatted Owner",
+                role=UserRole.OWNER,
+            )
+        )
+        session.add(
+            SubscriptionModel(
+                user_id=owner_id,
+                status=SubscriptionStatus.ACTIVE.value,
+                plan_code="starter_monthly",
+                amount_paise=99900,
+            )
+        )
+        await session.commit()
+
+    headers = {
+        "Authorization": f"Bearer {create_access_token(user_id=str(owner_id), company_id=str(company_id), role=UserRole.OWNER)}"
+    }
+    response = await client.patch(
+        "/api/v1/auth/me/whatsapp-phone",
+        headers=headers,
+        json={"phone": "+91 92508 43443"},
+    )
+    assert response.status_code == 200
+    assert response.json()["whatsapp_phone"] == "9250843443"
+
+
+@pytest.mark.asyncio
 async def test_whatsapp_inbound_routes_to_copilot(client: AsyncClient, db_engine) -> None:
     company_id = uuid.uuid4()
     owner_id = uuid.uuid4()

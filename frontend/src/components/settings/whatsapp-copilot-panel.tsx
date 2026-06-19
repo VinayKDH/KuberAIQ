@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient, formatApiError } from "@/lib/api-client";
-import { API_PATHS, WHATSAPP_COPILOT_SETTINGS } from "@/lib/constants";
+import { API_PATHS, INDIA_MOBILE_PHONE_REGEX, WHATSAPP_COPILOT_SETTINGS } from "@/lib/constants";
 
 interface MeUser {
   whatsapp_phone?: string | null;
@@ -19,6 +19,24 @@ interface MeResponse {
 
 interface WhatsappCopilotPanelProps {
   isOwner: boolean;
+}
+
+function normalizeIndianMobileInput(raw: string): string {
+  let digits = raw.replace(/[\s\-()]/g, "").replace(/^\+/, "");
+  if (digits.startsWith("91") && digits.length === 12) {
+    digits = digits.slice(2);
+  }
+  return digits;
+}
+
+function validateIndianMobile(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const normalized = normalizeIndianMobileInput(trimmed);
+  if (!INDIA_MOBILE_PHONE_REGEX.test(normalized)) {
+    return WHATSAPP_COPILOT_SETTINGS.PHONE_INVALID;
+  }
+  return null;
 }
 
 export function WhatsappCopilotPanel({ isOwner }: WhatsappCopilotPanelProps) {
@@ -49,11 +67,17 @@ export function WhatsappCopilotPanel({ isOwner }: WhatsappCopilotPanelProps) {
     setSaving(true);
     setError(null);
     setMessage(null);
+    const trimmed = phone.trim();
+    const validationError = validateIndianMobile(trimmed);
+    if (validationError) {
+      setError(validationError);
+      setSaving(false);
+      return;
+    }
     try {
-      const trimmed = phone.trim();
       await apiClient(API_PATHS.ME_WHATSAPP_PHONE, {
         method: "PATCH",
-        body: JSON.stringify({ phone: trimmed || null }),
+        body: { phone: trimmed || null },
       });
       setMessage(trimmed ? WHATSAPP_COPILOT_SETTINGS.SAVED : WHATSAPP_COPILOT_SETTINGS.CLEARED);
     } catch (err) {
