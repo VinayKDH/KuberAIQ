@@ -619,9 +619,256 @@ export const LANDING_COPY = {
   TRUST_LINE: "Free to start · No credit card · Data stored securely in India (Azure)",
 } as const;
 
+export const MSME_LOGIN_SEGMENTS = [
+  {
+    id: "kirana",
+    label: { en: "Kirana & retail", hi: "किराना और रिटेल" },
+    headline: { en: "Bill faster. Track udhaar.", hi: "तेज़ बिलिंग। उधार ट्रैक करें।" },
+    highlights: {
+      en: ["GST bills in seconds", "Customer ledger & dues", "WhatsApp payment reminders"],
+      hi: ["सेकंडों में GST बिल", "ग्राहक खाता और बकाया", "व्हाट्सऐप पेमेंट रिमाइंडर"],
+    },
+  },
+  {
+    id: "trader",
+    label: { en: "Traders & wholesale", hi: "ट्रेडर और थोक" },
+    headline: { en: "Multi-item invoices. One tap GST.", hi: "मल्टी-आइटम इनवॉइस। एक टैप GST।" },
+    highlights: {
+      en: ["HSN auto-fill from product name", "Quotations → invoices", "Overdue collections"],
+      hi: ["प्रोडक्ट नाम से HSN", "कोटेशन से इनवॉइस", "बकाया वसूली"],
+    },
+  },
+  {
+    id: "manufacturing",
+    label: { en: "Manufacturing", hi: "विनिर्माण" },
+    headline: { en: "Raw material to invoice.", hi: "कच्चा माल से इनवॉइस तक।" },
+    highlights: {
+      en: ["Batch & unit pricing", "GSTR-ready exports", "Inventory-aware billing"],
+      hi: ["बैच और यूनिट प्राइसिंग", "GSTR रिपोर्ट", "इन्वेंटरी बिलिंग"],
+    },
+  },
+  {
+    id: "services",
+    label: { en: "Services & professionals", hi: "सेवाएं और प्रोफेशनल" },
+    headline: { en: "Quote. Deliver. Get paid.", hi: "कोट करें। डिलीवर करें। पेमेंट लें।" },
+    highlights: {
+      en: ["SAC codes for services", "Recurring invoices", "AI assistant for follow-ups"],
+      hi: ["सेवाओं के लिए SAC", "रिकरिंग इनवॉइस", "AI असिस्टेंट"],
+    },
+  },
+  {
+    id: "construction",
+    label: { en: "Hardware & contractors", hi: "हार्डवेयर और ठेकेदार" },
+    headline: { en: "Cement to sealant — billed right.", hi: "सीमेंट से सीलेंट — सही बिलिंग।" },
+    highlights: {
+      en: ["Multi-line material invoices", "Site-wise customer accounts", "GST on construction goods"],
+      hi: ["मल्टी-लाइन मटीरियल बिल", "साइट-वाइज ग्राहक", "निर्माण सामान पर GST"],
+    },
+  },
+  {
+    id: "food",
+    label: { en: "Food & hospitality", hi: "फूड और हॉस्पिटैलिटी" },
+    headline: { en: "Daily sales. Weekly GST clarity.", hi: "रोज़ की बिक्री। साप्ताहिक GST स्पष्टता।" },
+    highlights: {
+      en: ["Fast billing at counter", "Supplier payment tracking", "Compliance calendar"],
+      hi: ["काउंटर पर तेज़ बिल", "सप्लायर पेमेंट ट्रैक", "कंप्लायंस कैलेंडर"],
+    },
+  },
+] as const;
+
+export type MsmeLoginSegmentId = (typeof MSME_LOGIN_SEGMENTS)[number]["id"];
+
+export const LOGIN_STORAGE_KEYS = {
+  MSME_SEGMENT: "kuberaiq_msme_segment",
+  REMEMBER_EMAIL: "kuberaiq_remember_email",
+  QUICK_START_DISMISSED: "kuberaiq_msme_quickstart_dismissed",
+  STARTER_PRODUCTS_IMPORTED: "kuberaiq_starter_products_imported",
+} as const;
+
+export interface MsmeStarterProduct {
+  name: string;
+  hsn_sac: string;
+  unit: string;
+  default_price: number;
+  gst_rate: number;
+}
+
+export const MSME_STARTER_PRODUCTS: Record<MsmeLoginSegmentId, MsmeStarterProduct[]> = {
+  kirana: [
+    { name: "Basmati Rice 5kg", hsn_sac: "100630", unit: "BAG", default_price: 650, gst_rate: 0 },
+    { name: "Toor Dal 1kg", hsn_sac: "071320", unit: "KG", default_price: 140, gst_rate: 0 },
+    { name: "Sunflower Oil 1L", hsn_sac: "151219", unit: "LTR", default_price: 165, gst_rate: 5 },
+    { name: "Biscuits Pack", hsn_sac: "190531", unit: "NOS", default_price: 30, gst_rate: 12 },
+  ],
+  trader: [
+    { name: "Cement 50kg Bag", hsn_sac: "252329", unit: "BAG", default_price: 380, gst_rate: 28 },
+    { name: "TMT Steel 12mm", hsn_sac: "721420", unit: "TON", default_price: 62000, gst_rate: 18 },
+    { name: "Wall Putty 40kg", hsn_sac: "321410", unit: "BAG", default_price: 850, gst_rate: 18 },
+    { name: "PVC Pipe 4 inch", hsn_sac: "391723", unit: "NOS", default_price: 420, gst_rate: 18 },
+  ],
+  manufacturing: [
+    { name: "Raw Cotton Bale", hsn_sac: "520100", unit: "BALE", default_price: 45000, gst_rate: 5 },
+    { name: "Finished Fabric Roll", hsn_sac: "520852", unit: "MTR", default_price: 85, gst_rate: 12 },
+    { name: "Industrial Lubricant", hsn_sac: "271019", unit: "LTR", default_price: 220, gst_rate: 18 },
+    { name: "Packaging Carton", hsn_sac: "481910", unit: "NOS", default_price: 35, gst_rate: 12 },
+  ],
+  services: [
+    { name: "Consulting — per hour", hsn_sac: "998312", unit: "HRS", default_price: 2500, gst_rate: 18 },
+    { name: "Annual Maintenance Contract", hsn_sac: "998313", unit: "NOS", default_price: 15000, gst_rate: 18 },
+    { name: "Software Setup Fee", hsn_sac: "998314", unit: "NOS", default_price: 5000, gst_rate: 18 },
+    { name: "Training Session", hsn_sac: "999293", unit: "NOS", default_price: 8000, gst_rate: 18 },
+  ],
+  construction: [
+    { name: "OPC Cement 50kg", hsn_sac: "252329", unit: "BAG", default_price: 380, gst_rate: 28 },
+    { name: "Construction Sealant", hsn_sac: "321410", unit: "NOS", default_price: 450, gst_rate: 18 },
+    { name: "River Sand", hsn_sac: "250590", unit: "TON", default_price: 3500, gst_rate: 5 },
+    { name: "Brick Red", hsn_sac: "690100", unit: "NOS", default_price: 8, gst_rate: 12 },
+  ],
+  food: [
+    { name: "Thali Meal", hsn_sac: "996331", unit: "NOS", default_price: 120, gst_rate: 5 },
+    { name: "Beverage 300ml", hsn_sac: "220210", unit: "NOS", default_price: 40, gst_rate: 12 },
+    { name: "Snacks Plate", hsn_sac: "210690", unit: "NOS", default_price: 80, gst_rate: 5 },
+    { name: "Catering Per Person", hsn_sac: "996334", unit: "NOS", default_price: 350, gst_rate: 5 },
+  ],
+};
+
+export const MSME_QUICK_START_ACTIONS: Record<
+  MsmeLoginSegmentId,
+  Array<{ label: { en: string; hi: string }; href: string; assistantPrompt?: string }>
+> = {
+  kirana: [
+    { label: { en: "Create GST bill", hi: "GST बिल बनाएं" }, href: ROUTES.INVOICES_NEW },
+    { label: { en: "Add customer", hi: "ग्राहक जोड़ें" }, href: ROUTES.CUSTOMERS },
+    {
+      label: { en: "Who owes me?", hi: "किसका बकाया है?" },
+      href: ROUTES.ASSISTANT,
+      assistantPrompt: "Show customers with overdue payments",
+    },
+  ],
+  trader: [
+    { label: { en: "Multi-item invoice", hi: "मल्टी-आइटम इनवॉइस" }, href: ROUTES.INVOICES_NEW },
+    { label: { en: "Import products", hi: "प्रोडक्ट इम्पोर्ट" }, href: ROUTES.PRODUCTS },
+    {
+      label: { en: "GST summary", hi: "GST सारांश" },
+      href: ROUTES.ASSISTANT,
+      assistantPrompt: "Summarize GST liability this month",
+    },
+  ],
+  manufacturing: [
+    { label: { en: "Add raw material", hi: "कच्चा माल जोड़ें" }, href: ROUTES.PRODUCTS },
+    { label: { en: "Create invoice", hi: "इनवॉइस बनाएं" }, href: ROUTES.INVOICES_NEW },
+    { label: { en: "GSTR report", hi: "GSTR रिपोर्ट" }, href: ROUTES.SETTINGS },
+  ],
+  services: [
+    { label: { en: "New quotation", hi: "नया कोटेशन" }, href: ROUTES.QUOTATIONS_NEW },
+    { label: { en: "Record payment", hi: "पेमेंट रिकॉर्ड" }, href: ROUTES.COLLECTIONS },
+    {
+      label: { en: "Follow up dues", hi: "बकाया फॉलो-अप" },
+      href: ROUTES.ASSISTANT,
+      assistantPrompt: "List overdue invoices and suggest follow-up messages",
+    },
+  ],
+  construction: [
+    { label: { en: "Material invoice", hi: "मटीरियल इनवॉइस" }, href: ROUTES.INVOICES_NEW },
+    { label: { en: "Site customer", hi: "साइट ग्राहक" }, href: ROUTES.CUSTOMERS },
+    {
+      label: { en: "Invoice cement + sealant", hi: "सीमेंट + सीलेंट बिल" },
+      href: ROUTES.ASSISTANT,
+      assistantPrompt: "Create invoice for 50 bags cement and 10 sealant tubes for AIMLGYAN",
+    },
+  ],
+  food: [
+    { label: { en: "Daily sales bill", hi: "दैनिक बिक्री बिल" }, href: ROUTES.INVOICES_NEW },
+    { label: { en: "Supplier expense", hi: "सप्लायर खर्च" }, href: ROUTES.EXPENSES },
+    { label: { en: "Compliance dates", hi: "कंप्लायंस तारीखें" }, href: ROUTES.COMPLIANCE },
+  ],
+};
+
+export const MSME_ASSISTANT_PROMPTS: Record<MsmeLoginSegmentId, string[]> = {
+  kirana: [
+    "Show customers with pending udhaar",
+    "Create invoice for 2kg dal and 1L oil for Ramesh",
+    "Who paid me this week?",
+  ],
+  trader: [
+    "Create invoice for 50 cement bags for ABC Traders",
+    "Show overdue invoices above ₹10,000",
+    "Summarize collections this month",
+  ],
+  manufacturing: [
+    "List top selling products this quarter",
+    "Create invoice for 100m fabric roll",
+    "Show GST output tax summary",
+  ],
+  services: [
+    "Create quotation for AMC ₹15,000",
+    "List overdue invoices for follow-up",
+    "Summarize revenue this month",
+  ],
+  construction: [
+    "Invoice 50 bags cement and 10 sealant for site customer",
+    "Show overdue payments from contractors",
+    "Add customer with phone 9876543210",
+  ],
+  food: [
+    "Show today's sales summary",
+    "Create invoice for catering 50 persons",
+    "List supplier payments due",
+  ],
+};
+
+export const MSME_QUICK_START_COPY = {
+  TITLE: { en: "Quick start for your business", hi: "आपके व्यवसाय के लिए त्वरित शुरुआत" },
+  DISMISS: { en: "Dismiss", hi: "बंद करें" },
+  IMPORT_TITLE: { en: "Import starter products", hi: "स्टार्टर प्रोडक्ट इम्पोर्ट करें" },
+  IMPORT_DESC: {
+    en: "Add common items for your business type — edit prices anytime.",
+    hi: "अपने व्यवसाय के सामान्य आइटम जोड़ें — कीमतें बाद में बदल सकते हैं।",
+  },
+  IMPORT_BUTTON: { en: "Import {count} products", hi: "{count} प्रोडक्ट इम्पोर्ट करें" },
+  IMPORTING: { en: "Importing…", hi: "इम्पोर्ट हो रहा है…" },
+  IMPORT_DONE: { en: "Starter products added.", hi: "स्टार्टर प्रोडक्ट जोड़ दिए गए।" },
+  TRY_ASKING: { en: "Try asking", hi: "पूछकर देखें" },
+  BUSINESS_TYPE: { en: "Business type", hi: "व्यवसाय प्रकार" },
+  BUSINESS_TYPE_DESC: {
+    en: "We personalize invoices, products, and AI suggestions for your MSME segment.",
+    hi: "हम आपके MSME सेगमेंट के अनुसार इनवॉइस, प्रोडक्ट और AI सुझाव अनुकूलित करते हैं।",
+  },
+  SAVED: { en: "Business type updated.", hi: "व्यवसाय प्रकार अपडेट हो गया।" },
+} as const;
+
+export const ASSISTANT_QUERY_PARAM = "q";
+
+export const LOGIN_COPY = {
+  SUITE_TAGLINE: { en: "AI BUSINESS MANAGER FOR INDIAN MSMES", hi: "भारतीय MSME के लिए AI बिज़नेस मैनेजर" },
+  HERO_PRIMARY: { en: "Every MSME.", hi: "हर MSME।" },
+  HERO_ACCENT: { en: "One smart platform.", hi: "एक स्मार्ट प्लेटफॉर्म।" },
+  HERO_SUB: {
+    en: "Pick your business type — we adapt invoices, GST, and collections to how you work.",
+    hi: "अपना व्यवसाय चुनें — हम इनवॉइस, GST और कलेक्शन आपके काम के अनुसार अनुकूलित करते हैं।",
+  },
+  BUILT_FOR: {
+    en: "From kirana to factory — built for how India actually does business.",
+    hi: "किराना से फैक्ट्री तक — भारत जैसा व्यवसाय करता है, उसी के लिए।",
+  },
+  WELCOME: { en: "Welcome back", hi: "वापसी पर स्वागत है" },
+  SUBTITLE: { en: "Sign in to your workspace", hi: "अपने वर्कस्पेस में साइन इन करें" },
+  EMAIL_LABEL: { en: "Email or username", hi: "ईमेल या यूज़रनेम" },
+  EMAIL_PLACEHOLDER: { en: "you@yourshop.in", hi: "you@yourshop.in" },
+  REMEMBER: { en: "Remember me", hi: "मुझे याद रखें" },
+  SIGN_IN: { en: "Sign in", hi: "साइन इन" },
+  SIGNING_IN: { en: "Signing in…", hi: "साइन इन हो रहा है…" },
+  OR_CONTINUE: { en: "or continue with", hi: "या इससे जारी रखें" },
+  NEW_HERE: { en: "New here?", hi: "नए हैं?" },
+  START_FREE: { en: "Start free", hi: "मुफ़्त शुरू करें" },
+  YOUR_BUSINESS: { en: "Your business type", hi: "आपका व्यवसाय प्रकार" },
+} as const;
+
 export const ONBOARDING_COPY = {
   TITLE: "Welcome to KuberAIQ",
   STEP_COMPANY: "Business details",
+  STEP_SEGMENT: "Your business type",
+  STEP_SEGMENT_DESC: "We picked this from login — change it if needed. This personalizes your workspace.",
   STEP_COMPLIANCE: "Compliance profile",
   STEP_PAYMENTS: "Payments (optional)",
   STEP_COMPANY_DESC: "We use your GSTIN for tax-compliant invoices.",

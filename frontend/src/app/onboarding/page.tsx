@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useUpdateComplianceProfile } from "@/features/compliance/hooks";
+import { MsmeSegmentPicker } from "@/components/msme/msme-segment-picker";
 import {
   API_PATHS,
   APP_NAME,
@@ -21,10 +22,13 @@ import {
   REMINDER_LANGUAGES,
   ROUTES,
   STORAGE_KEYS,
+  type MsmeLoginSegmentId,
 } from "@/lib/constants";
 import { useCanonicalOriginRedirect } from "@/hooks/use-canonical-origin";
 import { apiClient, formatApiError } from "@/lib/api-client";
 import { clearSession, storeSession, type AuthTokens } from "@/lib/auth";
+import { getStoredMsmeSegment, setStoredMsmeSegment } from "@/lib/msme-segment";
+import { getPreferredLanguage } from "@/lib/i18n";
 import { postLoginRoute, type MeGate } from "@/lib/session-routing";
 
 const TOTAL_STEPS = 3;
@@ -50,6 +54,12 @@ export default function OnboardingPage() {
   const [upiPayeeName, setUpiPayeeName] = useState("");
   const [autoReminders, setAutoReminders] = useState(true);
   const [reminderLanguage, setReminderLanguage] = useState("en");
+  const [msmeSegment, setMsmeSegment] = useState<MsmeLoginSegmentId>("kirana");
+  const lang = getPreferredLanguage();
+
+  useEffect(() => {
+    setMsmeSegment(getStoredMsmeSegment());
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && !localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)) {
@@ -178,6 +188,18 @@ export default function OnboardingPage() {
         <CardContent>
           {step === 1 && (
             <form onSubmit={handleCompanySubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>{ONBOARDING_COPY.STEP_SEGMENT}</Label>
+                <p className="text-xs text-muted-foreground">{ONBOARDING_COPY.STEP_SEGMENT_DESC}</p>
+                <MsmeSegmentPicker
+                  lang={lang}
+                  value={msmeSegment}
+                  onChange={(id) => {
+                    setMsmeSegment(id);
+                    setStoredMsmeSegment(id);
+                  }}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="legal-name">Legal name</Label>
                 <Input

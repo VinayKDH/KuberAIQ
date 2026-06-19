@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Bot, Mic, MicOff, Send, User } from "lucide-react";
 import { AssistantDataCard } from "@/components/assistant/assistant-data-card";
 import { ConfirmActionCard } from "@/components/assistant/confirm-action-card";
@@ -13,10 +14,21 @@ import {
   ASSISTANT_CANCEL_WORDS,
   ASSISTANT_CHANNEL,
   ASSISTANT_CONFIRM_WORDS,
+  ASSISTANT_QUERY_PARAM,
+  MSME_ASSISTANT_PROMPTS,
+  MSME_QUICK_START_COPY,
 } from "@/lib/constants";
+import { getPreferredLanguage } from "@/lib/i18n";
+import { getStoredMsmeSegment } from "@/lib/msme-segment";
 import { cn } from "@/lib/utils";
 
 export default function AssistantPage() {
+  const searchParams = useSearchParams();
+  const lang = getPreferredLanguage();
+  const segmentId = getStoredMsmeSegment();
+  const quickPrompts = MSME_ASSISTANT_PROMPTS[segmentId];
+  const initialPromptHandled = useRef(false);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -163,6 +175,15 @@ export default function AssistantPage() {
 
   const isBusy = chatMutation.isPending || confirmMutation.isPending;
 
+  useEffect(() => {
+    if (initialPromptHandled.current) return;
+    const prompt = searchParams.get(ASSISTANT_QUERY_PARAM);
+    if (!prompt?.trim()) return;
+    initialPromptHandled.current = true;
+    sendMessage(prompt.trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for deep-linked prompt
+  }, [searchParams]);
+
   const startVoiceInput = () => {
     type SpeechRecognitionCtor = new () => {
       lang: string;
@@ -301,6 +322,28 @@ export default function AssistantPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="border-t p-4">
+            {messages.length === 1 && (
+              <div className="mb-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {MSME_QUICK_START_COPY.TRY_ASKING[lang]}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {quickPrompts.map((prompt) => (
+                    <Button
+                      key={prompt}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 max-w-full truncate text-xs"
+                      disabled={isBusy}
+                      onClick={() => sendMessage(prompt)}
+                    >
+                      {prompt}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex gap-2">
               <Textarea
                 placeholder="e.g. Show overdue invoices for ABC Traders"

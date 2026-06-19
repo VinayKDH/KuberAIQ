@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2, IndianRupee, ScrollText } from "lucide-react";
 import { AdvisorsPanel } from "@/components/settings/advisors-panel";
 import { BillingSubscriptionPanel } from "@/components/settings/billing-subscription-panel";
+import { MsmeBusinessTypePanel } from "@/components/msme/msme-business-type-panel";
 import { StaffPanel } from "@/components/settings/staff-panel";
 import { WhatsappCopilotPanel } from "@/components/settings/whatsapp-copilot-panel";
 import { GstReportPanel } from "@/components/settings/gst-report-panel";
@@ -151,6 +152,7 @@ export default function SettingsPage() {
 
         {!isCa && (
           <TabsContent value="company" className="space-y-4">
+            <MsmeBusinessTypePanel />
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">

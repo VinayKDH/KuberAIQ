@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { EditProductDialog } from "@/components/products/edit-product-dialog";
+import { StarterProductsBanner } from "@/components/products/starter-products-banner";
 import { useDeactivateProduct, useProducts } from "@/features/products/hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { DEFAULT_PAGE_SIZE, PRODUCT_FORM } from "@/lib/constants";
@@ -42,6 +43,8 @@ export default function ProductsPage() {
         </div>
         <AddProductDialog />
       </div>
+
+      <StarterProductsBanner productCount={data?.total ?? 0} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative max-w-sm flex-1">

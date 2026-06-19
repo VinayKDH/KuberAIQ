@@ -8,6 +8,7 @@ import { CashflowForecastChart } from "@/components/dashboard/cashflow-forecast-
 import { ComplianceAlertCard } from "@/components/dashboard/compliance-alert-card";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { TopProductsCard } from "@/components/dashboard/top-products-card";
+import { MsmeQuickStartCard } from "@/components/msme/msme-quick-start-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +59,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <MsmeQuickStartCard />
 
       {isError && (
         <Card className="border-destructive/50">
