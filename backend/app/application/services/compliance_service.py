@@ -20,6 +20,7 @@ from app.core.constants import (
     COMPLIANCE_OBLIGATION_STATUS_NOT_APPLICABLE,
     COMPLIANCE_OBLIGATION_STATUS_OVERDUE,
     COMPLIANCE_OBLIGATION_STATUS_PENDING,
+    COMPLIANCE_OBLIGATION_STATUS_SKIPPED,
     COMPLIANCE_STATUS_DUE_SOON,
     COMPLIANCE_STATUS_OVERDUE,
     COMPLIANCE_STATUS_UPCOMING,
@@ -393,7 +394,10 @@ class ComplianceService:
                     due_date=due,
                 )
             )
-        elif stored and stored.status != COMPLIANCE_OBLIGATION_STATUS_COMPLETED:
+        elif stored and stored.status not in (
+            COMPLIANCE_OBLIGATION_STATUS_COMPLETED,
+            COMPLIANCE_OBLIGATION_STATUS_SKIPPED,
+        ):
             if stored.status != status:
                 stored = await uow.compliance.upsert_status(
                     ComplianceStatusRecord(
@@ -427,21 +431,97 @@ class ComplianceService:
     def _derive_status(self, today: date, due: date, stored: ComplianceStatusRecord | None) -> str:
         if stored and stored.status == COMPLIANCE_OBLIGATION_STATUS_COMPLETED:
             return COMPLIANCE_OBLIGATION_STATUS_COMPLETED
+        if stored and stored.status == COMPLIANCE_OBLIGATION_STATUS_SKIPPED:
+            return COMPLIANCE_OBLIGATION_STATUS_SKIPPED
         if due < today:
             return COMPLIANCE_OBLIGATION_STATUS_OVERDUE
         return COMPLIANCE_OBLIGATION_STATUS_PENDING
 
+    async def skip_obligation(
+        self,
+        *,
+        company_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        obligation_id: str,
+        period_key: str | None = None,
+        notes: str | None = None,
+    ) -> dict:
+        if obligation_id not in CATALOG_BY_ID:
+            raise ValueError("Unknown obligation")
+
+        today = date.today()
+        async with self._uow_factory() as uow:
+            await uow.compliance.ensure_catalog_seeded()
+            company = await uow.companies.get_by_id(company_id)
+            if not company:
+                raise ValueError("Company not found")
+
+            ytd_turnover = await self._load_ytd_turnover(uow, company_id, today)
+            profile = default_profile_from_company(
+                gstin=company.gstin,
+                state_code=company.state_code,
+                entity_type=company.entity_type,
+                turnover_band=company.turnover_band,
+                gstr1_filing_frequency=company.gstr1_filing_frequency,
+                employee_count=company.employee_count,
+                has_tds_applicable=company.has_tds_applicable,
+                udyam_number=company.udyam_number,
+                ytd_turnover=ytd_turnover,
+            )
+            result = evaluate_applicability(CATALOG_BY_ID[obligation_id], profile)
+            if not result.applies:
+                raise ValueError("Obligation does not apply to this company")
+
+            key, due = due_date_for_obligation(
+                obligation_id,
+                today=today,
+                frequency=result.effective_frequency,
+            )
+            resolved_period = period_key or key
+            existing = await uow.compliance.get_status(company_id, obligation_id, resolved_period)
+            record = ComplianceStatusRecord(
+                id=existing.id if existing else uuid.uuid4(),
+                company_id=company_id,
+                obligation_id=obligation_id,
+                period_key=resolved_period,
+                status=COMPLIANCE_OBLIGATION_STATUS_SKIPPED,
+                due_date=existing.due_date if existing else due,
+                completed_at=datetime.now(timezone.utc),
+                completed_by=actor_id,
+                notes=notes or "Skipped by advisor",
+            )
+            saved = await uow.compliance.upsert_status(record)
+            await uow.audit.log(
+                company_id=company_id,
+                actor_user_id=actor_id,
+                entity_type=EntityType.COMPANY,
+                entity_id=company_id,
+                action=AuditAction.UPDATE,
+                before={"obligation_id": obligation_id, "period_key": resolved_period},
+                after={"status": COMPLIANCE_OBLIGATION_STATUS_SKIPPED},
+            )
+            await uow.commit()
+            return {
+                "obligation_id": obligation_id,
+                "period_key": saved.period_key,
+                "status": saved.status,
+                "completed_at": saved.completed_at.isoformat() if saved.completed_at else None,
+            }
+
     def _compute_summary(self, rows: list[dict]) -> dict:
-        overdue = sum(1 for row in rows if row["status"] == COMPLIANCE_OBLIGATION_STATUS_OVERDUE)
+        active_rows = [
+            row for row in rows if row["status"] != COMPLIANCE_OBLIGATION_STATUS_SKIPPED
+        ]
+        overdue = sum(1 for row in active_rows if row["status"] == COMPLIANCE_OBLIGATION_STATUS_OVERDUE)
         due_this_week = sum(
             1
-            for row in rows
+            for row in active_rows
             if row["status"] == COMPLIANCE_OBLIGATION_STATUS_PENDING
             and 0 <= (date.fromisoformat(row["due_date"]) - date.today()).days <= COMPLIANCE_DUE_SOON_DAYS
         )
-        pending = sum(1 for row in rows if row["status"] == COMPLIANCE_OBLIGATION_STATUS_PENDING)
-        completed = sum(1 for row in rows if row["status"] == COMPLIANCE_OBLIGATION_STATUS_COMPLETED)
-        total = len(rows) or 1
+        pending = sum(1 for row in active_rows if row["status"] == COMPLIANCE_OBLIGATION_STATUS_PENDING)
+        completed = sum(1 for row in active_rows if row["status"] == COMPLIANCE_OBLIGATION_STATUS_COMPLETED)
+        total = len(active_rows) or 1
         health = COMPLIANCE_HEALTH_SCORE_COMPLETE
         health -= overdue * COMPLIANCE_HEALTH_SCORE_OVERDUE_PENALTY
         health -= due_this_week * COMPLIANCE_HEALTH_SCORE_DUE_SOON_PENALTY

@@ -55,3 +55,35 @@ export function fetchCaBulkGstr1(params: {
   params.companyIds?.forEach((id) => search.append("company_ids", id));
   return apiClient<CaBulkGstrResponse>(`${API_PATHS.CA_GSTR1_BULK}?${search.toString()}`);
 }
+
+export function fetchCaBulkGstr3b(params: {
+  from: string;
+  to: string;
+  companyIds?: string[];
+}) {
+  const search = new URLSearchParams({ from: params.from, to: params.to });
+  params.companyIds?.forEach((id) => search.append("company_ids", id));
+  return apiClient<CaBulkGstrResponse>(`${API_PATHS.CA_GSTR3B_BULK}?${search.toString()}`);
+}
+
+export function completeCaClientFiling(
+  companyId: string,
+  obligationId: string,
+  periodKey?: string | null,
+) {
+  return apiClient(API_PATHS.CA_FILING_COMPLETE(companyId, obligationId), {
+    method: "POST",
+    body: { period_key: periodKey ?? null },
+  });
+}
+
+export function skipCaClientFiling(
+  companyId: string,
+  obligationId: string,
+  periodKey?: string | null,
+) {
+  return apiClient(API_PATHS.CA_FILING_SKIP(companyId, obligationId), {
+    method: "POST",
+    body: { period_key: periodKey ?? null },
+  });
+}

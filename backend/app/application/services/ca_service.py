@@ -2,9 +2,18 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date, timedelta
 
 from app.application.ports.repositories import CaClientAssignmentRecord, UserRecord
-from app.core.constants import CA_INVITE_ALREADY_EXISTS, CA_INVITE_NOT_FOUND, CA_NOT_ASSIGNED
+from app.core.constants import (
+    CA_FILING_CHECKLIST_IDS,
+    CA_FILING_DUE_SOON_DAYS,
+    CA_HEALTH_SCORE_AT_RISK,
+    CA_INVITE_ALREADY_EXISTS,
+    CA_INVITE_NOT_FOUND,
+    CA_NOT_ASSIGNED,
+    CA_OVERDUE_ALERT_THRESHOLD,
+)
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationAppError
 from app.domain.enums import CaAssignmentStatus, UserRole
 from app.infrastructure.auth.token_service import TokenService
@@ -174,31 +183,96 @@ class CaService:
                 start=0,
             )
             rows = obligations.get("obligations", [])
+            summary = obligations.get("summary", {})
+            profile_complete = obligations.get("profile_complete", False)
+            filing_checklist = self._build_filing_checklist(rows)
+            filings_due_soon = self._count_filings_due_soon(filing_checklist)
             upcoming = sorted(
                 [
                     {
                         "title": row.get("title"),
                         "due_date": row.get("due_date"),
                         "status": row.get("status"),
-                        "obligation_id": row.get("obligation_id"),
+                        "obligation_id": row.get("id"),
                     }
                     for row in rows
-                    if row.get("status") not in ("COMPLETED", "NOT_APPLICABLE")
+                    if row.get("status") not in ("COMPLETED", "NOT_APPLICABLE", "SKIPPED")
                 ],
                 key=lambda r: r.get("due_date") or "",
             )[:5]
+            health_score = summary.get("health_score")
+            risk_level = self._compute_risk_level(
+                gstin=company.gstin,
+                overdue_total=overdue_total,
+                profile_complete=profile_complete,
+                filings_due_soon=filings_due_soon,
+                health_score=health_score,
+                compliance_overdue=summary.get("overdue", 0),
+            )
             clients.append(
                 {
                     "company_id": str(assignment.company_id),
                     "company_name": company.legal_name,
                     "gstin": company.gstin,
                     "upcoming_filings": upcoming,
-                    "health_score": obligations.get("summary", {}).get("health_score"),
+                    "filing_checklist": filing_checklist,
+                    "health_score": health_score,
                     "overdue_total": overdue_total,
+                    "profile_complete": profile_complete,
+                    "filings_due_soon": filings_due_soon,
+                    "compliance_overdue": summary.get("overdue", 0),
+                    "compliance_due_this_week": summary.get("due_this_week", 0),
+                    "risk_level": risk_level,
                 }
             )
 
-        return {"clients": clients, "client_count": len(clients)}
+        clients.sort(key=lambda c: {"high": 0, "medium": 1, "low": 2}.get(c["risk_level"], 3))
+        portfolio = self._build_portfolio_summary(clients)
+        return {"clients": clients, "client_count": len(clients), "portfolio": portfolio}
+
+    async def complete_client_filing(
+        self,
+        ca_user_id: uuid.UUID,
+        company_id: uuid.UUID,
+        obligation_id: str,
+        *,
+        period_key: str | None = None,
+    ) -> dict:
+        if obligation_id not in CA_FILING_CHECKLIST_IDS:
+            raise ValidationAppError("Invalid filing obligation")
+        if not await self.verify_assignment(ca_user_id, company_id):
+            raise ForbiddenError(CA_NOT_ASSIGNED)
+        from app.application.services.compliance_service import ComplianceService
+
+        compliance = ComplianceService(self._uow_factory)
+        return await compliance.complete_obligation(
+            company_id=company_id,
+            actor_id=ca_user_id,
+            obligation_id=obligation_id,
+            period_key=period_key,
+        )
+
+    async def skip_client_filing(
+        self,
+        ca_user_id: uuid.UUID,
+        company_id: uuid.UUID,
+        obligation_id: str,
+        *,
+        period_key: str | None = None,
+    ) -> dict:
+        if obligation_id not in CA_FILING_CHECKLIST_IDS:
+            raise ValidationAppError("Invalid filing obligation")
+        if not await self.verify_assignment(ca_user_id, company_id):
+            raise ForbiddenError(CA_NOT_ASSIGNED)
+        from app.application.services.compliance_service import ComplianceService
+
+        compliance = ComplianceService(self._uow_factory)
+        return await compliance.skip_obligation(
+            company_id=company_id,
+            actor_id=ca_user_id,
+            obligation_id=obligation_id,
+            period_key=period_key,
+        )
 
     async def gstr1_bulk(
         self,
@@ -233,6 +307,122 @@ class CaService:
                 }
             )
         return {"from": from_date.isoformat(), "to": to_date.isoformat(), "items": items}
+
+    async def gstr3b_bulk(
+        self,
+        ca_user_id: uuid.UUID,
+        from_date,
+        to_date,
+        *,
+        company_ids: list[uuid.UUID] | None = None,
+    ) -> dict:
+        from app.application.services.gstr_report_service import GstrReportService
+
+        service = GstrReportService(self._uow_factory)
+        async with self._uow_factory() as uow:
+            assignments = await uow.ca_assignments.list_active_for_ca(ca_user_id)
+            if company_ids is not None:
+                allowed = {row.company_id for row in assignments}
+                company_ids = [cid for cid in company_ids if cid in allowed]
+            else:
+                company_ids = [row.company_id for row in assignments]
+            companies = [await uow.companies.get_by_id(cid) for cid in company_ids]
+        items = []
+        for company in companies:
+            if not company:
+                continue
+            report = await service.gstr3b_report(company.id, from_date, to_date)
+            items.append(
+                {
+                    "company_id": str(company.id),
+                    "company_name": company.legal_name,
+                    "gstin": company.gstin,
+                    "report": report,
+                }
+            )
+        return {"from": from_date.isoformat(), "to": to_date.isoformat(), "items": items}
+
+    @staticmethod
+    def _build_filing_checklist(rows: list[dict]) -> list[dict]:
+        by_id = {row.get("id"): row for row in rows}
+        checklist: list[dict] = []
+        for obligation_id in CA_FILING_CHECKLIST_IDS:
+            row = by_id.get(obligation_id)
+            if row:
+                checklist.append(
+                    {
+                        "obligation_id": row["id"],
+                        "title": row["title"],
+                        "due_date": row["due_date"],
+                        "status": row["status"],
+                        "period_key": row["period_key"],
+                    }
+                )
+            else:
+                title = {
+                    "gst_gstr1": "GSTR-1 (Outward Supplies)",
+                    "gst_gstr3b": "GSTR-3B (Summary Return)",
+                    "it_itr": "Income Tax Return (ITR)",
+                }.get(obligation_id, obligation_id)
+                checklist.append(
+                    {
+                        "obligation_id": obligation_id,
+                        "title": title,
+                        "due_date": None,
+                        "status": "NOT_APPLICABLE",
+                        "period_key": None,
+                    }
+                )
+        return checklist
+
+    @staticmethod
+    def _count_filings_due_soon(checklist: list[dict]) -> int:
+        cutoff = date.today() + timedelta(days=CA_FILING_DUE_SOON_DAYS)
+        count = 0
+        for item in checklist:
+            if item["status"] in ("COMPLETED", "NOT_APPLICABLE", "SKIPPED"):
+                continue
+            due_str = item.get("due_date")
+            if not due_str:
+                continue
+            due = date.fromisoformat(due_str)
+            if due <= cutoff:
+                count += 1
+        return count
+
+    @staticmethod
+    def _compute_risk_level(
+        *,
+        gstin: str | None,
+        overdue_total: float | int,
+        profile_complete: bool,
+        filings_due_soon: int,
+        health_score: int | None,
+        compliance_overdue: int,
+    ) -> str:
+        if (
+            not gstin
+            or overdue_total >= CA_OVERDUE_ALERT_THRESHOLD
+            or not profile_complete
+            or filings_due_soon > 0
+            or compliance_overdue > 0
+            or (health_score is not None and health_score < CA_HEALTH_SCORE_AT_RISK)
+        ):
+            return "high"
+        if overdue_total > 0 or (health_score is not None and health_score < 85):
+            return "medium"
+        return "low"
+
+    @staticmethod
+    def _build_portfolio_summary(clients: list[dict]) -> dict:
+        scores = [c["health_score"] for c in clients if c.get("health_score") is not None]
+        avg_health = round(sum(scores) / len(scores)) if scores else None
+        return {
+            "avg_health_score": avg_health,
+            "clients_at_risk": sum(1 for c in clients if c.get("risk_level") == "high"),
+            "total_overdue": sum(c.get("overdue_total") or 0 for c in clients),
+            "filings_due_soon": sum(c.get("filings_due_soon") or 0 for c in clients),
+        }
 
     @staticmethod
     def _assignment_dict(

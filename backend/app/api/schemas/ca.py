@@ -29,18 +29,51 @@ class CaUpcomingFiling(BaseModel):
     obligation_id: str | None = None
 
 
+class CaFilingChecklistItem(BaseModel):
+    obligation_id: str
+    title: str
+    due_date: str | None = None
+    status: str
+    period_key: str | None = None
+
+
 class CaDashboardClient(BaseModel):
     company_id: str
     company_name: str
     gstin: str | None = None
     upcoming_filings: list[CaUpcomingFiling]
+    filing_checklist: list[CaFilingChecklistItem] = []
     health_score: int | None = None
     overdue_total: float | int | None = None
+    profile_complete: bool = True
+    filings_due_soon: int = 0
+    compliance_overdue: int = 0
+    compliance_due_this_week: int = 0
+    risk_level: str = "low"
+
+
+class CaPortfolioSummary(BaseModel):
+    avg_health_score: int | None = None
+    clients_at_risk: int = 0
+    total_overdue: float | int = 0
+    filings_due_soon: int = 0
 
 
 class CaDashboardResponse(BaseModel):
     clients: list[CaDashboardClient]
     client_count: int
+    portfolio: CaPortfolioSummary | None = None
+
+
+class CaFilingActionRequest(BaseModel):
+    period_key: str | None = None
+
+
+class CaFilingActionResponse(BaseModel):
+    obligation_id: str
+    period_key: str
+    status: str
+    completed_at: str | None = None
 
 
 class CaSwitchContextRequest(BaseModel):

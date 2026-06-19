@@ -4,12 +4,15 @@ import { storeSession } from "@/lib/auth";
 import {
   acceptCaInvite,
   clearCaContext,
+  completeCaClientFiling,
   fetchAdvisors,
   fetchCaClients,
   fetchCaDashboard,
   fetchCaBulkGstr1,
+  fetchCaBulkGstr3b,
   inviteAdvisor,
   revokeAdvisor,
+  skipCaClientFiling,
   switchCaContext,
 } from "./api";
 import type { InviteAdvisorPayload } from "./types";
@@ -91,5 +94,47 @@ export function useRevokeAdvisor() {
 export function useCaBulkGstr1() {
   return useMutation({
     mutationFn: fetchCaBulkGstr1,
+  });
+}
+
+export function useCaBulkGstr3b() {
+  return useMutation({
+    mutationFn: fetchCaBulkGstr3b,
+  });
+}
+
+export function useCaCompleteFiling() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      obligationId,
+      periodKey,
+    }: {
+      companyId: string;
+      obligationId: string;
+      periodKey?: string | null;
+    }) => completeCaClientFiling(companyId, obligationId, periodKey),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_DASHBOARD });
+    },
+  });
+}
+
+export function useCaSkipFiling() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      obligationId,
+      periodKey,
+    }: {
+      companyId: string;
+      obligationId: string;
+      periodKey?: string | null;
+    }) => skipCaClientFiling(companyId, obligationId, periodKey),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_DASHBOARD });
+    },
   });
 }

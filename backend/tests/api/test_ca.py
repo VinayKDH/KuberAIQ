@@ -171,3 +171,83 @@ async def test_ca_bulk_gstr1_export(client: AsyncClient) -> None:
     assert len(filtered_body["items"]) <= 1
     if filtered_body["items"]:
         assert filtered_body["items"][0]["company_id"] == str(DEMO_COMPANY_ID)
+
+
+@pytest.mark.asyncio
+async def test_ca_dashboard_filing_checklist(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    resp = await client.get("/api/v1/ca/dashboard", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "portfolio" in body
+    assert body["portfolio"]["clients_at_risk"] >= 0
+    assert len(body["clients"]) >= 1
+
+    client_row = body["clients"][0]
+    assert "filing_checklist" in client_row
+    assert "risk_level" in client_row
+    assert "profile_complete" in client_row
+    checklist_ids = {item["obligation_id"] for item in client_row["filing_checklist"]}
+    assert "gst_gstr1" in checklist_ids
+    assert "gst_gstr3b" in checklist_ids
+    assert "it_itr" in checklist_ids
+
+
+@pytest.mark.asyncio
+async def test_ca_filing_complete_and_skip(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    complete = await client.post(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/filing/gst_gstr1/complete",
+        headers=headers,
+        json={},
+    )
+    assert complete.status_code == 200
+    assert complete.json()["status"] == "COMPLETED"
+
+    skip = await client.post(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/filing/gst_gstr3b/skip",
+        headers=headers,
+        json={},
+    )
+    assert skip.status_code == 200
+    assert skip.json()["status"] == "SKIPPED"
+
+
+@pytest.mark.asyncio
+async def test_ca_bulk_gstr3b_export(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    resp = await client.get(
+        "/api/v1/ca/reports/gstr3b/bulk",
+        params={"from": "2025-04-01", "to": "2026-03-31"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "items" in body
+    assert body["from"] == "2025-04-01"
+    assert body["to"] == "2026-03-31"
+
+    filtered = await client.get(
+        "/api/v1/ca/reports/gstr3b/bulk",
+        params={
+            "from": "2025-04-01",
+            "to": "2026-03-31",
+            "company_ids": [str(DEMO_COMPANY_ID)],
+        },
+        headers=headers,
+    )
+    assert filtered.status_code == 200
+    filtered_body = filtered.json()
+    assert len(filtered_body["items"]) <= 1
+    if filtered_body["items"]:
+        report = filtered_body["items"][0]["report"]
+        assert "outward_taxable" in report or "tax_liability" in report or report

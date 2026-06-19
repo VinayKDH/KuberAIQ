@@ -142,6 +142,11 @@ export const API_PATHS = {
   AI_CONFIRM: "/ai/confirm",
   EXPENSES: "/expenses",
   CA_GSTR1_BULK: "/ca/reports/gstr1/bulk",
+  CA_GSTR3B_BULK: "/ca/reports/gstr3b/bulk",
+  CA_FILING_COMPLETE: (companyId: string, obligationId: string) =>
+    `/ca/clients/${companyId}/filing/${obligationId}/complete` as const,
+  CA_FILING_SKIP: (companyId: string, obligationId: string) =>
+    `/ca/clients/${companyId}/filing/${obligationId}/skip` as const,
 } as const;
 
 export const QUERY_KEYS = {
@@ -175,6 +180,8 @@ export const QUERY_KEYS = {
   ADVISORS: ["advisors"] as const,
   CA_GSTR1_BULK: (from: string, to: string, companyIds?: string[]) =>
     ["ca", "gstr1-bulk", from, to, companyIds?.join(",") ?? "all"] as const,
+  CA_GSTR3B_BULK: (from: string, to: string, companyIds?: string[]) =>
+    ["ca", "gstr3b-bulk", from, to, companyIds?.join(",") ?? "all"] as const,
 } as const;
 
 export const NAV_ITEMS_CA = [
@@ -411,6 +418,7 @@ export const COMPLIANCE_STATUS_LABELS: Record<string, string> = {
   PENDING: "Pending",
   COMPLETED: "Completed",
   NOT_APPLICABLE: "N/A",
+  SKIPPED: "Skipped",
 };
 
 export const COMPLIANCE_STATUS_VARIANTS: Record<
@@ -521,12 +529,32 @@ export const CA_COPY = {
   BULK_GSTR_EMPTY: "Select at least one client.",
   BULK_GSTR_SUCCESS: "Export ready — JSON downloaded.",
   BULK_GSTR_ERROR: "Bulk export failed.",
+  BULK_GSTR3B_TITLE: "Bulk GSTR-3B export",
+  BULK_GSTR3B_DESC: "Download GSTR-3B JSON summaries for selected clients.",
+  BULK_GSTR3B_EXPORT: "Export GSTR-3B",
+  BULK_GSTR_TAB_GSTR1: "GSTR-1",
+  BULK_GSTR_TAB_GSTR3B: "GSTR-3B",
+  FILING_CHECKLIST_TITLE: "Filing checklist",
+  FILING_MARK_COMPLETE: "Mark filed",
+  FILING_SKIP: "Skip",
+  FILING_CHECKLIST_EMPTY: "Complete compliance profile to see filing dates.",
+  HEALTH_PROFILE_INCOMPLETE: "Profile incomplete",
+  HEALTH_FILINGS_DUE_SOON: "Filings due soon",
+  HEALTH_AT_RISK: "At risk",
+  FILTER_ALL: "All clients",
+  FILTER_AT_RISK: "At risk",
+  FILTER_HEALTHY: "Healthy",
+  SORT_BY_RISK: "Sort by risk",
+  PORTFOLIO_HEALTH: "Avg compliance health",
+  PORTFOLIO_AT_RISK: "Clients at risk",
   OPEN_CLIENT_WORKSPACE: "Open workspace",
 } as const;
 
 export const CA_OVERDUE_ALERT_THRESHOLD = 10_000;
 
 export const CA_FILING_DUE_SOON_DAYS = 7;
+
+export const CA_RISK_LEVELS = ["high", "medium", "low"] as const;
 
 export const E_INVOICE_TURNOVER_THRESHOLD = 1_000_000;
 

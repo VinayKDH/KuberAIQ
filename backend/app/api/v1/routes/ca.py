@@ -5,7 +5,7 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import AuthContext, get_container, get_verified_auth_context
 from app.api.schemas.auth import TokenResponse
@@ -13,6 +13,8 @@ from app.api.schemas.ca import (
     CaClientsResponse,
     CaDashboardResponse,
     CaBulkGstrResponse,
+    CaFilingActionRequest,
+    CaFilingActionResponse,
     CaSwitchContextRequest,
 )
 from app.core.container import Container
@@ -102,3 +104,66 @@ async def ca_bulk_gstr1(
         auth.user_id, from_date, to_date, company_ids=company_ids
     )
     return CaBulkGstrResponse(**data)
+
+
+@router.get("/reports/gstr3b/bulk", response_model=CaBulkGstrResponse)
+async def ca_bulk_gstr3b(
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+    from_date: date = Query(..., alias="from"),
+    to_date: date = Query(..., alias="to"),
+    company_ids: list[uuid.UUID] | None = Query(default=None),
+) -> CaBulkGstrResponse:
+    _require_ca(auth)
+    data = await container.ca_service.gstr3b_bulk(
+        auth.user_id, from_date, to_date, company_ids=company_ids
+    )
+    return CaBulkGstrResponse(**data)
+
+
+@router.post(
+    "/clients/{company_id}/filing/{obligation_id}/complete",
+    response_model=CaFilingActionResponse,
+)
+async def ca_complete_client_filing(
+    company_id: uuid.UUID,
+    obligation_id: str,
+    body: CaFilingActionRequest,
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> CaFilingActionResponse:
+    _require_ca(auth)
+    try:
+        data = await container.ca_service.complete_client_filing(
+            auth.user_id,
+            company_id,
+            obligation_id,
+            period_key=body.period_key,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CaFilingActionResponse(**data)
+
+
+@router.post(
+    "/clients/{company_id}/filing/{obligation_id}/skip",
+    response_model=CaFilingActionResponse,
+)
+async def ca_skip_client_filing(
+    company_id: uuid.UUID,
+    obligation_id: str,
+    body: CaFilingActionRequest,
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> CaFilingActionResponse:
+    _require_ca(auth)
+    try:
+        data = await container.ca_service.skip_client_filing(
+            auth.user_id,
+            company_id,
+            obligation_id,
+            period_key=body.period_key,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CaFilingActionResponse(**data)

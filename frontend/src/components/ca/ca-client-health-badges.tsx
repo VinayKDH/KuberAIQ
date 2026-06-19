@@ -20,10 +20,34 @@ export function CaClientHealthBadges({ client }: CaClientHealthBadgesProps) {
     });
   }
 
+  if (client.profile_complete === false) {
+    badges.push({
+      key: "profile",
+      label: CA_COPY.HEALTH_PROFILE_INCOMPLETE,
+      variant: "destructive",
+    });
+  }
+
   if ((client.overdue_total ?? 0) >= CA_OVERDUE_ALERT_THRESHOLD) {
     badges.push({
       key: "overdue",
       label: CA_COPY.HEALTH_OVERDUE_HIGH,
+      variant: "destructive",
+    });
+  }
+
+  if ((client.filings_due_soon ?? 0) > 0) {
+    badges.push({
+      key: "due-soon",
+      label: CA_COPY.HEALTH_FILINGS_DUE_SOON,
+      variant: "secondary",
+    });
+  }
+
+  if (client.risk_level === "high" && badges.length === 0) {
+    badges.push({
+      key: "at-risk",
+      label: CA_COPY.HEALTH_AT_RISK,
       variant: "destructive",
     });
   }

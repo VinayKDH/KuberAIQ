@@ -1,18 +1,34 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { AlertCircle, Building2 } from "lucide-react";
 import Link from "next/link";
 import { CaBulkGstrPanel } from "@/components/ca/ca-bulk-gstr-panel";
 import { CaClientHealthBadges } from "@/components/ca/ca-client-health-badges";
 import { CaDashboardSummary } from "@/components/ca/ca-dashboard-summary";
+import { CaFilingChecklist } from "@/components/ca/ca-filing-checklist";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCaDashboard } from "@/features/ca/hooks";
 import { CA_COPY, ROUTES } from "@/lib/constants";
 import { formatDate, formatINR } from "@/lib/format";
 
+type RiskFilter = "all" | "at-risk" | "healthy";
+
 export default function CaDashboardPage() {
   const { data, isLoading } = useCaDashboard();
-  const clients = data?.clients ?? [];
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
+  const allClients = data?.clients ?? [];
+
+  const clients = useMemo(() => {
+    if (riskFilter === "at-risk") {
+      return allClients.filter((c) => c.risk_level === "high" || c.risk_level === "medium");
+    }
+    if (riskFilter === "healthy") {
+      return allClients.filter((c) => c.risk_level === "low");
+    }
+    return allClients;
+  }, [allClients, riskFilter]);
 
   return (
     <div className="space-y-6">
@@ -29,9 +45,39 @@ export default function CaDashboardPage() {
         </Link>
       </div>
 
-      <CaDashboardSummary clients={clients} loading={isLoading} />
+      <CaDashboardSummary
+        clients={allClients}
+        portfolio={data?.portfolio}
+        loading={isLoading}
+      />
 
-      {!isLoading && clients.length > 0 && <CaBulkGstrPanel clients={clients} />}
+      {!isLoading && allClients.length > 0 && <CaBulkGstrPanel clients={allClients} />}
+
+      {!isLoading && allClients.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant={riskFilter === "all" ? "default" : "outline"}
+            onClick={() => setRiskFilter("all")}
+          >
+            {CA_COPY.FILTER_ALL}
+          </Button>
+          <Button
+            size="sm"
+            variant={riskFilter === "at-risk" ? "default" : "outline"}
+            onClick={() => setRiskFilter("at-risk")}
+          >
+            {CA_COPY.FILTER_AT_RISK}
+          </Button>
+          <Button
+            size="sm"
+            variant={riskFilter === "healthy" ? "default" : "outline"}
+            onClick={() => setRiskFilter("healthy")}
+          >
+            {CA_COPY.FILTER_HEALTHY}
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading filing overview…</p>
@@ -67,6 +113,11 @@ export default function CaDashboardPage() {
                     <span className="font-medium">{client.health_score}%</span>
                   </p>
                 )}
+                <CaFilingChecklist
+                  companyId={client.company_id}
+                  items={client.filing_checklist ?? []}
+                  profileComplete={client.profile_complete}
+                />
                 {client.upcoming_filings.length ? (
                   <ul className="space-y-2 text-sm">
                     {client.upcoming_filings.map((filing, index) => (
@@ -87,12 +138,18 @@ export default function CaDashboardPage() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No upcoming filings.</p>
+                  <p className="text-sm text-muted-foreground">No other upcoming filings.</p>
                 )}
               </CardContent>
             </Card>
           ))}
         </div>
+      ) : allClients.length ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            No clients match this filter.
+          </CardContent>
+        </Card>
       ) : (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
