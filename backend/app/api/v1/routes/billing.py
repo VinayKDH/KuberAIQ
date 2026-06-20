@@ -77,4 +77,5 @@ async def razorpay_webhook(
     body = await request.body()
     signature = request.headers.get("X-Razorpay-Signature", "")
     await container.billing_service.handle_webhook(body, signature)
+    await container.payment_service.handle_razorpay_invoice_webhook(body, signature)
     return Response(status_code=204)

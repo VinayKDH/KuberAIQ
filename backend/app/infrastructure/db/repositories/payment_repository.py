@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import PaymentRecord
@@ -45,6 +46,18 @@ class SqlAlchemyPaymentRepository:
         model = result.scalar_one_or_none()
         return self._to_record(model) if model else None
 
+    async def get_by_reference(
+        self, company_id: uuid.UUID, reference: str
+    ) -> PaymentRecord | None:
+        stmt = select(PaymentModel).where(
+            PaymentModel.company_id == company_id,
+            PaymentModel.reference == reference,
+            PaymentModel.deleted_at.is_(None),
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_record(model) if model else None
+
     async def list_by_invoice(self, invoice_id: uuid.UUID) -> list[PaymentRecord]:
         stmt = select(PaymentModel).where(
             PaymentModel.invoice_id == invoice_id,
@@ -67,6 +80,52 @@ class SqlAlchemyPaymentRepository:
         )
         result = await self._session.execute(stmt)
         return [self._to_record(m) for m in result.scalars().all()]
+
+    async def list_recent(
+        self, company_id: uuid.UUID, *, limit: int, from_date: date | None = None
+    ) -> list[PaymentRecord]:
+        stmt = select(PaymentModel).where(
+            PaymentModel.company_id == company_id,
+            PaymentModel.deleted_at.is_(None),
+        )
+        if from_date is not None:
+            stmt = stmt.where(PaymentModel.paid_on >= from_date)
+        stmt = stmt.order_by(PaymentModel.paid_on.desc(), PaymentModel.created_at.desc()).limit(
+            limit
+        )
+        result = await self._session.execute(stmt)
+        return [self._to_record(m) for m in result.scalars().all()]
+
+    async def sum_collected(
+        self, company_id: uuid.UUID, from_date: date, to_date: date
+    ) -> Decimal:
+        stmt = select(func.coalesce(func.sum(PaymentModel.amount), 0)).where(
+            PaymentModel.company_id == company_id,
+            PaymentModel.deleted_at.is_(None),
+            PaymentModel.paid_on >= from_date,
+            PaymentModel.paid_on <= to_date,
+        )
+        result = await self._session.execute(stmt)
+        return Decimal(str(result.scalar_one()))
+
+    async def aggregate_by_method(
+        self, company_id: uuid.UUID, from_date: date, to_date: date
+    ) -> list[dict]:
+        stmt = (
+            select(PaymentModel.method, func.coalesce(func.sum(PaymentModel.amount), 0))
+            .where(
+                PaymentModel.company_id == company_id,
+                PaymentModel.deleted_at.is_(None),
+                PaymentModel.paid_on >= from_date,
+                PaymentModel.paid_on <= to_date,
+            )
+            .group_by(PaymentModel.method)
+        )
+        result = await self._session.execute(stmt)
+        return [
+            {"method": str(row[0].value if hasattr(row[0], "value") else row[0]), "amount": float(row[1])}
+            for row in result.all()
+        ]
 
     async def soft_delete(self, payment_id: uuid.UUID) -> None:
         stmt = select(PaymentModel).where(PaymentModel.id == payment_id)

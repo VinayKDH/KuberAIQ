@@ -230,8 +230,37 @@ SUBSCRIPTION_PERIOD_DAYS = 30
 SUBSCRIPTION_EXPIRY_JOB_HOUR = 1
 SUBSCRIPTION_EXPIRY_JOB_MINUTE = 0
 RAZORPAY_WEBHOOK_PATH = "/api/v1/billing/webhooks/razorpay"
+RAZORPAY_INVOICE_WEBHOOK_PATH = "/api/v1/payments/webhooks/razorpay"
 RAZORPAY_API_BASE_URL = "https://api.razorpay.com/v1"
 RAZORPAY_CHECKOUT_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js"
+RAZORPAY_INVOICE_REFERENCE_PREFIX = "inv-"
+RAZORPAY_PAYMENT_REFERENCE_PREFIX = "rzp:"
+RAZORPAY_INVOICE_WEBHOOK_EVENTS: tuple[str, ...] = ("payment.captured", "payment_link.paid")
+PAYMENT_SUMMARY_RECENT_LIMIT = 10
+PAYMENT_RECONCILIATION_AMOUNT_TOLERANCE = 1  # rupees
+UPI_DEEP_LINK_STUB_NOTE = "UPI payment — confirm amount and record if not auto-matched"
+
+# --- Counter / kirana billing ----------------------------------------------
+COUNTER_DEFAULT_DUE_DAYS = 0
+COUNTER_WALK_IN_CUSTOMER_NAME = "Walk-in Customer"
+COUNTER_ROUTE = "/counter"
+
+# --- Inventory alerts ------------------------------------------------------
+LOW_STOCK_THRESHOLD_DEFAULT = 10
+
+# --- CA workspace ----------------------------------------------------------
+CA_TASK_STATUS_PENDING = "pending"
+CA_TASK_STATUS_DONE = "done"
+CA_TASK_STATUS_CANCELLED = "cancelled"
+CA_FILING_EXPORT_CSV_HEADERS: tuple[str, ...] = (
+    "company_name",
+    "gstin",
+    "obligation_id",
+    "title",
+    "due_date",
+    "status",
+    "period_key",
+)
 
 # --- Auth / security -------------------------------------------------------
 ACCESS_TOKEN_TTL_MINUTES = 15

@@ -25,3 +25,47 @@ class PaymentResponse(BaseModel):
     method: PaymentMethod
     reference: str | None = None
     note: str | None = None
+
+
+class RecentPaymentSummary(BaseModel):
+    id: str
+    invoice_id: str
+    invoice_number: str | None = None
+    amount: float
+    paid_on: str
+    method: str
+
+
+class CollectionSummaryResponse(BaseModel):
+    collected_today: float
+    recent_payments: list[RecentPaymentSummary]
+
+
+class PaymentMethodBreakdown(BaseModel):
+    method: str
+    amount: float
+
+
+class PaymentAnalyticsResponse(BaseModel):
+    collected_week: float
+    collected_month: float
+    method_breakdown: list[PaymentMethodBreakdown]
+
+
+class CsvMatchApplyItem(BaseModel):
+    invoice_id: str
+    amount: Decimal = Field(gt=0)
+    paid_on: date | None = None
+    method: PaymentMethod = PaymentMethod.BANK_TRANSFER
+    reference: str | None = None
+
+
+class ApplyCsvMatchesRequest(BaseModel):
+    items: list[CsvMatchApplyItem]
+
+
+class UpiStubResponse(BaseModel):
+    invoice_id: str
+    amount: float
+    note: str
+    prompt_record: bool = True

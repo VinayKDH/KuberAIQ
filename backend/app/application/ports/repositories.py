@@ -28,6 +28,7 @@ class CustomerRepository(Protocol):
 class InvoiceRepository(Protocol):
     async def create(self, invoice: Invoice) -> Invoice: ...
     async def get_by_id(self, company_id: uuid.UUID, invoice_id: uuid.UUID) -> Invoice | None: ...
+    async def get_by_id_only(self, invoice_id: uuid.UUID) -> Invoice | None: ...
     async def get_by_number(
         self, company_id: uuid.UUID, invoice_number: str
     ) -> Invoice | None: ...
@@ -72,6 +73,9 @@ class ProductRepository(Protocol):
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[Product], int]: ...
+    async def list_low_stock(
+        self, company_id: uuid.UUID, *, threshold: Decimal, limit: int = 50
+    ) -> list[Product]: ...
 
 
 class QuotationRepository(Protocol):
@@ -101,10 +105,22 @@ class PaymentRepository(Protocol):
     async def get_by_id(
         self, company_id: uuid.UUID, payment_id: uuid.UUID
     ) -> "PaymentRecord | None": ...
+    async def get_by_reference(
+        self, company_id: uuid.UUID, reference: str
+    ) -> "PaymentRecord | None": ...
     async def list_by_invoice(self, invoice_id: uuid.UUID) -> list["PaymentRecord"]: ...
     async def list_by_customer(
         self, company_id: uuid.UUID, customer_id: uuid.UUID
     ) -> list["PaymentRecord"]: ...
+    async def list_recent(
+        self, company_id: uuid.UUID, *, limit: int, from_date: "date | None" = None
+    ) -> list["PaymentRecord"]: ...
+    async def sum_collected(
+        self, company_id: uuid.UUID, from_date: "date", to_date: "date"
+    ) -> "Decimal": ...
+    async def aggregate_by_method(
+        self, company_id: uuid.UUID, from_date: "date", to_date: "date"
+    ) -> list[dict]: ...
     async def soft_delete(self, payment_id: uuid.UUID) -> None: ...
 
 
@@ -390,6 +406,43 @@ class CaClientAssignmentRecord:
         self.updated_at = updated_at
 
 
+class CaClientTaskRepository(Protocol):
+    async def create(self, record: "CaClientTaskRecord") -> "CaClientTaskRecord": ...
+    async def get_by_id(self, task_id: uuid.UUID) -> "CaClientTaskRecord | None": ...
+    async def list_for_company(
+        self, company_id: uuid.UUID, *, ca_user_id: uuid.UUID | None = None
+    ) -> list["CaClientTaskRecord"]: ...
+    async def update(self, record: "CaClientTaskRecord") -> "CaClientTaskRecord": ...
+    async def delete(self, task_id: uuid.UUID) -> None: ...
+
+
+class CaClientTaskRecord:
+    def __init__(
+        self,
+        *,
+        id: uuid.UUID,
+        assignment_id: uuid.UUID,
+        company_id: uuid.UUID,
+        ca_user_id: uuid.UUID,
+        title: str,
+        description: str | None = None,
+        due_date: date | None = None,
+        status: str = "pending",
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+    ):
+        self.id = id
+        self.assignment_id = assignment_id
+        self.company_id = company_id
+        self.ca_user_id = ca_user_id
+        self.title = title
+        self.description = description
+        self.due_date = due_date
+        self.status = status
+        self.created_at = created_at
+        self.updated_at = updated_at
+
+
 class ComplianceStatusRecord:
     def __init__(
         self,
@@ -584,6 +637,7 @@ class UnitOfWork(ABC):
     subscriptions: SubscriptionRepository
     compliance: ComplianceRepository
     ca_assignments: CaClientAssignmentRepository
+    ca_tasks: CaClientTaskRepository
     ai_sessions: AiSessionRepository
     staff_invitations: StaffInvitationRepository
     recurring_templates: RecurringInvoiceTemplateRepository

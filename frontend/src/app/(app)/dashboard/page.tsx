@@ -7,7 +7,11 @@ import { CashflowChart } from "@/components/dashboard/cashflow-chart";
 import { CashflowForecastChart } from "@/components/dashboard/cashflow-forecast-chart";
 import { ComplianceAlertCard } from "@/components/dashboard/compliance-alert-card";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { PaymentAnalyticsCard } from "@/components/dashboard/payment-analytics-card";
+import { PaymentSummaryCard } from "@/components/dashboard/payment-summary-card";
 import { TopProductsCard } from "@/components/dashboard/top-products-card";
+import { BankReconciliationPanel } from "@/components/payments/bank-reconciliation-panel";
+import { LowStockPanel } from "@/components/products/low-stock-panel";
 import { ComplianceAlertsPreviewPanel } from "@/components/compliance/compliance-alerts-preview";
 import { MsmeComplianceTipsCard } from "@/components/msme/msme-compliance-tips-card";
 import { MsmeQuickStartCard } from "@/components/msme/msme-quick-start-card";
@@ -109,6 +113,13 @@ export default function DashboardPage() {
           loading={isLoading}
         />
         <MetricCard
+          title={DASHBOARD_METRICS.collectedToday[lang]}
+          value={data?.payment_summary?.collected_today ?? 0}
+          icon={IndianRupee}
+          description={DASHBOARD_METRICS.revenueDesc[lang]}
+          loading={isLoading}
+        />
+        <MetricCard
           title={DASHBOARD_METRICS.pending[lang]}
           value={data?.pending ?? 0}
           icon={Clock}
@@ -125,6 +136,15 @@ export default function DashboardPage() {
           loading={isLoading}
         />
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PaymentSummaryCard summary={data?.payment_summary} loading={isLoading} />
+        <PaymentAnalyticsCard analytics={data?.payment_analytics} loading={isLoading} />
+      </div>
+
+      <BankReconciliationPanel />
+
+      <LowStockPanel />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {isLoading ? (

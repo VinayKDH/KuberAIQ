@@ -65,6 +65,9 @@ class DashboardService:
             cashflow = self._monthly_cashflow(open_invoices)
             forecast, alert = self._cashflow_forecast(open_invoices, today)
 
+            payment_summary = await self._payment_summary(uow, company_id, today)
+            payment_analytics = await self._payment_analytics(uow, company_id, today)
+
             top_customers = sorted(
                 [
                     {
@@ -107,7 +110,46 @@ class DashboardService:
                 "cashflow_alert": alert,
                 "top_customers": top_customers,
                 "top_products": top_products,
+                "payment_summary": payment_summary,
+                "payment_analytics": payment_analytics,
             }
+
+    async def _payment_summary(self, uow, company_id: uuid.UUID, today: date) -> dict:
+        from app.core.constants import PAYMENT_SUMMARY_RECENT_LIMIT
+
+        collected_today = await uow.payments.sum_collected(company_id, today, today)
+        recent = await uow.payments.list_recent(
+            company_id, limit=PAYMENT_SUMMARY_RECENT_LIMIT, from_date=today - timedelta(days=30)
+        )
+        invoice_numbers: dict[uuid.UUID, str | None] = {}
+        recent_rows: list[dict] = []
+        for payment in recent:
+            if payment.invoice_id not in invoice_numbers:
+                inv = await uow.invoices.get_by_id(company_id, payment.invoice_id)
+                invoice_numbers[payment.invoice_id] = inv.invoice_number if inv else None
+            recent_rows.append(
+                {
+                    "id": str(payment.id),
+                    "invoice_id": str(payment.invoice_id),
+                    "invoice_number": invoice_numbers.get(payment.invoice_id),
+                    "amount": float(payment.amount),
+                    "paid_on": payment.paid_on.isoformat(),
+                    "method": payment.method.value,
+                }
+            )
+        return {"collected_today": float(collected_today), "recent_payments": recent_rows}
+
+    async def _payment_analytics(self, uow, company_id: uuid.UUID, today: date) -> dict:
+        week_start = today - timedelta(days=today.weekday())
+        month_start = today.replace(day=1)
+        collected_week = await uow.payments.sum_collected(company_id, week_start, today)
+        collected_month = await uow.payments.sum_collected(company_id, month_start, today)
+        by_method = await uow.payments.aggregate_by_method(company_id, month_start, today)
+        return {
+            "collected_week": float(collected_week),
+            "collected_month": float(collected_month),
+            "method_breakdown": by_method,
+        }
 
     async def _open_receivables(self, uow, company_id: uuid.UUID):
         invoices: list = []

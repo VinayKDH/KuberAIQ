@@ -4,6 +4,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from app.api.schemas.compliance import ComplianceAlert
+from app.api.schemas.payment import CollectionSummaryResponse, PaymentAnalyticsResponse
 
 
 class AgingBucket(BaseModel):
@@ -54,3 +55,5 @@ class DashboardResponse(BaseModel):
     compliance_alert: ComplianceAlert | None = None
     top_customers: list[TopCustomer]
     top_products: list[TopProduct]
+    payment_summary: CollectionSummaryResponse | None = None
+    payment_analytics: PaymentAnalyticsResponse | None = None

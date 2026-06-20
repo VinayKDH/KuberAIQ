@@ -41,6 +41,16 @@ class SqlAlchemyInvoiceRepository:
         model = result.scalar_one_or_none()
         return InvoiceMapper.to_domain(model) if model else None
 
+    async def get_by_id_only(self, invoice_id: uuid.UUID) -> Invoice | None:
+        stmt = (
+            select(InvoiceModel)
+            .options(selectinload(InvoiceModel.items))
+            .where(InvoiceModel.id == invoice_id, InvoiceModel.deleted_at.is_(None))
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return InvoiceMapper.to_domain(model) if model else None
+
     async def get_by_number(
         self, company_id: uuid.UUID, invoice_number: str
     ) -> Invoice | None:

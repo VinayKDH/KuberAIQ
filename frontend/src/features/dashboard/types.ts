@@ -43,6 +43,24 @@ export interface ComplianceAlert {
   message: string;
 }
 
+export interface PaymentSummary {
+  collected_today: number;
+  recent_payments: Array<{
+    id: string;
+    invoice_id: string;
+    invoice_number?: string | null;
+    amount: number;
+    paid_on: string;
+    method: string;
+  }>;
+}
+
+export interface PaymentAnalytics {
+  collected_week: number;
+  collected_month: number;
+  method_breakdown: Array<{ method: string; amount: number }>;
+}
+
 export interface DashboardData {
   revenue: number;
   pending: number;
@@ -54,6 +72,8 @@ export interface DashboardData {
   compliance_alert?: ComplianceAlert | null;
   top_customers: TopCustomer[];
   top_products: TopProduct[];
+  payment_summary?: PaymentSummary | null;
+  payment_analytics?: PaymentAnalytics | null;
 }
 
 export interface DashboardParams {

@@ -72,6 +72,7 @@ export const ROUTES = {
   CUSTOMERS: "/customers",
   CUSTOMER_DETAIL: (id: string) => `/customers/${id}` as const,
   COLLECTIONS: "/collections",
+  COUNTER: "/counter",
   ASSISTANT: "/assistant",
   COMPLIANCE: "/compliance",
   CA_CLIENTS: "/ca/clients",
@@ -122,6 +123,13 @@ export const API_PATHS = {
   COLLECTIONS_BULK_PREVIEW: "/collections/reminders/bulk:preview",
   COLLECTIONS_BULK_SEND: "/collections/reminders/bulk",
   COLLECTIONS_CALL_TODAY: "/collections/call-today",
+  PAYMENTS_SUMMARY: "/payments/summary",
+  PAYMENTS_ANALYTICS: "/payments/analytics",
+  PAYMENTS_IMPORT_CSV: "/payments/import-csv",
+  PAYMENTS_IMPORT_CSV_APPLY: "/payments/import-csv/apply",
+  PAYMENTS_UPI_STUB: (invoiceId: string) => `/payments/invoices/${invoiceId}/upi-stub` as const,
+  PRODUCTS_LOW_STOCK: "/products/low-stock",
+  INVOICES_COUNTER: "/invoices/counter",
   CUSTOMER_STATEMENT: (id: string) => `/customers/${id}/statement.pdf` as const,
   CUSTOMER_LEDGER: (id: string) => `/customers/${id}/ledger` as const,
   DASHBOARD: "/dashboard",
@@ -150,6 +158,12 @@ export const API_PATHS = {
     `/ca/clients/${companyId}/filing/${obligationId}/complete` as const,
   CA_FILING_SKIP: (companyId: string, obligationId: string) =>
     `/ca/clients/${companyId}/filing/${obligationId}/skip` as const,
+  CA_FILING_BULK_COMPLETE: "/ca/filing/bulk-complete",
+  CA_FILING_EXPORT: "/ca/filing/export.csv",
+  CA_CLIENT_TASKS: (companyId: string) => `/ca/clients/${companyId}/tasks` as const,
+  CA_CLIENT_TASK: (companyId: string, taskId: string) =>
+    `/ca/clients/${companyId}/tasks/${taskId}` as const,
+  CA_COMPLIANCE_PACK: (companyId: string) => `/ca/clients/${companyId}/compliance-pack` as const,
 } as const;
 
 export const QUERY_KEYS = {
@@ -167,6 +181,9 @@ export const QUERY_KEYS = {
   CREDIT_NOTES: (invoiceId: string) => ["invoices", invoiceId, "credit-notes"] as const,
   COLLECTIONS_OVERDUE: (params?: object) => ["collections", "overdue", params] as const,
   COLLECTIONS_DASHBOARD: ["collections", "dashboard"] as const,
+  PAYMENTS_SUMMARY: ["payments", "summary"] as const,
+  PAYMENTS_ANALYTICS: ["payments", "analytics"] as const,
+  PRODUCTS_LOW_STOCK: ["products", "low-stock"] as const,
   COLLECTIONS_CALL_TODAY: ["collections", "call-today"] as const,
   AI_SESSION: (id: string) => ["ai", "session", id] as const,
   COMPANY: ["company", "me"] as const,
@@ -181,6 +198,7 @@ export const QUERY_KEYS = {
   COMPLIANCE_CALENDAR: (days?: number) => ["compliance", "calendar", days] as const,
   CA_CLIENTS: ["ca", "clients"] as const,
   CA_DASHBOARD: ["ca", "dashboard"] as const,
+  CA_CLIENT_TASKS: (companyId: string) => ["ca", "tasks", companyId] as const,
   ADVISORS: ["advisors"] as const,
   CA_GSTR1_BULK: (from: string, to: string, companyIds?: string[]) =>
     ["ca", "gstr1-bulk", from, to, companyIds?.join(",") ?? "all"] as const,
@@ -202,6 +220,7 @@ export const NAV_ITEMS = [
   { href: ROUTES.PRODUCTS, label: "Products", icon: "Package" },
   { href: ROUTES.CUSTOMERS, label: "Customers", icon: "Users" },
   { href: ROUTES.COLLECTIONS, label: "Collections", icon: "IndianRupee" },
+  { href: ROUTES.COUNTER, label: "Counter", icon: "ShoppingCart" },
   { href: ROUTES.COMPLIANCE, label: "Compliance", icon: "ShieldCheck" },
   { href: ROUTES.ASSISTANT, label: "Assistant", icon: "Bot" },
   { href: ROUTES.EXPENSES, label: "Expenses", icon: "IndianRupee" },
@@ -248,6 +267,7 @@ export const PAGE_TITLES: Record<string, string> = {
   [ROUTES.QUOTATIONS]: "Quotations",
   [ROUTES.CUSTOMERS]: "Customers",
   [ROUTES.COLLECTIONS]: "Collections",
+  [ROUTES.COUNTER]: "Counter",
   [ROUTES.COMPLIANCE]: "Compliance",
   [ROUTES.CA_CLIENTS]: "Clients",
   [ROUTES.CA_DASHBOARD]: "CA Dashboard",
@@ -1068,6 +1088,62 @@ export const DASHBOARD_METRICS = {
   pendingDesc: { en: "Issued, not yet due", hi: "जारी, अभी देय नहीं" },
   overdue: { en: "Overdue", hi: "बकाया" },
   overdueDesc: { en: "Past due receivables", hi: "देय तिथि बीत चुकी वसूली" },
+  collectedToday: { en: "Collected today", hi: "आज की वसूली" },
+  collectedWeek: { en: "This week", hi: "इस सप्ताह" },
+  collectedMonth: { en: "This month", hi: "इस महीने" },
+} as const;
+
+export const PAYMENT_COPY = {
+  RECENT_TITLE: "Recent payments",
+  RECENT_EMPTY: "No payments recorded yet.",
+  ANALYTICS_TITLE: "Payment analytics",
+  METHOD_BREAKDOWN: "By method (this month)",
+  CSV_IMPORT_TITLE: "Bank statement import",
+  CSV_IMPORT_HINT: "Upload CSV with columns: reference or invoice_number, amount, date (optional).",
+  CSV_APPLY: "Apply matched rows",
+  CSV_APPLYING: "Recording payments…",
+  UPI_STUB_PROMPT: "UPI payment initiated — record payment once confirmed in your bank app.",
+} as const;
+
+export const COUNTER_COPY = {
+  TITLE: { en: "Counter billing", hi: "काउंटर बिलिंग" },
+  SUBTITLE: {
+    en: "Fast billing for kirana — search, add qty, bill in seconds.",
+    hi: "किराना के लिए तेज़ बिलिंग — खोजें, मात्रा जोड़ें, सेकंड में बिल।",
+  },
+  SEARCH_PLACEHOLDER: { en: "Search product…", hi: "उत्पाद खोजें…" },
+  CUSTOMER_LABEL: { en: "Customer", hi: "ग्राहक" },
+  WALK_IN: { en: "Walk-in", hi: "वॉक-इन" },
+  QTY: { en: "Qty", hi: "मात्रा" },
+  BILL_NOW: { en: "Bill now", hi: "अभी बिल करें" },
+  BILLING: { en: "Creating invoice…", hi: "इनवॉइस बन रहा है…" },
+  SUCCESS: { en: "Invoice issued", hi: "इनवॉइस जारी" },
+  STOCK_WARNING: { en: "Low stock for this item", hi: "इस आइटम का स्टॉक कम है" },
+} as const;
+
+export const INVENTORY_COPY = {
+  LOW_STOCK_TITLE: "Low stock alerts",
+  LOW_STOCK_EMPTY: "All products are above the threshold.",
+  THRESHOLD_NOTE: "Alert when stock ≤ threshold",
+} as const;
+
+export const PWA_COPY = {
+  INSTALL_HINT: "Install KuberAIQ for faster counter billing offline-ready shell.",
+  INSTALL: "Install app",
+} as const;
+
+export const CA_FILING_CHECKLIST_IDS = ["gst_gstr1", "gst_gstr3b", "it_itr"] as const;
+
+export const CA_WORKSPACE_COPY = {
+  FILINGS_DUE_MONTH: "Filings due this month",
+  BULK_MARK_FILED: "Mark selected filed",
+  EXPORT_FILING_CSV: "Export filing status CSV",
+  FILTER_DUE_BEFORE: "Due before",
+  TASKS_TITLE: "Client tasks",
+  TASK_ADD: "Add task",
+  TASK_PLACEHOLDER: "e.g. Request GST docs",
+  COMPLIANCE_PACK: "Download compliance pack",
+  COMPLIANCE_PACK_BULK: "Export pack for selected",
 } as const;
 
 export const ASSISTANT_QUERY_PARAM = "q";
