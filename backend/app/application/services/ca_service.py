@@ -4,15 +4,18 @@ from __future__ import annotations
 import uuid
 from datetime import date, timedelta
 
-from app.application.ports.repositories import CaClientAssignmentRecord, UserRecord
+from app.application.ports.repositories import CaClientAssignmentRecord, CaClientTaskRecord, UserRecord
 from app.core.constants import (
     CA_FILING_CHECKLIST_IDS,
     CA_FILING_DUE_SOON_DAYS,
+    CA_FILING_EXPORT_CSV_HEADERS,
     CA_HEALTH_SCORE_AT_RISK,
     CA_INVITE_ALREADY_EXISTS,
     CA_INVITE_NOT_FOUND,
     CA_NOT_ASSIGNED,
     CA_OVERDUE_ALERT_THRESHOLD,
+    CA_TASK_STATUS_DONE,
+    CA_TASK_STATUS_PENDING,
 )
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationAppError
 from app.domain.enums import CaAssignmentStatus, UserRole
@@ -228,7 +231,13 @@ class CaService:
 
         clients.sort(key=lambda c: {"high": 0, "medium": 1, "low": 2}.get(c["risk_level"], 3))
         portfolio = self._build_portfolio_summary(clients)
-        return {"clients": clients, "client_count": len(clients), "portfolio": portfolio}
+        filings_due_this_month = self._count_filings_due_this_month(clients)
+        return {
+            "clients": clients,
+            "client_count": len(clients),
+            "portfolio": portfolio,
+            "filings_due_this_month": filings_due_this_month,
+        }
 
     async def complete_client_filing(
         self,
@@ -341,6 +350,210 @@ class CaService:
                 }
             )
         return {"from": from_date.isoformat(), "to": to_date.isoformat(), "items": items}
+
+    async def bulk_complete_filings(
+        self,
+        ca_user_id: uuid.UUID,
+        *,
+        company_ids: list[uuid.UUID],
+        obligation_ids: list[str],
+        period_key: str | None = None,
+    ) -> dict:
+        completed = 0
+        for company_id in company_ids:
+            if not await self.verify_assignment(ca_user_id, company_id):
+                continue
+            for obligation_id in obligation_ids:
+                if obligation_id not in CA_FILING_CHECKLIST_IDS:
+                    continue
+                await self.complete_client_filing(
+                    ca_user_id, company_id, obligation_id, period_key=period_key
+                )
+                completed += 1
+        return {"completed": completed}
+
+    async def export_filing_status_csv(
+        self,
+        ca_user_id: uuid.UUID,
+        *,
+        due_before: date | None = None,
+        due_after: date | None = None,
+    ) -> str:
+        import csv
+        from io import StringIO
+
+        dashboard = await self.ca_dashboard(ca_user_id)
+        buffer = StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=list(CA_FILING_EXPORT_CSV_HEADERS))
+        writer.writeheader()
+        for client in dashboard["clients"]:
+            for item in client.get("filing_checklist", []):
+                due_str = item.get("due_date")
+                if due_before and due_str and date.fromisoformat(due_str) > due_before:
+                    continue
+                if due_after and due_str and date.fromisoformat(due_str) < due_after:
+                    continue
+                writer.writerow(
+                    {
+                        "company_name": client["company_name"],
+                        "gstin": client.get("gstin") or "",
+                        "obligation_id": item["obligation_id"],
+                        "title": item["title"],
+                        "due_date": due_str or "",
+                        "status": item["status"],
+                        "period_key": item.get("period_key") or "",
+                    }
+                )
+        return buffer.getvalue()
+
+    async def list_client_tasks(
+        self, ca_user_id: uuid.UUID, company_id: uuid.UUID
+    ) -> list[dict]:
+        if not await self.verify_assignment(ca_user_id, company_id):
+            raise ForbiddenError(CA_NOT_ASSIGNED)
+        async with self._uow_factory() as uow:
+            tasks = await uow.ca_tasks.list_for_company(company_id, ca_user_id=ca_user_id)
+        return [self._task_dict(t) for t in tasks]
+
+    async def create_client_task(
+        self,
+        ca_user_id: uuid.UUID,
+        company_id: uuid.UUID,
+        *,
+        title: str,
+        description: str | None = None,
+        due_date: date | None = None,
+    ) -> dict:
+        if not await self.verify_assignment(ca_user_id, company_id):
+            raise ForbiddenError(CA_NOT_ASSIGNED)
+        title = title.strip()
+        if not title:
+            raise ValidationAppError("Task title is required")
+        async with self._uow_factory() as uow:
+            assignment = await uow.ca_assignments.get_by_ca_and_company(ca_user_id, company_id)
+            if not assignment:
+                raise ForbiddenError(CA_NOT_ASSIGNED)
+            task = await uow.ca_tasks.create(
+                CaClientTaskRecord(
+                    id=uuid.uuid4(),
+                    assignment_id=assignment.id,
+                    company_id=company_id,
+                    ca_user_id=ca_user_id,
+                    title=title,
+                    description=description,
+                    due_date=due_date,
+                    status=CA_TASK_STATUS_PENDING,
+                )
+            )
+            await uow.commit()
+        return self._task_dict(task)
+
+    async def update_client_task(
+        self,
+        ca_user_id: uuid.UUID,
+        company_id: uuid.UUID,
+        task_id: uuid.UUID,
+        *,
+        title: str | None = None,
+        description: str | None = None,
+        due_date: date | None = None,
+        status: str | None = None,
+    ) -> dict:
+        if not await self.verify_assignment(ca_user_id, company_id):
+            raise ForbiddenError(CA_NOT_ASSIGNED)
+        async with self._uow_factory() as uow:
+            task = await uow.ca_tasks.get_by_id(task_id)
+            if not task or task.company_id != company_id or task.ca_user_id != ca_user_id:
+                raise NotFoundError("Task not found")
+            if title is not None:
+                task.title = title.strip()
+            if description is not None:
+                task.description = description
+            if due_date is not None:
+                task.due_date = due_date
+            if status is not None:
+                task.status = status
+            updated = await uow.ca_tasks.update(task)
+            await uow.commit()
+        return self._task_dict(updated)
+
+    async def delete_client_task(
+        self, ca_user_id: uuid.UUID, company_id: uuid.UUID, task_id: uuid.UUID
+    ) -> None:
+        if not await self.verify_assignment(ca_user_id, company_id):
+            raise ForbiddenError(CA_NOT_ASSIGNED)
+        async with self._uow_factory() as uow:
+            task = await uow.ca_tasks.get_by_id(task_id)
+            if not task or task.company_id != company_id or task.ca_user_id != ca_user_id:
+                raise NotFoundError("Task not found")
+            await uow.ca_tasks.delete(task_id)
+            await uow.commit()
+
+    async def compliance_pack(
+        self, ca_user_id: uuid.UUID, company_id: uuid.UUID, *, from_date: date, to_date: date
+    ) -> dict:
+        if not await self.verify_assignment(ca_user_id, company_id):
+            raise ForbiddenError(CA_NOT_ASSIGNED)
+        from app.application.services.compliance_service import ComplianceService
+        from app.application.services.gstr_report_service import GstrReportService
+
+        compliance = ComplianceService(self._uow_factory)
+        gstr = GstrReportService(self._uow_factory)
+        async with self._uow_factory() as uow:
+            company = await uow.companies.get_by_id(company_id)
+            collectible = await uow.invoices.list_collectible(company_id)
+        obligations = await compliance.obligations(company_id)
+        gstr1 = await gstr.gstr1_report(company_id, from_date, to_date)
+        overdue_invoices = [
+            {
+                "invoice_number": inv.invoice_number,
+                "amount_due": float(inv.amount_due.amount),
+                "due_date": inv.due_date.isoformat(),
+                "status": inv.status.value,
+            }
+            for inv in collectible
+            if inv.amount_due.amount > 0 and inv.due_date < date.today()
+        ]
+        return {
+            "company_id": str(company_id),
+            "company_name": company.legal_name if company else "",
+            "gstin": company.gstin if company else None,
+            "period": {"from": from_date.isoformat(), "to": to_date.isoformat()},
+            "gstr1_summary": gstr1,
+            "filing_checklist": self._build_filing_checklist(obligations.get("obligations", [])),
+            "overdue_receivables": overdue_invoices,
+            "generated_at": date.today().isoformat(),
+        }
+
+    @staticmethod
+    def _count_filings_due_this_month(clients: list[dict]) -> int:
+        today = date.today()
+        month_end = (today.replace(day=28) + timedelta(days=4)).replace(day=1) + timedelta(days=32)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+        count = 0
+        for client in clients:
+            for item in client.get("filing_checklist", []):
+                if item["status"] in ("COMPLETED", "NOT_APPLICABLE", "SKIPPED"):
+                    continue
+                due_str = item.get("due_date")
+                if not due_str:
+                    continue
+                due = date.fromisoformat(due_str)
+                if today <= due <= month_end:
+                    count += 1
+        return count
+
+    @staticmethod
+    def _task_dict(task: CaClientTaskRecord) -> dict:
+        return {
+            "id": str(task.id),
+            "company_id": str(task.company_id),
+            "title": task.title,
+            "description": task.description,
+            "due_date": task.due_date.isoformat() if task.due_date else None,
+            "status": task.status,
+            "created_at": task.created_at.isoformat() if task.created_at else None,
+        }
 
     @staticmethod
     def _build_filing_checklist(rows: list[dict]) -> list[dict]:

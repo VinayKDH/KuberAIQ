@@ -10,16 +10,22 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.api.deps import AuthContext, get_container, get_verified_auth_context
 from app.api.schemas.auth import TokenResponse
 from app.api.schemas.ca import (
-    CaClientsResponse,
-    CaDashboardResponse,
+    CaBulkFilingRequest,
+    CaBulkFilingResponse,
     CaBulkGstrResponse,
+    CaClientTasksResponse,
+    CaClientsResponse,
+    CaCreateTaskRequest,
+    CaDashboardResponse,
     CaFilingActionRequest,
     CaFilingActionResponse,
     CaSwitchContextRequest,
+    CaUpdateTaskRequest,
 )
 from app.core.container import Container
 from app.core.errors import ForbiddenError
 from app.domain.enums import UserRole
+from fastapi.responses import PlainTextResponse, Response
 
 router = APIRouter(prefix="/ca", tags=["ca"])
 
@@ -167,3 +173,115 @@ async def ca_skip_client_filing(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return CaFilingActionResponse(**data)
+
+
+@router.post("/filing/bulk-complete", response_model=CaBulkFilingResponse)
+async def ca_bulk_complete_filings(
+    body: CaBulkFilingRequest,
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> CaBulkFilingResponse:
+    _require_ca(auth)
+    data = await container.ca_service.bulk_complete_filings(
+        auth.user_id,
+        company_ids=[uuid.UUID(cid) for cid in body.company_ids],
+        obligation_ids=body.obligation_ids,
+        period_key=body.period_key,
+    )
+    return CaBulkFilingResponse(**data)
+
+
+@router.get("/filing/export.csv")
+async def ca_export_filing_csv(
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+    due_before: date | None = Query(default=None),
+    due_after: date | None = Query(default=None),
+) -> PlainTextResponse:
+    _require_ca(auth)
+    csv_text = await container.ca_service.export_filing_status_csv(
+        auth.user_id, due_before=due_before, due_after=due_after
+    )
+    return PlainTextResponse(
+        content=csv_text,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="filing-status.csv"'},
+    )
+
+
+@router.get("/clients/{company_id}/tasks", response_model=CaClientTasksResponse)
+async def list_ca_client_tasks(
+    company_id: uuid.UUID,
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> CaClientTasksResponse:
+    _require_ca(auth)
+    items = await container.ca_service.list_client_tasks(auth.user_id, company_id)
+    return CaClientTasksResponse(items=items)
+
+
+@router.post("/clients/{company_id}/tasks", response_model=CaClientTasksResponse)
+async def create_ca_client_task(
+    company_id: uuid.UUID,
+    body: CaCreateTaskRequest,
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> CaClientTasksResponse:
+    _require_ca(auth)
+    await container.ca_service.create_client_task(
+        auth.user_id,
+        company_id,
+        title=body.title,
+        description=body.description,
+        due_date=body.due_date,
+    )
+    items = await container.ca_service.list_client_tasks(auth.user_id, company_id)
+    return CaClientTasksResponse(items=items)
+
+
+@router.patch("/clients/{company_id}/tasks/{task_id}", response_model=CaClientTasksResponse)
+async def update_ca_client_task(
+    company_id: uuid.UUID,
+    task_id: uuid.UUID,
+    body: CaUpdateTaskRequest,
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> CaClientTasksResponse:
+    _require_ca(auth)
+    await container.ca_service.update_client_task(
+        auth.user_id,
+        company_id,
+        task_id,
+        title=body.title,
+        description=body.description,
+        due_date=body.due_date,
+        status=body.status,
+    )
+    items = await container.ca_service.list_client_tasks(auth.user_id, company_id)
+    return CaClientTasksResponse(items=items)
+
+
+@router.delete("/clients/{company_id}/tasks/{task_id}", status_code=204, response_class=Response)
+async def delete_ca_client_task(
+    company_id: uuid.UUID,
+    task_id: uuid.UUID,
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> Response:
+    _require_ca(auth)
+    await container.ca_service.delete_client_task(auth.user_id, company_id, task_id)
+    return Response(status_code=204)
+
+
+@router.get("/clients/{company_id}/compliance-pack")
+async def ca_compliance_pack(
+    company_id: uuid.UUID,
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+    from_date: date = Query(..., alias="from"),
+    to_date: date = Query(..., alias="to"),
+) -> dict:
+    _require_ca(auth)
+    return await container.ca_service.compliance_pack(
+        auth.user_id, company_id, from_date=from_date, to_date=to_date
+    )

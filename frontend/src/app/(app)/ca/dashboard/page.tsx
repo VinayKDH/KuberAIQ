@@ -5,8 +5,11 @@ import { AlertCircle, Building2 } from "lucide-react";
 import Link from "next/link";
 import { CaBulkGstrPanel } from "@/components/ca/ca-bulk-gstr-panel";
 import { CaClientHealthBadges } from "@/components/ca/ca-client-health-badges";
+import { CaClientTasksPanel } from "@/components/ca/ca-client-tasks-panel";
+import { CaCompliancePackButton } from "@/components/ca/ca-compliance-pack-button";
 import { CaDashboardSummary } from "@/components/ca/ca-dashboard-summary";
 import { CaFilingChecklist } from "@/components/ca/ca-filing-checklist";
+import { CaFilingWorkspaceToolbar } from "@/components/ca/ca-filing-workspace-toolbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCaDashboard } from "@/features/ca/hooks";
@@ -18,17 +21,26 @@ type RiskFilter = "all" | "at-risk" | "healthy";
 export default function CaDashboardPage() {
   const { data, isLoading } = useCaDashboard();
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
+  const [dueBefore, setDueBefore] = useState("");
   const allClients = data?.clients ?? [];
 
   const clients = useMemo(() => {
+    let filtered = allClients;
     if (riskFilter === "at-risk") {
-      return allClients.filter((c) => c.risk_level === "high" || c.risk_level === "medium");
+      filtered = filtered.filter((c) => c.risk_level === "high" || c.risk_level === "medium");
+    } else if (riskFilter === "healthy") {
+      filtered = filtered.filter((c) => c.risk_level === "low");
     }
-    if (riskFilter === "healthy") {
-      return allClients.filter((c) => c.risk_level === "low");
+    if (dueBefore) {
+      filtered = filtered.filter((client) =>
+        (client.filing_checklist ?? []).some((item) => {
+          if (!item.due_date) return false;
+          return item.due_date <= dueBefore;
+        }),
+      );
     }
-    return allClients;
-  }, [allClients, riskFilter]);
+    return filtered;
+  }, [allClients, riskFilter, dueBefore]);
 
   return (
     <div className="space-y-6">
@@ -52,6 +64,14 @@ export default function CaDashboardPage() {
       />
 
       {!isLoading && allClients.length > 0 && <CaBulkGstrPanel clients={allClients} />}
+
+      {!isLoading && allClients.length > 0 && (
+        <CaFilingWorkspaceToolbar
+          clients={allClients}
+          dueBefore={dueBefore}
+          onDueBeforeChange={setDueBefore}
+        />
+      )}
 
       {!isLoading && allClients.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -117,6 +137,11 @@ export default function CaDashboardPage() {
                   companyId={client.company_id}
                   items={client.filing_checklist ?? []}
                   profileComplete={client.profile_complete}
+                />
+                <CaClientTasksPanel companyId={client.company_id} />
+                <CaCompliancePackButton
+                  companyId={client.company_id}
+                  companyName={client.company_name}
                 />
                 {client.upcoming_filings.length ? (
                   <ul className="space-y-2 text-sm">

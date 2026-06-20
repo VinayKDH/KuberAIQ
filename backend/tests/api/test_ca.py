@@ -251,3 +251,134 @@ async def test_ca_bulk_gstr3b_export(client: AsyncClient) -> None:
     if filtered_body["items"]:
         report = filtered_body["items"][0]["report"]
         assert "outward_taxable" in report or "tax_liability" in report or report
+
+
+@pytest.mark.asyncio
+async def test_ca_bulk_complete_and_export_csv(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    bulk = await client.post(
+        "/api/v1/ca/filing/bulk-complete",
+        headers=headers,
+        json={
+            "company_ids": [str(DEMO_COMPANY_ID)],
+            "obligation_ids": ["gst_gstr1"],
+        },
+    )
+    assert bulk.status_code == 200
+    assert bulk.json()["completed"] >= 1
+
+    export = await client.get(
+        "/api/v1/ca/filing/export.csv",
+        headers=headers,
+        params={"due_before": "2026-12-31"},
+    )
+    assert export.status_code == 200
+    assert "company_name" in export.text
+
+
+@pytest.mark.asyncio
+async def test_ca_client_tasks_crud(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    create = await client.post(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/tasks",
+        headers=headers,
+        json={"title": "Collect bank statements"},
+    )
+    assert create.status_code == 200
+    task_id = create.json()["items"][0]["id"]
+
+    update = await client.patch(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/tasks/{task_id}",
+        headers=headers,
+        json={"status": "done"},
+    )
+    assert update.status_code == 200
+    assert update.json()["items"][0]["status"] == "done"
+
+    delete = await client.delete(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/tasks/{task_id}",
+        headers=headers,
+    )
+    assert delete.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_ca_compliance_pack(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    resp = await client.get(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/compliance-pack",
+        headers=headers,
+        params={"from": "2025-04-01", "to": "2026-03-31"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["company_id"] == str(DEMO_COMPANY_ID)
+    assert "gstr1_summary" in body
+    assert "overdue_receivables" in body
+
+
+@pytest.mark.asyncio
+async def test_ca_client_tasks_crud(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    create = await client.post(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/tasks",
+        headers=headers,
+        json={"title": "Request GST docs"},
+    )
+    assert create.status_code == 200
+    items = create.json()["items"]
+    assert len(items) == 1
+    assert items[0]["title"] == "Request GST docs"
+    task_id = items[0]["id"]
+
+    listed = await client.get(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/tasks",
+        headers=headers,
+    )
+    assert listed.status_code == 200
+    assert len(listed.json()["items"]) == 1
+
+    updated = await client.patch(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/tasks/{task_id}",
+        headers=headers,
+        json={"status": "done"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["items"][0]["status"] == "done"
+
+    deleted = await client.delete(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/tasks/{task_id}",
+        headers=headers,
+    )
+    assert deleted.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_ca_compliance_pack(client: AsyncClient) -> None:
+    login = await client.post("/api/v1/auth/mock-login", json={"email": DEMO_CA_EMAIL})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    resp = await client.get(
+        f"/api/v1/ca/clients/{DEMO_COMPANY_ID}/compliance-pack",
+        params={"from": "2025-04-01", "to": "2026-03-31"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["company_id"] == str(DEMO_COMPANY_ID)
+    assert "gstr1_summary" in body
+    assert "filing_checklist" in body
+    assert "overdue_receivables" in body

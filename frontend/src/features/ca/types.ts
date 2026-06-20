@@ -78,3 +78,22 @@ export interface InviteAdvisorPayload {
   email: string;
   ca_firm_name?: string;
 }
+
+export interface CaClientTask {
+  id: string;
+  company_id: string;
+  title: string;
+  description?: string | null;
+  due_date?: string | null;
+  status: string;
+  created_at?: string | null;
+}
+
+export interface CaClientTasksResponse {
+  items: CaClientTask[];
+}
+
+export interface CaBulkFilingResponse {
+  completed: number;
+}
+

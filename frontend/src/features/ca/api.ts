@@ -1,7 +1,10 @@
 import { apiClient } from "@/lib/api-client";
 import { API_PATHS } from "@/lib/constants";
 import type { AuthTokens } from "@/lib/auth";
+import { downloadBlob } from "@/lib/api-client";
 import type {
+  CaBulkFilingResponse,
+  CaClientTasksResponse,
   CaClientsResponse,
   CaDashboardResponse,
   AdvisorsResponse,
@@ -86,4 +89,65 @@ export function skipCaClientFiling(
     method: "POST",
     body: { period_key: periodKey ?? null },
   });
+}
+
+export function bulkCompleteCaFilings(body: {
+  companyIds: string[];
+  obligationIds: string[];
+  periodKey?: string | null;
+}) {
+  return apiClient<CaBulkFilingResponse>(API_PATHS.CA_FILING_BULK_COMPLETE, {
+    method: "POST",
+    body: {
+      company_ids: body.companyIds,
+      obligation_ids: body.obligationIds,
+      period_key: body.periodKey ?? null,
+    },
+  });
+}
+
+export function exportCaFilingCsv(params?: { dueBefore?: string; dueAfter?: string }) {
+  return downloadBlob(
+    API_PATHS.CA_FILING_EXPORT,
+    "filing-status.csv",
+    {
+      due_before: params?.dueBefore,
+      due_after: params?.dueAfter,
+    },
+  );
+}
+
+export function fetchCaClientTasks(companyId: string) {
+  return apiClient<CaClientTasksResponse>(API_PATHS.CA_CLIENT_TASKS(companyId));
+}
+
+export function createCaClientTask(companyId: string, body: { title: string; description?: string }) {
+  return apiClient<CaClientTasksResponse>(API_PATHS.CA_CLIENT_TASKS(companyId), {
+    method: "POST",
+    body,
+  });
+}
+
+export function updateCaClientTask(
+  companyId: string,
+  taskId: string,
+  body: { title?: string; description?: string; due_date?: string; status?: string },
+) {
+  return apiClient<CaClientTasksResponse>(API_PATHS.CA_CLIENT_TASK(companyId, taskId), {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function deleteCaClientTask(companyId: string, taskId: string) {
+  return apiClient<void>(API_PATHS.CA_CLIENT_TASK(companyId, taskId), {
+    method: "DELETE",
+  });
+}
+
+export function fetchCaCompliancePack(companyId: string, from: string, to: string) {
+  const search = new URLSearchParams({ from, to });
+  return apiClient<Record<string, unknown>>(
+    `${API_PATHS.CA_COMPLIANCE_PACK(companyId)}?${search.toString()}`,
+  );
 }

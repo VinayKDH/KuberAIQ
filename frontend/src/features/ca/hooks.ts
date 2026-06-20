@@ -3,10 +3,16 @@ import { QUERY_KEYS } from "@/lib/constants";
 import { storeSession } from "@/lib/auth";
 import {
   acceptCaInvite,
+  bulkCompleteCaFilings,
   clearCaContext,
   completeCaClientFiling,
+  createCaClientTask,
+  deleteCaClientTask,
+  exportCaFilingCsv,
   fetchAdvisors,
   fetchCaClients,
+  fetchCaClientTasks,
+  fetchCaCompliancePack,
   fetchCaDashboard,
   fetchCaBulkGstr1,
   fetchCaBulkGstr3b,
@@ -14,6 +20,7 @@ import {
   revokeAdvisor,
   skipCaClientFiling,
   switchCaContext,
+  updateCaClientTask,
 } from "./api";
 import type { InviteAdvisorPayload } from "./types";
 
@@ -136,5 +143,94 @@ export function useCaSkipFiling() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_DASHBOARD });
     },
+  });
+}
+
+export function useCaBulkCompleteFilings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: bulkCompleteCaFilings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_DASHBOARD });
+    },
+  });
+}
+
+export function useCaExportFilingCsv() {
+  return useMutation({
+    mutationFn: exportCaFilingCsv,
+  });
+}
+
+export function useCaClientTasks(companyId: string) {
+  return useQuery({
+    queryKey: QUERY_KEYS.CA_CLIENT_TASKS(companyId),
+    queryFn: () => fetchCaClientTasks(companyId),
+  });
+}
+
+export function useCaCreateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, title }: { companyId: string; title: string }) =>
+      createCaClientTask(companyId, { title }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_CLIENT_TASKS(vars.companyId) });
+    },
+  });
+}
+
+export function useCaUpdateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      taskId,
+      ...body
+    }: {
+      companyId: string;
+      taskId: string;
+      title?: string;
+      status?: string;
+    }) => updateCaClientTask(companyId, taskId, body),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_CLIENT_TASKS(vars.companyId) });
+    },
+  });
+}
+
+export function useCaDeleteTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, taskId }: { companyId: string; taskId: string }) =>
+      deleteCaClientTask(companyId, taskId),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_CLIENT_TASKS(vars.companyId) });
+    },
+  });
+}
+
+export function useCaCompliancePack() {
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      companyName,
+      from,
+      to,
+    }: {
+      companyId: string;
+      companyName: string;
+      from: string;
+      to: string;
+    }) =>
+      fetchCaCompliancePack(companyId, from, to).then((data) => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `compliance-pack-${companyName.replace(/\s+/g, "-").toLowerCase()}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      }),
   });
 }

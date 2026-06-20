@@ -1,6 +1,8 @@
 """CA API schemas."""
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, Field
 
 
@@ -63,6 +65,7 @@ class CaDashboardResponse(BaseModel):
     clients: list[CaDashboardClient]
     client_count: int
     portfolio: CaPortfolioSummary | None = None
+    filings_due_this_month: int = 0
 
 
 class CaFilingActionRequest(BaseModel):
@@ -105,3 +108,40 @@ class AdvisorItem(BaseModel):
 
 class AdvisorsResponse(BaseModel):
     items: list[AdvisorItem]
+
+
+class CaBulkFilingRequest(BaseModel):
+    company_ids: list[str]
+    obligation_ids: list[str]
+    period_key: str | None = None
+
+
+class CaBulkFilingResponse(BaseModel):
+    completed: int
+
+
+class CaClientTaskItem(BaseModel):
+    id: str
+    company_id: str
+    title: str
+    description: str | None = None
+    due_date: str | None = None
+    status: str
+    created_at: str | None = None
+
+
+class CaClientTasksResponse(BaseModel):
+    items: list[CaClientTaskItem]
+
+
+class CaCreateTaskRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = None
+    due_date: date | None = None
+
+
+class CaUpdateTaskRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+    due_date: date | None = None
+    status: str | None = None

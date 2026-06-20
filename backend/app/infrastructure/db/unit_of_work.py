@@ -10,6 +10,9 @@ from app.infrastructure.db.repositories.ai_usage_repository import SqlAlchemyAiU
 from app.infrastructure.db.repositories.ca_client_assignment_repository import (
     SqlAlchemyCaClientAssignmentRepository,
 )
+from app.infrastructure.db.repositories.ca_client_task_repository import (
+    SqlAlchemyCaClientTaskRepository,
+)
 from app.infrastructure.db.repositories.compliance_repository import SqlAlchemyComplianceRepository
 from app.infrastructure.db.repositories.company_repository import SqlAlchemyCompanyRepository
 from app.infrastructure.db.repositories.customer_repository import SqlAlchemyCustomerRepository
@@ -44,6 +47,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.subscriptions = SqlAlchemySubscriptionRepository(session)
         self.compliance = SqlAlchemyComplianceRepository(session)
         self.ca_assignments = SqlAlchemyCaClientAssignmentRepository(session)
+        self.ca_tasks = SqlAlchemyCaClientTaskRepository(session)
         self.ai_sessions = SqlAlchemyAiSessionRepository(session)
         self.staff_invitations = SqlAlchemyStaffInvitationRepository(session)
         self.recurring_templates = SqlAlchemyRecurringInvoiceTemplateRepository(session)
