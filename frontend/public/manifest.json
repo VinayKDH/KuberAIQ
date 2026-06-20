@@ -2,16 +2,18 @@
   "name": "KuberAIQ",
   "short_name": "KuberAIQ",
   "description": "AI-powered GST billing, collections and compliance for MSMEs.",
-  "start_url": "/",
+  "start_url": "/counter",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0b1220",
   "theme_color": "#2563eb",
+  "categories": ["business", "finance"],
   "icons": [
     {
       "src": "/logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

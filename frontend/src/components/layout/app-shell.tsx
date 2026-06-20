@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { PwaInstallHint } from "@/components/pwa/pwa-install-hint";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { APP_NAME, PAGE_TITLES } from "@/lib/constants";
 
@@ -34,6 +35,9 @@ export function AppShell({ children }: AppShellProps) {
       </Sheet>
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar title={title} onMenuClick={() => setMobileOpen(true)} />
+        <div className="border-b px-4 py-2 lg:px-6">
+          <PwaInstallHint />
+        </div>
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
       </div>
     </div>

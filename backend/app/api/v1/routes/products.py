@@ -97,6 +97,20 @@ async def list_products(
     )
 
 
+@router.get("/low-stock", response_model=PaginatedResponse[ProductResponse])
+async def list_low_stock_products(
+    auth: Annotated[AuthContext, Depends(get_tenant_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> PaginatedResponse[ProductResponse]:
+    items = await container.product_service.list_low_stock(auth.company_id)
+    return PaginatedResponse(
+        items=[_to_response(p) for p in items],
+        page=1,
+        page_size=len(items) or 1,
+        total=len(items),
+    )
+
+
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(
     product_id: uuid.UUID,

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,3 +90,20 @@ class SqlAlchemyProductRepository:
         result = await self._session.execute(stmt)
         items = [ProductMapper.to_domain(m) for m in result.scalars().all()]
         return items, total
+
+    async def list_low_stock(
+        self, company_id: uuid.UUID, *, threshold: Decimal, limit: int = 50
+    ) -> list[Product]:
+        stmt = (
+            select(ProductModel)
+            .where(
+                ProductModel.company_id == company_id,
+                ProductModel.deleted_at.is_(None),
+                ProductModel.is_active.is_(True),
+                ProductModel.stock_qty <= threshold,
+            )
+            .order_by(ProductModel.stock_qty)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [ProductMapper.to_domain(m) for m in result.scalars().all()]

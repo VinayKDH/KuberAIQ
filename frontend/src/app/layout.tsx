@@ -9,6 +9,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-geist-sans" });
 export const metadata: Metadata = {
   metadataBase: new URL(PUBLIC_WEB_URL),
   manifest: "/manifest.json",
+  themeColor: "#2563eb",
   title: "KuberAIQ — GST Billing, Collections & Compliance for MSMEs",
   description:
     "Sign up free. GST invoices, payment reminders, MSME compliance calendar, and AI assistant for Indian small businesses.",

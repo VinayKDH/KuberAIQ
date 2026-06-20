@@ -97,6 +97,17 @@ class ProductService:
                 company_id, q=q, active_only=active_only, page=page, page_size=page_size
             )
 
+    async def list_low_stock(
+        self, company_id: uuid.UUID, *, threshold: Decimal | None = None
+    ) -> list[Product]:
+        from app.core.constants import LOW_STOCK_THRESHOLD_DEFAULT
+
+        limit_threshold = threshold if threshold is not None else Decimal(str(LOW_STOCK_THRESHOLD_DEFAULT))
+        async with self._uow_factory() as uow:
+            return await uow.products.list_low_stock(
+                company_id, threshold=limit_threshold, limit=50
+            )
+
     async def update(
         self,
         *,
