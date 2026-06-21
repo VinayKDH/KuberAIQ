@@ -339,6 +339,12 @@ AI_INVOICE_UNIT_ALIASES: dict[str, str] = {
     "ltr": "LTR",
 }
 
+# Skip 10-digit numbers immediately preceded by price markers (not substrings like "rs" in "Person").
+AI_PHONE_PRICE_PREFIX_RE = re.compile(
+    r"(?:@|₹|\bat\s|\brate\s|\brs\.?\s*)$",
+    re.I,
+)
+
 AI_INVOICE_LINE_ITEM_PATTERN = re.compile(
     r"^(\d+(?:\.\d+)?)\s*"
     r"(bags?|kg|kgs?|nos|units?|pcs?|pieces?|liters?|litres?|ltr|litre)\s+"

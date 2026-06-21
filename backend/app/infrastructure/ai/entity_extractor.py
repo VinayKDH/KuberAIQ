@@ -8,6 +8,7 @@ from app.core.constants import (
     AI_CUSTOMER_NAME_STOP_WORDS,
     AI_INVOICE_LINE_ITEM_PATTERN,
     AI_INVOICE_UNIT_ALIASES,
+    AI_PHONE_PRICE_PREFIX_RE,
     AiRoute,
 )
 
@@ -139,8 +140,18 @@ def _split_line_item_clauses(text: str) -> list[str]:
     return parts
 
 
+def _strip_trailing_price_from_clause(clause: str) -> str:
+    return re.sub(
+        r"\s+(?:at|@|₹|rs\.?)\s*\d+(?:\.\d+)?\s*$",
+        "",
+        clause.strip(),
+        flags=re.I,
+    )
+
+
 def _parse_line_item_clause(clause: str) -> dict[str, Any] | None:
-    match = AI_INVOICE_LINE_ITEM_PATTERN.match(clause.strip())
+    clause = _strip_trailing_price_from_clause(clause)
+    match = AI_INVOICE_LINE_ITEM_PATTERN.match(clause)
     if not match:
         return None
     qty = float(match.group(1))
@@ -156,10 +167,33 @@ def _parse_line_item_clause(clause: str) -> dict[str, Any] | None:
     }
 
 
+def _strip_inline_customer_from_items_text(
+    text: str,
+    customer_name: str | None,
+    phone: str | None,
+) -> str:
+    """Remove customer name / phone between invoice preamble and line items."""
+    working = text
+    if customer_name:
+        working = re.sub(rf"(?i)\b{re.escape(customer_name)}\b", "", working, count=1).strip()
+    if phone:
+        working = re.sub(rf"\b{re.escape(phone)}\b", "", working).strip()
+    return re.sub(r"^for\s+", "", working, flags=re.I).strip()
+
+
+def _default_line_item_description(raw: str | None, unit: str) -> str:
+    description = (raw or "").strip().title()
+    if description and description.lower() not in AI_CUSTOMER_NAME_STOP_WORDS and description != "Item":
+        return description
+    return unit.title() if unit != "NOS" else "Item"
+
+
 def _extract_line_items(message: str, customer_name: str | None) -> list[dict[str, Any]]:
+    phone = extract_phone_from_text(message)
     working = message
     working = _INVOICE_PREAMBLE_RE.sub("", working).strip()
     working = _strip_customer_suffix(working)
+    working = _strip_inline_customer_from_items_text(working, customer_name, phone)
 
     items: list[dict[str, Any]] = []
     for clause in _split_line_item_clauses(working):
@@ -168,14 +202,14 @@ def _extract_line_items(message: str, customer_name: str | None) -> list[dict[st
             items.append(parsed)
 
     if not items:
-        for match in _LINE_ITEM_ANYWHERE_RE.finditer(message):
-            description = (match.group(3) or "Item").strip().title()
-            if description.lower() in AI_CUSTOMER_NAME_STOP_WORDS:
-                description = "Item"
+        scan_text = working or message
+        for match in _LINE_ITEM_ANYWHERE_RE.finditer(scan_text):
+            unit = _normalize_unit(match.group(2))
+            description = _default_line_item_description(match.group(3), unit)
             items.append(
                 {
                     "quantity": float(match.group(1)),
-                    "unit": _normalize_unit(match.group(2)),
+                    "unit": unit,
                     "description": description,
                     "unit_price": None,
                 }
@@ -209,14 +243,17 @@ def _extract_line_items(message: str, customer_name: str | None) -> list[dict[st
     return items
 
 
+def _is_price_context_before_digits(text: str, digit_start: int) -> bool:
+    prefix = text[max(0, digit_start - 10) : digit_start].lower()
+    return bool(AI_PHONE_PRICE_PREFIX_RE.search(prefix))
+
+
 def extract_phone_from_text(text: str) -> str | None:
     """Return the first 10-digit mobile in text, skipping price-like numbers."""
     for match in _PHONE_RE.finditer(text):
-        phone = match.group(1)
-        prefix = text[max(0, match.start() - 6) : match.start()].lower()
-        if any(token in prefix for token in ("at ", "@", "rs", "rate ", "₹")):
+        if _is_price_context_before_digits(text, match.start()):
             continue
-        return phone
+        return match.group(1)
     return None
 
 

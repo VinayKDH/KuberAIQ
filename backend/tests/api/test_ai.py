@@ -259,6 +259,27 @@ async def test_ai_chat_new_customer_with_phone_in_invoice_message(
 
 
 @pytest.mark.asyncio
+async def test_ai_chat_invoice_customer_name_with_inline_phone(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    chat = await client.post(
+        "/api/v1/ai/chat",
+        json={
+            "message": "Invoice New Person 9123456789 for 10 kg paneer at 200",
+        },
+        headers=auth_headers,
+    )
+    assert chat.status_code == 200
+    body = chat.json()
+    assert body["requires_confirmation"] is True
+    assert body["pending_action"]["type"] == "create_customer_and_invoice"
+    assert body["pending_action"]["preview"]["customer"]["name"] == "New Person"
+    assert body["pending_action"]["preview"]["customer"]["phone"] == "9123456789"
+    items = body["pending_action"]["preview"]["invoice"]["items"]
+    assert items[0]["description"] == "Paneer"
+
+
+@pytest.mark.asyncio
 async def test_ai_chat_multi_item_invoice(client: AsyncClient, auth_headers: dict) -> None:
     cust = await client.post(
         "/api/v1/customers",

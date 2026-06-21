@@ -20,7 +20,20 @@ function renderPreview(pendingAction: PendingAction): string {
     const qty = first?.quantity ?? "—";
     const price = first?.unit_price ?? "—";
     const gst = first?.gst_rate ?? "—";
-    return `${customer} · ${qty} @ ₹${price} · ${gst}% GST · due ${preview.due_date ?? "—"}`;
+    const itemSuffix = items.length > 1 ? ` · +${items.length - 1} more` : "";
+    return `${customer} · ${qty} @ ₹${price} · ${gst}% GST${itemSuffix} · due ${preview.due_date ?? "—"}`;
+  }
+  if (pendingAction.type === "create_customer_and_invoice") {
+    const customer = preview.customer as Record<string, unknown> | undefined;
+    const invoice = preview.invoice as Record<string, unknown> | undefined;
+    const items = Array.isArray(invoice?.items) ? invoice.items : [];
+    const first = items[0] as Record<string, unknown> | undefined;
+    const name = customer?.name ?? "Customer";
+    const phone = customer?.phone ?? "—";
+    const qty = first?.quantity ?? "—";
+    const desc = first?.description ?? "Item";
+    const itemSuffix = items.length > 1 ? ` · +${items.length - 1} more` : "";
+    return `${name} · ${phone} · ${qty} ${desc}${itemSuffix}`;
   }
   if (pendingAction.type === "create_customer") {
     return `${preview.name ?? "Customer"} · ${preview.phone ?? "—"}`;

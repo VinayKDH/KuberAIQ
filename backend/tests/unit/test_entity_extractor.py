@@ -6,6 +6,7 @@ import pytest
 from app.infrastructure.ai.entity_extractor import (
     extract_customer_entities,
     extract_invoice_entities,
+    extract_phone_from_text,
     merge_extracted_entities,
 )
 
@@ -37,6 +38,15 @@ class TestExtractInvoiceEntities:
         assert entities["customer_name"] == "AI Confirm Co"
         assert entities["line_items"][0]["quantity"] == 5
         assert entities["line_items"][0]["unit_price"] == 400
+        assert entities["line_items"][0]["description"] == "Bag"
+
+    def test_invoice_customer_name_with_inline_phone(self) -> None:
+        message = "Invoice New Person 9123456789 for 10 kg paneer at 200"
+        entities = extract_invoice_entities(message)
+        assert entities["customer_name"] == "New Person"
+        assert entities["customer_phone"] == "9123456789"
+        assert entities["line_items"][0]["description"] == "Paneer"
+        assert entities["line_items"][0]["quantity"] == 10
 
     def test_does_not_use_of_as_customer(self) -> None:
         message = "Create the invoice of 50 bags of cement for Raj Traders"
@@ -51,6 +61,12 @@ class TestExtractInvoiceEntities:
 
 
 class TestExtractCustomerEntities:
+    def test_phone_not_skipped_in_person_name(self) -> None:
+        assert extract_phone_from_text("Invoice New Person 9123456789 for 10 kg") == "9123456789"
+
+    def test_phone_skipped_after_at_price(self) -> None:
+        assert extract_phone_from_text("Invoice Raj for 5 bags at 400") is None
+
     def test_phone_only_after_for(self) -> None:
         entities = extract_customer_entities("Add customer for 9000000000")
         assert entities["phone"] == "9000000000"
