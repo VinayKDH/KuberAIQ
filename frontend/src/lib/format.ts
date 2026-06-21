@@ -25,6 +25,13 @@ export function formatINR(amount: number | string): string {
   return INR_FORMATTER.format(Number.isFinite(value) ? value : 0);
 }
 
+export function formatQty(value: number | string): string {
+  const num = typeof value === "string" ? Number(value) : value;
+  if (!Number.isFinite(num)) return "0";
+  if (Number.isInteger(num)) return String(num);
+  return num.toFixed(3).replace(/\.?0+$/, "");
+}
+
 export function formatDate(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
   return DATE_FORMATTER.format(date);

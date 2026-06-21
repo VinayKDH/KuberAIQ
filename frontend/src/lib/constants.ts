@@ -1105,6 +1105,8 @@ export const PAYMENT_COPY = {
   UPI_STUB_PROMPT: "UPI payment initiated — record payment once confirmed in your bank app.",
 } as const;
 
+export const LOW_STOCK_THRESHOLD = 10;
+
 export const COUNTER_COPY = {
   TITLE: { en: "Counter billing", hi: "काउंटर बिलिंग" },
   SUBTITLE: {
@@ -1112,13 +1114,22 @@ export const COUNTER_COPY = {
     hi: "किराना के लिए तेज़ बिलिंग — खोजें, मात्रा जोड़ें, सेकंड में बिल।",
   },
   SEARCH_PLACEHOLDER: { en: "Search product…", hi: "उत्पाद खोजें…" },
+  SEARCHING: { en: "Searching…", hi: "खोज रहे हैं…" },
+  NO_RESULTS: { en: "No products found", hi: "कोई उत्पाद नहीं मिला" },
   CUSTOMER_LABEL: { en: "Customer", hi: "ग्राहक" },
+  RECENT_CUSTOMERS: { en: "Recent customers", hi: "हाल के ग्राहक" },
   WALK_IN: { en: "Walk-in", hi: "वॉक-इन" },
   QTY: { en: "Qty", hi: "मात्रा" },
+  INCLUDES_GST: { en: "incl. GST", hi: "GST सहित" },
   BILL_NOW: { en: "Bill now", hi: "अभी बिल करें" },
   BILLING: { en: "Creating invoice…", hi: "इनवॉइस बन रहा है…" },
   SUCCESS: { en: "Invoice issued", hi: "इनवॉइस जारी" },
   STOCK_WARNING: { en: "Low stock for this item", hi: "इस आइटम का स्टॉक कम है" },
+  VIEW_INVOICE: { en: "View invoice", hi: "इनवॉइस देखें" },
+  DOWNLOAD_PDF: { en: "Download PDF", hi: "PDF डाउनलोड" },
+  SHARE_WHATSAPP: { en: "Share on WhatsApp", hi: "WhatsApp पर भेजें" },
+  NEW_BILL: { en: "New bill", hi: "नया बिल" },
+  ERROR_GENERIC: { en: "Could not create invoice", hi: "इनवॉइस नहीं बन सका" },
 } as const;
 
 export const INVENTORY_COPY = {

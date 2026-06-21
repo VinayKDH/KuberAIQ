@@ -165,6 +165,33 @@ async def list_invoices(
     )
 
 
+@router.post("/counter", response_model=CounterBillResponse, status_code=status.HTTP_201_CREATED)
+async def counter_bill(
+    body: CounterBillRequest,
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+    request: Request,
+) -> CounterBillResponse:
+    result = await container.invoice_service.counter_bill(
+        company_id=auth.company_id,
+        actor_id=auth.user_id,
+        data=CounterBillInput(
+            product_id=uuid.UUID(body.product_id),
+            quantity=body.quantity,
+            customer_id=uuid.UUID(body.customer_id) if body.customer_id else None,
+            customer_name=body.customer_name,
+        ),
+        ip=get_client_ip(request),
+    )
+    invoice = result["invoice"]
+    customer = await container.customer_service.get(auth.company_id, invoice.customer_id)
+    return CounterBillResponse(
+        invoice=_to_response(invoice, customer_name=customer.name),
+        customer_name=result["customer_name"],
+        stock_warning=result.get("stock_warning"),
+    )
+
+
 @router.get("/reports/gst", response_model=GstReportResponse)
 async def gst_report(
     auth: Annotated[AuthContext, Depends(require_tenant_read_roles)],
@@ -534,33 +561,6 @@ async def share_invoice_whatsapp(
         ip=get_client_ip(request),
     )
     return {"provider_message_id": provider_id}
-
-
-@router.post("/counter", response_model=CounterBillResponse, status_code=status.HTTP_201_CREATED)
-async def counter_bill(
-    body: CounterBillRequest,
-    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
-    container: Annotated[Container, Depends(get_container)],
-    request: Request,
-) -> CounterBillResponse:
-    result = await container.invoice_service.counter_bill(
-        company_id=auth.company_id,
-        actor_id=auth.user_id,
-        data=CounterBillInput(
-            product_id=uuid.UUID(body.product_id),
-            quantity=body.quantity,
-            customer_id=uuid.UUID(body.customer_id) if body.customer_id else None,
-            customer_name=body.customer_name,
-        ),
-        ip=get_client_ip(request),
-    )
-    invoice = result["invoice"]
-    customer = await container.customer_service.get(auth.company_id, invoice.customer_id)
-    return CounterBillResponse(
-        invoice=_to_response(invoice, customer_name=customer.name),
-        customer_name=result["customer_name"],
-        stock_warning=result.get("stock_warning"),
-    )
 
 
 @router.post("/{invoice_id}/payment-link", response_model=PaymentLinkResponse)
