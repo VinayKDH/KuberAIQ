@@ -5,10 +5,11 @@ import uuid
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core.constants import AUTH_SCHEME
+from app.core.config import settings
+from app.core.constants import AUTH_SCHEME, ADMIN_API_KEY_HEADER
 from app.core.container import Container, build_container
 from app.core.errors import ForbiddenError, UnauthorizedError
 from app.core.security import decode_token
@@ -116,3 +117,10 @@ def get_client_ip(request: Request) -> str | None:
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else None
+
+
+async def require_admin_key(
+    x_admin_api_key: Annotated[str | None, Header(alias=ADMIN_API_KEY_HEADER)] = None,
+) -> None:
+    if not settings.admin_api_key or x_admin_api_key != settings.admin_api_key:
+        raise ForbiddenError("Invalid admin API key")

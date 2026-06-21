@@ -7,6 +7,7 @@ from app.application.ports.repositories import UnitOfWork
 from app.infrastructure.db.repositories.audit_repository import SqlAlchemyAuditRepository
 from app.infrastructure.db.repositories.ai_session_repository import SqlAlchemyAiSessionRepository
 from app.infrastructure.db.repositories.ai_usage_repository import SqlAlchemyAiUsageLogRepository
+from app.infrastructure.db.repositories.admin_repository import SqlAlchemyAdminRepository
 from app.infrastructure.db.repositories.ca_client_assignment_repository import (
     SqlAlchemyCaClientAssignmentRepository,
 )
@@ -53,6 +54,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.recurring_templates = SqlAlchemyRecurringInvoiceTemplateRepository(session)
         self.expenses = SqlAlchemyExpenseRepository(session)
         self.ai_usage = SqlAlchemyAiUsageLogRepository(session)
+        self.admin = SqlAlchemyAdminRepository(session)
 
     async def __aenter__(self) -> SqlAlchemyUnitOfWork:
         return self

@@ -405,6 +405,13 @@ class EntityType:
     CREDIT_NOTE = "credit_note"
 
 
+# --- Admin portal ----------------------------------------------------------
+ADMIN_API_KEY_HEADER = "X-Admin-Api-Key"
+ADMIN_ENTITY_TYPE_COMPANY = "company"
+ADMIN_ACTION_SUSPEND = "suspend"
+ADMIN_ACTION_ACTIVATE = "activate"
+ADMIN_DEMO_RESET_ALLOWED_ENVIRONMENTS = frozenset({"local", "dev"})
+
 # --- Health ----------------------------------------------------------------
 HEALTH_LIVE_PATH = "/health"
 HEALTH_READY_PATH = "/health/ready"

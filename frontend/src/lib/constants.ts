@@ -36,6 +36,7 @@ export const STORAGE_KEYS = {
   ACCESS_TOKEN: "kuberaiq_access_token",
   REFRESH_TOKEN: "kuberaiq_refresh_token",
   USER: "kuberaiq_user",
+  ADMIN_SESSION_KEY: "kuberaiq_admin_session_key",
 } as const;
 
 export const OAUTH_PROVIDER_MICROSOFT = "microsoft";
@@ -81,6 +82,14 @@ export const ROUTES = {
   EXPENSES: "/expenses",
   TERMS: "/terms",
   PRIVACY: "/privacy",
+  ADMIN_LOGIN: "/admin/login",
+  ADMIN_DASHBOARD: "/admin/dashboard",
+  ADMIN_TENANTS: "/admin/tenants",
+  ADMIN_TENANT_DETAIL: (id: string) => `/admin/tenants/${id}` as const,
+  ADMIN_USERS: "/admin/users",
+  ADMIN_AI_USAGE: "/admin/ai-usage",
+  ADMIN_SYSTEM: "/admin/system",
+  ADMIN_AUDIT: "/admin/audit",
 } as const;
 
 export const API_PATHS = {
@@ -164,6 +173,16 @@ export const API_PATHS = {
   CA_CLIENT_TASK: (companyId: string, taskId: string) =>
     `/ca/clients/${companyId}/tasks/${taskId}` as const,
   CA_COMPLIANCE_PACK: (companyId: string) => `/ca/clients/${companyId}/compliance-pack` as const,
+  ADMIN_AUTH_VERIFY: "/admin/auth/verify",
+  ADMIN_DASHBOARD: "/admin/dashboard",
+  ADMIN_TENANTS: "/admin/tenants",
+  ADMIN_TENANT_DETAIL: (id: string) => `/admin/tenants/${id}` as const,
+  ADMIN_TENANT_STATUS: (id: string) => `/admin/tenants/${id}/status` as const,
+  ADMIN_USERS: "/admin/users",
+  ADMIN_AI_USAGE: "/admin/ai-usage",
+  ADMIN_SYSTEM_HEALTH: "/admin/system-health",
+  ADMIN_AUDIT_LOGS: "/admin/audit-logs",
+  ADMIN_DEMO_RESET: "/admin/demo/reset",
 } as const;
 
 export const QUERY_KEYS = {
@@ -204,6 +223,13 @@ export const QUERY_KEYS = {
     ["ca", "gstr1-bulk", from, to, companyIds?.join(",") ?? "all"] as const,
   CA_GSTR3B_BULK: (from: string, to: string, companyIds?: string[]) =>
     ["ca", "gstr3b-bulk", from, to, companyIds?.join(",") ?? "all"] as const,
+  ADMIN_DASHBOARD: ["admin", "dashboard"] as const,
+  ADMIN_TENANTS: (params?: object) => ["admin", "tenants", params] as const,
+  ADMIN_TENANT: (id: string) => ["admin", "tenant", id] as const,
+  ADMIN_USERS: (params?: object) => ["admin", "users", params] as const,
+  ADMIN_AI_USAGE: ["admin", "ai-usage"] as const,
+  ADMIN_SYSTEM: ["admin", "system"] as const,
+  ADMIN_AUDIT: (params?: object) => ["admin", "audit", params] as const,
 } as const;
 
 export const NAV_ITEMS_CA = [
@@ -1203,6 +1229,63 @@ export const ONBOARDING_COPY = {
 export const SUPPORT_EMAIL = "support@kuberaiq.com";
 export const PRIVACY_EMAIL = "privacy@kuberaiq.com";
 export const SECURITY_EMAIL = "security@kuberaiq.com";
+
+export const ADMIN_SESSION_HEADER = "X-Admin-Session-Key";
+export const ADMIN_PROXY_PREFIX = "/api/admin-proxy";
+
+export const NAV_ITEMS_ADMIN = [
+  { href: ROUTES.ADMIN_DASHBOARD, label: "Dashboard", icon: "LayoutDashboard" },
+  { href: ROUTES.ADMIN_TENANTS, label: "Tenants", icon: "Building2" },
+  { href: ROUTES.ADMIN_USERS, label: "Users", icon: "Users" },
+  { href: ROUTES.ADMIN_AI_USAGE, label: "AI Usage", icon: "Bot" },
+  { href: ROUTES.ADMIN_SYSTEM, label: "System", icon: "Server" },
+  { href: ROUTES.ADMIN_AUDIT, label: "Audit", icon: "ScrollText" },
+] as const;
+
+export const ADMIN_COPY = {
+  PORTAL_TITLE: "KuberAIQ Admin",
+  PORTAL_SUBTITLE: "Platform control & usage metrics",
+  LOGIN_TITLE: "Admin sign-in",
+  LOGIN_SUBTITLE: "Enter your platform admin API key",
+  API_KEY_LABEL: "Admin API key",
+  API_KEY_PLACEHOLDER: "Paste admin API key",
+  SIGN_IN: "Sign in",
+  SIGNING_IN: "Verifying…",
+  SIGN_OUT: "Sign out",
+  INVALID_KEY: "Invalid admin API key",
+  DASHBOARD_TITLE: "Platform dashboard",
+  DASHBOARD_SUBTITLE: "Cross-tenant KPIs and subscription health",
+  TENANTS_TITLE: "Tenants",
+  TENANTS_SUBTITLE: "All registered companies on the platform",
+  USERS_TITLE: "Users",
+  USERS_SUBTITLE: "All platform users across tenants",
+  AI_USAGE_TITLE: "AI usage",
+  AI_USAGE_SUBTITLE: "Token consumption and session volume",
+  SYSTEM_TITLE: "System health",
+  SYSTEM_SUBTITLE: "Integration modes and deploy configuration",
+  AUDIT_TITLE: "Audit logs",
+  AUDIT_SUBTITLE: "Platform-wide activity trail",
+  SEARCH_PLACEHOLDER: "Search…",
+  FILTER_ALL: "All",
+  FILTER_ACTIVE: "Active",
+  FILTER_SUSPENDED: "Suspended",
+  SUSPEND: "Suspend tenant",
+  ACTIVATE: "Activate tenant",
+  RESET_DEMO: "Reset demo data",
+  RESET_DEMO_CONFIRM: "Re-seed demo company and users? Only works in dev with mock auth.",
+  NO_DATA: "No records found",
+  LOADING: "Loading…",
+  ERROR: "Failed to load admin data",
+} as const;
+
+export const ADMIN_PAGE_TITLES: Record<string, string> = {
+  [ROUTES.ADMIN_DASHBOARD]: "Dashboard",
+  [ROUTES.ADMIN_TENANTS]: "Tenants",
+  [ROUTES.ADMIN_USERS]: "Users",
+  [ROUTES.ADMIN_AI_USAGE]: "AI Usage",
+  [ROUTES.ADMIN_SYSTEM]: "System",
+  [ROUTES.ADMIN_AUDIT]: "Audit",
+};
 
 export const LEGAL_COPY = {
   TERMS_TITLE: "Terms of Service",

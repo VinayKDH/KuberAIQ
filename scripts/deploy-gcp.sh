@@ -247,7 +247,7 @@ gcloud run deploy "$WEB_SERVICE" \
   --region "$REGION" \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars "HOSTNAME=0.0.0.0,API_UPSTREAM_URL=${API_URL}" \
+  --set-env-vars "HOSTNAME=0.0.0.0,API_UPSTREAM_URL=${API_URL},ADMIN_API_KEY=${ADMIN_API_KEY:-}" \
   --port 3000 \
   --cpu 1 \
   --memory 1Gi \
@@ -261,7 +261,7 @@ echo "==> Updating web service with canonical web URL"
 gcloud run services update "$WEB_SERVICE" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
-  --set-env-vars "HOSTNAME=0.0.0.0,API_UPSTREAM_URL=${API_URL}" >/dev/null
+  --set-env-vars "HOSTNAME=0.0.0.0,API_UPSTREAM_URL=${API_URL},ADMIN_API_KEY=${ADMIN_API_KEY:-}" >/dev/null
 
 echo "==> Smoke checks"
 curl -sf "${API_URL}/health" >/dev/null
