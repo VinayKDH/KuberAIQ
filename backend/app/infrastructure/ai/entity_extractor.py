@@ -9,14 +9,11 @@ from app.core.constants import (
     AI_INVOICE_LINE_ITEM_PATTERN,
     AI_INVOICE_UNIT_ALIASES,
     AI_PHONE_PRICE_PREFIX_RE,
+    AI_PRICE_AMOUNT_RE,
     AiRoute,
 )
 
 _PHONE_RE = re.compile(r"\b(\d{10})\b")
-_PRICE_RE = re.compile(
-    r"(?:at|@|₹|rs\.?|rate)\s*(\d+(?:\.\d+)?)",
-    re.I,
-)
 _GST_RE = re.compile(r"(\d+(?:\.\d+)?)%\s*gst", re.I)
 _TRAILING_CUSTOMER_RE = re.compile(
     r"\bfor\s+([A-Za-z][A-Za-z0-9\s.&'-]{1,60}?)\s*$",
@@ -233,7 +230,7 @@ def _extract_line_items(message: str, customer_name: str | None) -> list[dict[st
                 )
                 break
 
-    global_price = _PRICE_RE.search(message)
+    global_price = AI_PRICE_AMOUNT_RE.search(message)
     if global_price and items:
         price = float(global_price.group(1))
         for item in items:

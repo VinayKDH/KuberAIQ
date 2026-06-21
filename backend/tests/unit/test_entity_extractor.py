@@ -47,6 +47,14 @@ class TestExtractInvoiceEntities:
         assert entities["customer_phone"] == "9123456789"
         assert entities["line_items"][0]["description"] == "Paneer"
         assert entities["line_items"][0]["quantity"] == 10
+        assert entities["line_items"][0]["unit_price"] == 200
+
+    def test_phone_in_traders_name_not_treated_as_price(self) -> None:
+        message = "Invoice Fresh Traders 9123456780 for 10 kg paneer at 200"
+        entities = extract_invoice_entities(message)
+        assert entities["customer_name"] == "Fresh Traders"
+        assert entities["customer_phone"] == "9123456780"
+        assert entities["line_items"][0]["unit_price"] == 200
 
     def test_does_not_use_of_as_customer(self) -> None:
         message = "Create the invoice of 50 bags of cement for Raj Traders"

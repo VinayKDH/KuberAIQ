@@ -345,6 +345,12 @@ AI_PHONE_PRICE_PREFIX_RE = re.compile(
     re.I,
 )
 
+# Price markers before amounts — word-boundary aware (avoids "Traders" → rs + phone digits).
+AI_PRICE_AMOUNT_RE = re.compile(
+    r"(?:@|₹|\bat\s|\brate\s|\brs\.?\s*)(\d+(?:\.\d+)?)",
+    re.I,
+)
+
 AI_INVOICE_LINE_ITEM_PATTERN = re.compile(
     r"^(\d+(?:\.\d+)?)\s*"
     r"(bags?|kg|kgs?|nos|units?|pcs?|pieces?|liters?|litres?|ltr|litre)\s+"
