@@ -54,3 +54,56 @@ async def test_issue_draft_invoice(client: AsyncClient, auth_headers: dict) -> N
     body = issued.json()
     assert body["status"] == "ISSUED"
     assert body["invoice_number"] is not None
+
+
+@pytest.mark.asyncio
+async def test_issue_invoice_decrements_product_stock(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    phone = f"9{random.randint(100000000, 999999999)}"
+    cust = await client.post(
+        "/api/v1/customers",
+        json={"name": "Stock Test Co", "phone": phone},
+        headers=auth_headers,
+    )
+    customer_id = cust.json()["id"]
+
+    product = await client.post(
+        "/api/v1/products",
+        json={
+            "name": "Stocked Item",
+            "default_price": "100.00",
+            "gst_rate": "18",
+            "stock_qty": "20",
+        },
+        headers=auth_headers,
+    )
+    product_id = product.json()["id"]
+
+    inv = await client.post(
+        "/api/v1/invoices",
+        json={
+            "customer_id": customer_id,
+            "issue_date": "2026-06-06",
+            "due_date": "2026-06-21",
+            "status": "DRAFT",
+            "items": [
+                {
+                    "description": "Stocked Item",
+                    "quantity": 3,
+                    "unit_price": 100,
+                    "gst_rate": 18,
+                    "product_id": product_id,
+                }
+            ],
+        },
+        headers=auth_headers,
+    )
+    invoice_id = inv.json()["id"]
+
+    issued = await client.post(f"/api/v1/invoices/{invoice_id}:issue", headers=auth_headers)
+    assert issued.status_code == 200
+
+    updated = await client.get(f"/api/v1/products/{product_id}", headers=auth_headers)
+    assert updated.status_code == 200
+    assert float(updated.json()["stock_qty"]) == pytest.approx(17)

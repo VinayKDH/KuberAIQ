@@ -154,16 +154,3 @@ class RecurringInvoiceTemplateResponse(BaseModel):
 
 class RecurringInvoiceTemplateListResponse(BaseModel):
     items: list[RecurringInvoiceTemplateResponse]
-
-
-class CounterBillRequest(BaseModel):
-    product_id: str
-    quantity: Decimal = Field(gt=0)
-    customer_id: str | None = None
-    customer_name: str | None = None
-
-
-class CounterBillResponse(BaseModel):
-    invoice: InvoiceResponse
-    customer_name: str
-    stock_warning: str | None = None

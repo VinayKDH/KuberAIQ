@@ -240,16 +240,11 @@ PAYMENT_SUMMARY_RECENT_LIMIT = 10
 PAYMENT_RECONCILIATION_AMOUNT_TOLERANCE = 1  # rupees
 UPI_DEEP_LINK_STUB_NOTE = "UPI payment — confirm amount and record if not auto-matched"
 
-# --- Counter / kirana billing ----------------------------------------------
-COUNTER_DEFAULT_DUE_DAYS = 0
-COUNTER_WALK_IN_CUSTOMER_NAME = "Walk-in Customer"
-COUNTER_ROUTE = "/counter"
-
 # --- Inventory alerts ------------------------------------------------------
 LOW_STOCK_THRESHOLD_DEFAULT = 10
-STOCK_REFERENCE_COUNTER_BILL = "counter_bill"
+STOCK_REFERENCE_INVOICE = "invoice"
 STOCK_REFERENCE_MANUAL = "manual"
-STOCK_MOVEMENT_REASON_COUNTER_SALE = "Counter sale"
+STOCK_MOVEMENT_REASON_INVOICE_SALE = "Invoice sale"
 STOCK_ADJUSTMENT_REASONS: tuple[str, ...] = (
     "Purchase",
     "Opening stock",
