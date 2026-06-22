@@ -59,6 +59,10 @@ class InvoiceRepository(Protocol):
     ) -> str: ...
 
 
+class StockMovementRepository(Protocol):
+    async def create(self, movement: "StockMovement") -> "StockMovement": ...
+
+
 class ProductRepository(Protocol):
     async def create(self, product: Product) -> Product: ...
     async def get_by_id(self, company_id: uuid.UUID, product_id: uuid.UUID) -> Product | None: ...
@@ -628,6 +632,7 @@ class UnitOfWork(ABC):
     customers: CustomerRepository
     invoices: InvoiceRepository
     products: ProductRepository
+    stock_movements: StockMovementRepository
     quotations: QuotationRepository
     payments: PaymentRepository
     reminders: ReminderRepository

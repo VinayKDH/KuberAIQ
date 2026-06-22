@@ -21,6 +21,7 @@ from app.infrastructure.db.repositories.expense_repository import SqlAlchemyExpe
 from app.infrastructure.db.repositories.invoice_repository import SqlAlchemyInvoiceRepository
 from app.infrastructure.db.repositories.payment_repository import SqlAlchemyPaymentRepository
 from app.infrastructure.db.repositories.product_repository import SqlAlchemyProductRepository
+from app.infrastructure.db.repositories.stock_movement_repository import SqlAlchemyStockMovementRepository
 from app.infrastructure.db.repositories.quotation_repository import SqlAlchemyQuotationRepository
 from app.infrastructure.db.repositories.recurring_invoice_repository import (
     SqlAlchemyRecurringInvoiceTemplateRepository,
@@ -39,6 +40,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.customers = SqlAlchemyCustomerRepository(session)
         self.invoices = SqlAlchemyInvoiceRepository(session)
         self.products = SqlAlchemyProductRepository(session)
+        self.stock_movements = SqlAlchemyStockMovementRepository(session)
         self.quotations = SqlAlchemyQuotationRepository(session)
         self.payments = SqlAlchemyPaymentRepository(session)
         self.reminders = SqlAlchemyReminderRepository(session)

@@ -73,7 +73,6 @@ export const ROUTES = {
   CUSTOMERS: "/customers",
   CUSTOMER_DETAIL: (id: string) => `/customers/${id}` as const,
   COLLECTIONS: "/collections",
-  COUNTER: "/counter",
   ASSISTANT: "/assistant",
   COMPLIANCE: "/compliance",
   CA_CLIENTS: "/ca/clients",
@@ -138,7 +137,7 @@ export const API_PATHS = {
   PAYMENTS_IMPORT_CSV_APPLY: "/payments/import-csv/apply",
   PAYMENTS_UPI_STUB: (invoiceId: string) => `/payments/invoices/${invoiceId}/upi-stub` as const,
   PRODUCTS_LOW_STOCK: "/products/low-stock",
-  INVOICES_COUNTER: "/invoices/counter",
+  PRODUCT_STOCK: (id: string) => `/products/${id}/stock` as const,
   CUSTOMER_STATEMENT: (id: string) => `/customers/${id}/statement.pdf` as const,
   CUSTOMER_LEDGER: (id: string) => `/customers/${id}/ledger` as const,
   DASHBOARD: "/dashboard",
@@ -246,7 +245,6 @@ export const NAV_ITEMS = [
   { href: ROUTES.PRODUCTS, label: "Products", icon: "Package" },
   { href: ROUTES.CUSTOMERS, label: "Customers", icon: "Users" },
   { href: ROUTES.COLLECTIONS, label: "Collections", icon: "IndianRupee" },
-  { href: ROUTES.COUNTER, label: "Counter", icon: "ShoppingCart" },
   { href: ROUTES.COMPLIANCE, label: "Compliance", icon: "ShieldCheck" },
   { href: ROUTES.ASSISTANT, label: "Assistant", icon: "Bot" },
   { href: ROUTES.EXPENSES, label: "Expenses", icon: "IndianRupee" },
@@ -293,7 +291,6 @@ export const PAGE_TITLES: Record<string, string> = {
   [ROUTES.QUOTATIONS]: "Quotations",
   [ROUTES.CUSTOMERS]: "Customers",
   [ROUTES.COLLECTIONS]: "Collections",
-  [ROUTES.COUNTER]: "Counter",
   [ROUTES.COMPLIANCE]: "Compliance",
   [ROUTES.CA_CLIENTS]: "Clients",
   [ROUTES.CA_DASHBOARD]: "CA Dashboard",
@@ -412,6 +409,7 @@ export const PRODUCT_FORM = {
   UNIT: "Unit",
   DEFAULT_PRICE: "Default price (₹)",
   GST_RATE: "GST rate",
+  STOCK_QTY: { en: "Opening stock", hi: "प्रारंभिक स्टॉक" },
   GST_AUTO_FILLED: "Auto-filled from HSN/SAC — you can override",
   GST_MATCHED: "Matched GST catalogue:",
   DEACTIVATE: "Deactivate",
@@ -781,8 +779,8 @@ export const MSME_LOGIN_SEGMENTS = [
     label: { en: "Food & hospitality", hi: "फूड और हॉस्पिटैलिटी" },
     headline: { en: "Daily sales. Weekly GST clarity.", hi: "रोज़ की बिक्री। साप्ताहिक GST स्पष्टता।" },
     highlights: {
-      en: ["Fast billing at counter", "Supplier payment tracking", "Compliance calendar"],
-      hi: ["काउंटर पर तेज़ बिल", "सप्लायर पेमेंट ट्रैक", "कंप्लायंस कैलेंडर"],
+      en: ["Fast daily billing", "Supplier payment tracking", "Compliance calendar"],
+      hi: ["तेज़ दैनिक बिलिंग", "सप्लायर पेमेंट ट्रैक", "कंप्लायंस कैलेंडर"],
     },
   },
 ] as const;
@@ -1133,39 +1131,34 @@ export const PAYMENT_COPY = {
 
 export const LOW_STOCK_THRESHOLD = 10;
 
-export const COUNTER_COPY = {
-  TITLE: { en: "Counter billing", hi: "काउंटर बिलिंग" },
-  SUBTITLE: {
-    en: "Fast billing for kirana — search, add qty, bill in seconds.",
-    hi: "किराना के लिए तेज़ बिलिंग — खोजें, मात्रा जोड़ें, सेकंड में बिल।",
+export const INVENTORY_COPY = {
+  LOW_STOCK_TITLE: { en: "Low stock alerts", hi: "कम स्टॉक अलर्ट" },
+  LOW_STOCK_EMPTY: { en: "All products are above the threshold.", hi: "सभी उत्पाद थ्रेशोल्ड से ऊपर हैं।" },
+  THRESHOLD_NOTE: { en: "Alert when stock ≤ threshold", hi: "स्टॉक थ्रेशोल्ड से कम होने पर अलर्ट" },
+  STOCK_COLUMN: { en: "Stock", hi: "स्टॉक" },
+  ADD_STOCK: { en: "Add stock", hi: "स्टॉक जोड़ें" },
+  ADD_STOCK_TITLE: { en: "Stock in", hi: "स्टॉक इन" },
+  ADD_STOCK_DESCRIPTION: {
+    en: "Increase stock after purchase or delivery.",
+    hi: "खरीद या डिलीवरी के बाद स्टॉक बढ़ाएं।",
   },
-  SEARCH_PLACEHOLDER: { en: "Search product…", hi: "उत्पाद खोजें…" },
-  SEARCHING: { en: "Searching…", hi: "खोज रहे हैं…" },
-  NO_RESULTS: { en: "No products found", hi: "कोई उत्पाद नहीं मिला" },
-  CUSTOMER_LABEL: { en: "Customer", hi: "ग्राहक" },
-  RECENT_CUSTOMERS: { en: "Recent customers", hi: "हाल के ग्राहक" },
-  WALK_IN: { en: "Walk-in", hi: "वॉक-इन" },
-  QTY: { en: "Qty", hi: "मात्रा" },
-  INCLUDES_GST: { en: "incl. GST", hi: "GST सहित" },
-  BILL_NOW: { en: "Bill now", hi: "अभी बिल करें" },
-  BILLING: { en: "Creating invoice…", hi: "इनवॉइस बन रहा है…" },
-  SUCCESS: { en: "Invoice issued", hi: "इनवॉइस जारी" },
-  STOCK_WARNING: { en: "Low stock for this item", hi: "इस आइटम का स्टॉक कम है" },
-  VIEW_INVOICE: { en: "View invoice", hi: "इनवॉइस देखें" },
-  DOWNLOAD_PDF: { en: "Download PDF", hi: "PDF डाउनलोड" },
-  SHARE_WHATSAPP: { en: "Share on WhatsApp", hi: "WhatsApp पर भेजें" },
-  NEW_BILL: { en: "New bill", hi: "नया बिल" },
-  ERROR_GENERIC: { en: "Could not create invoice", hi: "इनवॉइस नहीं बन सका" },
+  CURRENT_STOCK: { en: "Current stock", hi: "वर्तमान स्टॉक" },
+  QUANTITY_TO_ADD: { en: "Quantity to add", hi: "जोड़ने की मात्रा" },
+  REASON: { en: "Reason", hi: "कारण" },
+  SAVE_STOCK: { en: "Update stock", hi: "स्टॉक अपडेट करें" },
 } as const;
 
-export const INVENTORY_COPY = {
-  LOW_STOCK_TITLE: "Low stock alerts",
-  LOW_STOCK_EMPTY: "All products are above the threshold.",
-  THRESHOLD_NOTE: "Alert when stock ≤ threshold",
-} as const;
+export const STOCK_ADJUSTMENT_REASONS = [
+  "Purchase",
+  "Opening stock",
+  "Stock correction",
+  "Damaged / expired",
+  "Return from customer",
+  "Other",
+] as const;
 
 export const PWA_COPY = {
-  INSTALL_HINT: "Install KuberAIQ for faster counter billing offline-ready shell.",
+  INSTALL_HINT: "Install KuberAIQ for faster access and an offline-ready shell.",
   INSTALL: "Install app",
 } as const;
 

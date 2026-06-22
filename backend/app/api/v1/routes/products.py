@@ -9,12 +9,13 @@ from fastapi import APIRouter, Depends, Query, Request, Response, status
 from app.api.deps import AuthContext, get_client_ip, get_container, get_tenant_context, require_roles
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.product import (
+    AdjustStockRequest,
     CreateProductRequest,
     HsnLookupResponse,
     ProductResponse,
     UpdateProductRequest,
 )
-from app.application.services.product_service import CreateProductInput, UpdateProductInput
+from app.application.services.product_service import AdjustStockInput, CreateProductInput, UpdateProductInput
 from app.domain.services.hsn_gst_lookup import lookup_gst_rate, suggest_hsn_from_name
 from app.core.container import Container
 from app.domain.enums import UserRole
@@ -134,6 +135,24 @@ async def update_product(
         product_id=product_id,
         actor_id=auth.user_id,
         data=UpdateProductInput(**body.model_dump(exclude_unset=True)),
+        ip=get_client_ip(request),
+    )
+    return _to_response(product)
+
+
+@router.post("/{product_id}/stock", response_model=ProductResponse)
+async def adjust_product_stock(
+    product_id: uuid.UUID,
+    body: AdjustStockRequest,
+    auth: Annotated[AuthContext, Depends(require_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+    request: Request,
+) -> ProductResponse:
+    product = await container.product_service.adjust_stock(
+        company_id=auth.company_id,
+        product_id=product_id,
+        actor_id=auth.user_id,
+        data=AdjustStockInput(**body.model_dump()),
         ip=get_client_ip(request),
     )
     return _to_response(product)

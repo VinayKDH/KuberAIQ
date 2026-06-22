@@ -1,5 +1,5 @@
 const CACHE_SHELL = "kuberaiq-shell-v1";
-const SHELL_PATHS = ["/", "/dashboard", "/counter", "/manifest.json"];
+const SHELL_PATHS = ["/", "/dashboard", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -15,15 +15,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
+import { AddStockDialog } from "@/components/products/add-stock-dialog";
 import { EditProductDialog } from "@/components/products/edit-product-dialog";
 import { LowStockPanel } from "@/components/products/low-stock-panel";
 import { StarterProductsBanner } from "@/components/products/starter-products-banner";
 import { useDeactivateProduct, useProducts } from "@/features/products/hooks";
 import { useDebounce } from "@/hooks/use-debounce";
-import { DEFAULT_PAGE_SIZE, PRODUCT_FORM } from "@/lib/constants";
-import { formatINR } from "@/lib/format";
+import { DEFAULT_PAGE_SIZE, INVENTORY_COPY, PRODUCT_FORM } from "@/lib/constants";
+import { formatINR, formatQty } from "@/lib/format";
+import { getPreferredLanguage } from "@/lib/i18n";
 
 export default function ProductsPage() {
+  const lang = getPreferredLanguage();
+  const inventoryCopy = INVENTORY_COPY;
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const debouncedSearch = useDebounce(search);
@@ -85,6 +89,7 @@ export default function ProductsPage() {
               <TableHead>Unit</TableHead>
               <TableHead>GST</TableHead>
               <TableHead className="text-right">Price</TableHead>
+              <TableHead className="text-right">{inventoryCopy.STOCK_COLUMN[lang]}</TableHead>
               <TableHead>Status</TableHead>
               <TableHead />
             </TableRow>
@@ -93,7 +98,7 @@ export default function ProductsPage() {
             {isLoading &&
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((__, j) => (
+                  {Array.from({ length: 8 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -102,7 +107,7 @@ export default function ProductsPage() {
               ))}
             {!isLoading && data?.items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                   No products found
                 </TableCell>
               </TableRow>
@@ -114,6 +119,9 @@ export default function ProductsPage() {
                 <TableCell>{product.unit}</TableCell>
                 <TableCell>{product.gst_rate}%</TableCell>
                 <TableCell className="text-right">{formatINR(product.default_price)}</TableCell>
+                <TableCell className="text-right">
+                  {formatQty(product.stock_qty ?? 0)} {product.unit}
+                </TableCell>
                 <TableCell>
                   <Badge variant={product.is_active ? "default" : "secondary"}>
                     {product.is_active ? "Active" : "Inactive"}
@@ -121,6 +129,7 @@ export default function ProductsPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
+                    {product.is_active && <AddStockDialog product={product} />}
                     {product.is_active && <EditProductDialog product={product} />}
                     {product.is_active && (
                       <Button

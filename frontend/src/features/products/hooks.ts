@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/lib/constants";
 import {
+  adjustProductStock,
   createProduct,
   deactivateProduct,
   fetchProduct,
   fetchProducts,
   updateProduct,
 } from "./api";
-import type { CreateProductInput, ProductListParams, UpdateProductInput } from "./types";
+import type { AdjustStockInput, CreateProductInput, ProductListParams, UpdateProductInput } from "./types";
 
 export function useProducts(params?: ProductListParams) {
   return useQuery({
@@ -49,5 +50,18 @@ export function useDeactivateProduct() {
   return useMutation({
     mutationFn: (id: string) => deactivateProduct(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+  });
+}
+
+export function useAdjustProductStock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: AdjustStockInput }) =>
+      adjustProductStock(id, input),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PRODUCT(id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PRODUCTS_LOW_STOCK });
+    },
   });
 }

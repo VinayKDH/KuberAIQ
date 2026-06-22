@@ -9,6 +9,7 @@ import { useHsnLookupFromName } from "@/features/products/use-hsn-lookup";
 import { lookupHsnGst } from "@/features/products/api";
 import type { Product } from "@/features/products/types";
 import { GST_RATES, INVOICE_UNITS, PRODUCT_FORM } from "@/lib/constants";
+import { getPreferredLanguage } from "@/lib/i18n";
 
 export interface ProductFormValues {
   name: string;
@@ -17,6 +18,7 @@ export interface ProductFormValues {
   unit: string;
   defaultPrice: string;
   gstRate: string;
+  stockQty: string;
 }
 
 export function productToFormValues(product: Product): ProductFormValues {
@@ -27,6 +29,7 @@ export function productToFormValues(product: Product): ProductFormValues {
     unit: product.unit,
     defaultPrice: String(product.default_price),
     gstRate: String(product.gst_rate),
+    stockQty: String(product.stock_qty ?? 0),
   };
 }
 
@@ -38,12 +41,14 @@ export function productFormToPayload(values: ProductFormValues) {
     unit: values.unit,
     default_price: Number(values.defaultPrice),
     gst_rate: Number(values.gstRate),
+    stock_qty: Number(values.stockQty || 0),
   };
 }
 
 export function validateProductForm(values: ProductFormValues): string | null {
   if (!values.name.trim()) return "Product name is required";
   if (!values.defaultPrice || Number(values.defaultPrice) < 0) return "Enter a valid price";
+  if (values.stockQty && Number(values.stockQty) < 0) return "Stock quantity cannot be negative";
   return null;
 }
 
@@ -53,6 +58,7 @@ interface ProductFormFieldsProps {
 }
 
 export function ProductFormFields({ values, onChange }: ProductFormFieldsProps) {
+  const lang = getPreferredLanguage();
   const [gstAutoFilled, setGstAutoFilled] = useState(false);
   const [hsnManuallyEdited, setHsnManuallyEdited] = useState(false);
   const [matchedLabel, setMatchedLabel] = useState<string | null>(null);
@@ -169,6 +175,18 @@ export function ProductFormFields({ values, onChange }: ProductFormFieldsProps) 
           {gstAutoFilled && (
             <p className="text-xs text-muted-foreground">{PRODUCT_FORM.GST_AUTO_FILLED}</p>
           )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="product-stock">{PRODUCT_FORM.STOCK_QTY[lang]}</Label>
+          <Input
+            id="product-stock"
+            type="number"
+            min="0"
+            step="any"
+            value={values.stockQty}
+            onChange={(e) => onChange("stockQty", e.target.value)}
+            placeholder="0"
+          />
         </div>
       </div>
     </div>

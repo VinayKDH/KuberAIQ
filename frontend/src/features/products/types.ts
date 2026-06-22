@@ -6,6 +6,7 @@ export interface Product {
   unit: string;
   default_price: number | string;
   gst_rate: number | string;
+  stock_qty: number | string;
   is_active: boolean;
 }
 
@@ -23,6 +24,7 @@ export interface CreateProductInput {
   unit?: string;
   default_price: number;
   gst_rate?: number;
+  stock_qty?: number;
 }
 
 export interface HsnLookupResult {
@@ -39,7 +41,14 @@ export interface UpdateProductInput {
   unit?: string;
   default_price?: number;
   gst_rate?: number;
+  stock_qty?: number;
   is_active?: boolean;
+}
+
+export interface AdjustStockInput {
+  delta?: number;
+  qty?: number;
+  reason: string;
 }
 
 export interface ProductPickerValue {

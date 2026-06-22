@@ -27,6 +27,7 @@ const EMPTY_VALUES: ProductFormValues = {
   unit: "NOS",
   defaultPrice: "",
   gstRate: "18",
+  stockQty: "0",
 };
 
 export function AddProductDialog() {

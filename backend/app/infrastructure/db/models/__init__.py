@@ -11,6 +11,7 @@ from app.infrastructure.db.models.expense import ExpenseModel
 from app.infrastructure.db.models.invoice import InvoiceItemModel, InvoiceModel
 from app.infrastructure.db.models.payment import PaymentModel
 from app.infrastructure.db.models.product import ProductModel
+from app.infrastructure.db.models.stock_movement import StockMovementModel
 from app.infrastructure.db.models.quotation import QuotationItemModel, QuotationModel
 from app.infrastructure.db.models.recurring_invoice import RecurringInvoiceTemplateModel
 from app.infrastructure.db.models.reminder import ReminderModel
@@ -34,6 +35,7 @@ __all__ = [
     "InvoiceModel",
     "PaymentModel",
     "ProductModel",
+    "StockMovementModel",
     "QuotationItemModel",
     "QuotationModel",
     "RecurringInvoiceTemplateModel",
