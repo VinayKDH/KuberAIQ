@@ -11,6 +11,7 @@ import {
   Package,
   Settings,
   ShieldCheck,
+  ShoppingCart,
   Users,
 } from "lucide-react";
 import { APP_NAME, NAV_ITEMS, NAV_ITEMS_CA, ROUTES, USER_ROLE } from "@/lib/constants";
@@ -28,6 +29,7 @@ const iconMap = {
   Bot,
   ShieldCheck,
   Settings,
+  ShoppingCart,
 } as const;
 
 interface SidebarProps {

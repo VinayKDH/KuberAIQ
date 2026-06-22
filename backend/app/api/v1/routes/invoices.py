@@ -21,6 +21,8 @@ from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.gstr import Gstr1ReportResponse, Gstr3bReportResponse
 from app.api.schemas.invoice import (
     CancelInvoiceRequest,
+    CounterBillRequest,
+    CounterBillResponse,
     CreateCreditNoteRequest,
     CreateInvoiceRequest,
     CreateRecurringInvoiceTemplateRequest,
@@ -38,6 +40,7 @@ from app.api.schemas.invoice import (
     UpdateInvoiceRequest,
 )
 from app.application.services.invoice_service import (
+    CounterBillInput,
     CreateCreditNoteInput,
     CreateInvoiceInput,
     InvoiceItemInput,
@@ -159,6 +162,33 @@ async def list_invoices(
         page=page,
         page_size=page_size,
         total=total,
+    )
+
+
+@router.post("/counter", response_model=CounterBillResponse, status_code=status.HTTP_201_CREATED)
+async def counter_bill(
+    body: CounterBillRequest,
+    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
+    container: Annotated[Container, Depends(get_container)],
+    request: Request,
+) -> CounterBillResponse:
+    result = await container.invoice_service.counter_bill(
+        company_id=auth.company_id,
+        actor_id=auth.user_id,
+        data=CounterBillInput(
+            product_id=uuid.UUID(body.product_id),
+            quantity=body.quantity,
+            customer_id=uuid.UUID(body.customer_id) if body.customer_id else None,
+            customer_name=body.customer_name,
+        ),
+        ip=get_client_ip(request),
+    )
+    invoice = result["invoice"]
+    customer = await container.customer_service.get(auth.company_id, invoice.customer_id)
+    return CounterBillResponse(
+        invoice=_to_response(invoice, customer_name=customer.name),
+        customer_name=result["customer_name"],
+        stock_warning=result.get("stock_warning"),
     )
 
 

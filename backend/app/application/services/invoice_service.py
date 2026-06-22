@@ -11,8 +11,11 @@ from app.application.ports.pdf import PdfGeneratorPort
 from app.application.ports.storage import StoragePort
 from app.core.constants import (
     BLOB_INVOICE_PREFIX,
+    COUNTER_DEFAULT_DUE_DAYS,
+    COUNTER_WALK_IN_CUSTOMER_NAME,
     DEFAULT_CREDIT_NOTE_PREFIX,
     DEFAULT_UNIT,
+    LOW_STOCK_THRESHOLD_DEFAULT,
     PDF_SIGNED_URL_TTL_SECONDS,
     WHATSAPP_TEMPLATE_INVOICE_SHARE,
     AuditAction,
@@ -70,6 +73,14 @@ class UpdateInvoiceInput:
     issue_date: date | None = None
     due_date: date | None = None
     items: list[InvoiceItemInput] | None = None
+
+
+@dataclass
+class CounterBillInput:
+    product_id: uuid.UUID
+    quantity: Decimal
+    customer_id: uuid.UUID | None = None
+    customer_name: str | None = None
 
 
 class InvoiceService:
@@ -541,6 +552,110 @@ class InvoiceService:
                 ip_address=ip,
             )
             return {"url": invoice.payment_link_url, "provider": "razorpay"}
+
+    async def counter_bill(
+        self,
+        *,
+        company_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        data: CounterBillInput,
+        ip: str | None = None,
+    ) -> dict:
+        if data.quantity <= 0:
+            raise ValidationAppError("Quantity must be positive")
+
+        today = date.today()
+        due_date = today + timedelta(days=COUNTER_DEFAULT_DUE_DAYS)
+        stock_warning: str | None = None
+
+        async with self._uow_factory() as uow:
+            product = await uow.products.get_by_id(company_id, data.product_id)
+            if not product:
+                raise NotFoundError("Product not found")
+            if product.stock_qty > 0 and data.quantity > product.stock_qty:
+                stock_warning = (
+                    f"Requested qty {data.quantity} exceeds stock {product.stock_qty}"
+                )
+            elif product.stock_qty <= Decimal(str(LOW_STOCK_THRESHOLD_DEFAULT)):
+                stock_warning = f"Low stock: {product.stock_qty} {product.unit} remaining"
+
+            if data.customer_id:
+                customer = await uow.customers.get_by_id(company_id, data.customer_id)
+                if not customer:
+                    raise NotFoundError("Customer not found")
+            else:
+                walk_in_name = (data.customer_name or COUNTER_WALK_IN_CUSTOMER_NAME).strip()
+                matches = await uow.customers.find_by_name(company_id, walk_in_name)
+                customer = matches[0] if matches else None
+                if not customer:
+                    customer = Customer(
+                        company_id=company_id,
+                        name=walk_in_name,
+                        phone=Phone("9000000001"),
+                    )
+                    customer = await uow.customers.create(customer)
+
+            company = await uow.companies.get_by_id(company_id)
+            if not company:
+                raise NotFoundError("Company not found")
+
+            item_input = InvoiceItemInput(
+                description=product.name,
+                quantity=data.quantity,
+                unit_price=product.default_price,
+                gst_rate=product.gst_rate,
+                hsn_sac=product.hsn_sac,
+                unit=product.unit,
+                product_id=product.id,
+            )
+            items = await self._enrich_items_from_catalog(uow, company_id, [item_input])
+            invoice = self._build_invoice(
+                company_id=company_id,
+                customer_id=customer.id,
+                issue_date=today,
+                due_date=due_date,
+                items=items,
+                created_by=actor_id,
+            )
+            invoice.recalculate(
+                supplier_state=company.state_code,
+                customer_state=customer.state_code,
+            )
+            fy = financial_year(today)
+            number = await uow.invoices.allocate_number(company_id, fy, company.invoice_prefix)
+            invoice.issue(number=number, fy=fy)
+            saved = await uow.invoices.create(invoice)
+
+            if product.stock_qty > 0:
+                before_qty = product.stock_qty
+                product.stock_qty = max(Decimal("0"), product.stock_qty - data.quantity)
+                await uow.products.update(product)
+                if before_qty != product.stock_qty:
+                    await uow.stock_movements.create_counter_sale(
+                        company_id=company_id,
+                        product_id=product.id,
+                        delta=-data.quantity,
+                        qty_after=product.stock_qty,
+                        invoice_id=saved.id,
+                        actor_id=actor_id,
+                    )
+
+            await uow.audit.log(
+                company_id=company_id,
+                actor_user_id=actor_id,
+                entity_type=EntityType.INVOICE,
+                entity_id=saved.id,
+                action=AuditAction.ISSUE,
+                before=None,
+                after={"invoice_number": saved.invoice_number, "counter": True},
+                ip_address=ip,
+            )
+
+        return {
+            "invoice": saved,
+            "customer_name": customer.name,
+            "stock_warning": stock_warning,
+        }
 
     async def gst_report(
         self, company_id: uuid.UUID, from_date: date, to_date: date
