@@ -45,7 +45,7 @@ export default function LoginPage() {
 
   const [lang, setLang] = useState<AppLanguage>("en");
   const [segmentId, setSegmentId] = useState<MsmeLoginSegmentId>(MSME_LOGIN_SEGMENTS[0].id);
-  const [email, setEmail] = useState(DEMO_LOGIN_EMAIL);
+  const [email, setEmail] = useState("");
   const [remember, setRemember] = useState(true);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -63,8 +63,10 @@ export default function LoginPage() {
     if (savedEmail) {
       setEmail(savedEmail);
       setRemember(true);
+    } else if (mockAuth) {
+      setEmail(DEMO_LOGIN_EMAIL);
     }
-  }, []);
+  }, [mockAuth]);
 
   useEffect(() => {
     if (!isAuthenticated()) {

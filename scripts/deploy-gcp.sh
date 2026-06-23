@@ -63,12 +63,56 @@ fi
 CLOUDSQL_ANNOTATION=()
 if [[ -n "$GCP_CLOUDSQL_CONNECTION_NAME" ]]; then
   CLOUDSQL_ANNOTATION=(--add-cloudsql-instances="$GCP_CLOUDSQL_CONNECTION_NAME")
-  # GCP staging defaults when using Cloud SQL (override in .env.gcp if needed).
-  USE_MOCK_AUTH="${USE_MOCK_AUTH:-true}"
-  USE_MOCK_BLOB="${USE_MOCK_BLOB:-true}"
-  USE_MOCK_BILLING="${USE_MOCK_BILLING:-true}"
-  export USE_MOCK_AUTH USE_MOCK_BLOB USE_MOCK_BILLING
 fi
+
+ENVIRONMENT="${ENVIRONMENT:-production}"
+
+# Production mock toggles — set explicitly in .env.gcp or infer from configured credentials.
+if [[ -z "${USE_MOCK_AUTH+x}" ]]; then
+  if [[ -n "${GOOGLE_CLIENT_ID:-}" && -n "${GOOGLE_CLIENT_SECRET:-}" ]] \
+    || [[ -n "${ENTRA_CLIENT_ID:-}" && -n "${ENTRA_CLIENT_SECRET:-}" ]]; then
+    USE_MOCK_AUTH=false
+  else
+    USE_MOCK_AUTH=false
+  fi
+fi
+if [[ -z "${USE_MOCK_BILLING+x}" ]]; then
+  if [[ -n "${RAZORPAY_KEY_ID:-}" && -n "${RAZORPAY_KEY_SECRET:-}" && -n "${RAZORPAY_WEBHOOK_SECRET:-}" ]]; then
+    USE_MOCK_BILLING=false
+  else
+    USE_MOCK_BILLING=false
+  fi
+fi
+if [[ -z "${USE_MOCK_WHATSAPP+x}" ]]; then
+  if [[ -n "${WHATSAPP_PHONE_NUMBER_ID:-}" && -n "${WHATSAPP_ACCESS_TOKEN:-}" ]]; then
+    USE_MOCK_WHATSAPP=false
+  else
+    USE_MOCK_WHATSAPP=true
+  fi
+fi
+if [[ -z "${USE_MOCK_BLOB+x}" ]]; then
+  if [[ -n "${AZURE_STORAGE_CONNECTION_STRING:-}" ]]; then
+    USE_MOCK_BLOB=false
+  else
+    USE_MOCK_BLOB=true
+  fi
+fi
+if [[ -z "${USE_MOCK_LLM+x}" ]]; then
+  if [[ -n "${AZURE_OPENAI_ENDPOINT:-}" && -n "${AZURE_OPENAI_API_KEY:-}" ]]; then
+    USE_MOCK_LLM=false
+  else
+    USE_MOCK_LLM=true
+  fi
+fi
+export USE_MOCK_AUTH USE_MOCK_BLOB USE_MOCK_BILLING USE_MOCK_WHATSAPP USE_MOCK_LLM ENVIRONMENT
+
+echo "==> Production mode"
+echo "    Environment:   $ENVIRONMENT"
+echo "    Mock auth:     $USE_MOCK_AUTH"
+echo "    Mock billing:  $USE_MOCK_BILLING"
+echo "    Mock WhatsApp: $USE_MOCK_WHATSAPP"
+echo "    Mock blob:     $USE_MOCK_BLOB"
+echo "    Mock LLM:      $USE_MOCK_LLM"
 
 WEB_URL_FOR_BUILD="$(gcloud run services describe "$WEB_SERVICE" --region "$REGION" --project "$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)"
 export GCP_WEB_ORIGIN="${GCP_WEB_ORIGIN:-$WEB_URL_FOR_BUILD}"
@@ -133,6 +177,9 @@ settings = {
     "GOOGLE_CLIENT_ID": env("GOOGLE_CLIENT_ID"),
     "GOOGLE_CLIENT_SECRET": env("GOOGLE_CLIENT_SECRET"),
     "GOOGLE_REDIRECT_URI": env("GOOGLE_REDIRECT_URI"),
+    "ENTRA_TENANT_ID": env("ENTRA_TENANT_ID"),
+    "ENTRA_CLIENT_ID": env("ENTRA_CLIENT_ID"),
+    "ENTRA_CLIENT_SECRET": env("ENTRA_CLIENT_SECRET"),
     "NEXT_PUBLIC_OAUTH_COOKIE_DOMAIN": env("NEXT_PUBLIC_OAUTH_COOKIE_DOMAIN", ".kuberaiq.com"),
     "NEXT_PUBLIC_APEX_DOMAIN": env("NEXT_PUBLIC_APEX_DOMAIN", "kuberaiq.com"),
     "AZURE_OPENAI_ENDPOINT": env("AZURE_OPENAI_ENDPOINT"),
@@ -205,36 +252,42 @@ cd "$ROOT"
 
 echo "==> Building and pushing Web image"
 WEB_BUILD_URL="${WEB_URL_FOR_BUILD:-https://${WEB_SERVICE}-${REGION}.a.run.app}"
-WEB_MOCK_AUTH="${USE_MOCK_AUTH:-true}"
-WEB_MOCK_BILLING="${USE_MOCK_BILLING:-true}"
+WEB_MOCK_AUTH="${USE_MOCK_AUTH:-false}"
+WEB_MOCK_BILLING="${USE_MOCK_BILLING:-false}"
+WEB_GOOGLE_REDIRECT="${GOOGLE_REDIRECT_URI:-https://www.kuberaiq.com/auth/callback}"
+WEB_OAUTH_COOKIE_DOMAIN="${NEXT_PUBLIC_OAUTH_COOKIE_DOMAIN:-.kuberaiq.com}"
+WEB_APEX_DOMAIN="${NEXT_PUBLIC_APEX_DOMAIN:-kuberaiq.com}"
 WEB_BUILD_CONFIG="$TMP_DIR/cloudbuild-web.yaml"
-cat >"$WEB_BUILD_CONFIG" <<EOF
-steps:
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - build
-      - -f
-      - Dockerfile
-      - -t
-      - ${WEB_IMAGE}
-      - --build-arg
-      - API_UPSTREAM_URL=${API_URL}
-      - --build-arg
-      - NEXT_PUBLIC_WEB_URL=${WEB_BUILD_URL}
-      - --build-arg
-      - NEXT_PUBLIC_USE_MOCK_AUTH=${WEB_MOCK_AUTH}
-      - --build-arg
-      - NEXT_PUBLIC_USE_MOCK_BILLING=${WEB_MOCK_BILLING}
-      - --build-arg
-      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-      - --build-arg
-      - NEXT_PUBLIC_OAUTH_COOKIE_DOMAIN=
-      - --build-arg
-      - NEXT_PUBLIC_APEX_DOMAIN=${NEXT_PUBLIC_APEX_DOMAIN:-kuberaiq.com}
-      - .
-images:
-  - ${WEB_IMAGE}
-EOF
+WEB_BUILD_ARGS=(
+  "build"
+  "-f" "Dockerfile"
+  "-t" "${WEB_IMAGE}"
+  "--build-arg" "API_UPSTREAM_URL=${API_URL}"
+  "--build-arg" "NEXT_PUBLIC_WEB_URL=${WEB_BUILD_URL}"
+  "--build-arg" "NEXT_PUBLIC_USE_MOCK_AUTH=${WEB_MOCK_AUTH}"
+  "--build-arg" "NEXT_PUBLIC_USE_MOCK_BILLING=${WEB_MOCK_BILLING}"
+  "--build-arg" "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}"
+  "--build-arg" "NEXT_PUBLIC_GOOGLE_REDIRECT_URI=${WEB_GOOGLE_REDIRECT}"
+  "--build-arg" "NEXT_PUBLIC_OAUTH_COOKIE_DOMAIN=${WEB_OAUTH_COOKIE_DOMAIN}"
+  "--build-arg" "NEXT_PUBLIC_APEX_DOMAIN=${WEB_APEX_DOMAIN}"
+)
+if [[ -n "${ENTRA_CLIENT_ID:-}" ]]; then
+  WEB_BUILD_ARGS+=(
+    "--build-arg" "NEXT_PUBLIC_ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID}"
+    "--build-arg" "NEXT_PUBLIC_ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-common}"
+    "--build-arg" "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${ENTRA_REDIRECT_URI:-https://www.kuberaiq.com/auth/callback}"
+  )
+fi
+{
+  echo "steps:"
+  echo "  - name: gcr.io/cloud-builders/docker"
+  echo "    args:"
+  for arg in "${WEB_BUILD_ARGS[@]}" "."; do
+    echo "      - ${arg}"
+  done
+  echo "images:"
+  echo "  - ${WEB_IMAGE}"
+} >"$WEB_BUILD_CONFIG"
 
 gcloud builds submit "$ROOT/frontend" \
   --project "$PROJECT_ID" \
@@ -267,6 +320,15 @@ echo "==> Smoke checks"
 curl -sf "${API_URL}/health" >/dev/null
 curl -sf "${API_URL}/health/ready" >/dev/null || true
 curl -sf "${WEB_URL}" >/dev/null
+if [[ "$USE_MOCK_AUTH" == "false" ]]; then
+  MOCK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API_URL}/api/v1/auth/mock-login" \
+    -H "Content-Type: application/json" -d '{"email":"qa@example.com"}')
+  if [[ "$MOCK_STATUS" == "403" ]]; then
+    echo "    mock-login disabled (403) — production auth mode OK"
+  else
+    echo "WARNING: Expected mock-login 403 when USE_MOCK_AUTH=false, got $MOCK_STATUS"
+  fi
+fi
 
 echo ""
 echo "GCP deployment complete."
