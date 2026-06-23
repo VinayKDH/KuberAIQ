@@ -50,24 +50,33 @@ OK=true
 check_cname "$WEB_DOMAIN" || OK=false
 check_cname "$API_DOMAIN" || OK=false
 
-echo ""
-if curl -sf --max-time 8 "${PUBLIC_WEB_URL}" 2>/dev/null | head -c 200 | grep -qi "site disabled"; then
-  echo "  FAIL ${PUBLIC_WEB_URL} — Azure 'Site Disabled' (DNS still points to Azure)"
-  OK=false
-elif curl -sf --max-time 8 "${PUBLIC_WEB_URL}" >/dev/null 2>&1; then
-  echo "  OK  ${PUBLIC_WEB_URL} — reachable"
-else
-  echo "  PENDING ${PUBLIC_WEB_URL} — not yet reachable (DNS/SSL propagation or mapping pending)"
-fi
+check_https_backend() {
+  local url="$1"
+  local headers
+  headers=$(curl -sI --max-time 8 "$url" 2>/dev/null || true)
+  if echo "$headers" | grep -qi "site disabled"; then
+    echo "  FAIL $url — Azure 'Site Disabled' (DNS still points to Azure)"
+    return 1
+  fi
+  if echo "$headers" | grep -qi "set-cookie:.*ARRAffinity"; then
+    echo "  WARN $url — reachable but still served by Azure (update CNAME → ${GCP_CNAME})"
+    return 1
+  fi
+  if echo "$headers" | grep -qi "x-cloud-trace-context\|run.googleapis.com"; then
+    echo "  OK  $url — GCP Cloud Run"
+    return 0
+  fi
+  if curl -sf --max-time 8 "$url" >/dev/null 2>&1; then
+    echo "  PENDING $url — reachable (backend unclear — check DNS CNAME)"
+    return 1
+  fi
+  echo "  PENDING $url — not yet reachable (DNS/SSL propagation or mapping pending)"
+  return 1
+}
 
-if curl -sf --max-time 8 "${PUBLIC_API_URL}/health" >/dev/null 2>&1; then
-  echo "  OK  ${PUBLIC_API_URL}/health — reachable"
-elif curl -sf --max-time 8 "${PUBLIC_API_URL}/health" 2>&1 | grep -qi "site disabled"; then
-  echo "  FAIL ${PUBLIC_API_URL} — Azure 'Site Disabled'"
-  OK=false
-else
-  echo "  PENDING ${PUBLIC_API_URL}/health — not yet reachable"
-fi
+echo ""
+check_https_backend "${PUBLIC_WEB_URL}" || OK=false
+check_https_backend "${PUBLIC_API_URL}/health" || OK=false
 
 echo ""
 if [[ "$OK" != "true" ]]; then
@@ -77,4 +86,5 @@ if [[ "$OK" != "true" ]]; then
   exit 1
 fi
 
-echo "Custom domains look good. Run ./scripts/setup-gcp-domains.sh if mappings are not yet created."
+echo "Custom domains look good on GCP."
+echo "If mappings missing: ENV_FILE=${ENV_FILE:-$ROOT/.env.gcp} ./scripts/setup-gcp-domains.sh"

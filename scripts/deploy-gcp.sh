@@ -114,8 +114,10 @@ echo "    Mock WhatsApp: $USE_MOCK_WHATSAPP"
 echo "    Mock blob:     $USE_MOCK_BLOB"
 echo "    Mock LLM:      $USE_MOCK_LLM"
 
-WEB_URL_FOR_BUILD="$(gcloud run services describe "$WEB_SERVICE" --region "$REGION" --project "$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)"
-export GCP_WEB_ORIGIN="${GCP_WEB_ORIGIN:-$WEB_URL_FOR_BUILD}"
+_GCP_WEB_RUN_URL="$(gcloud run services describe "$WEB_SERVICE" --region "$REGION" --project "$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)"
+export GCP_WEB_ORIGIN="${GCP_WEB_ORIGIN:-$_GCP_WEB_RUN_URL}"
+# Prefer custom domain for Next.js build when DNS is live (PUBLIC_WEB_URL in .env.gcp).
+WEB_URL_FOR_BUILD="${PUBLIC_WEB_URL:-${_GCP_WEB_RUN_URL}}"
 
 if ! gcloud services list --enabled --project "$PROJECT_ID" --format="value(config.name)" | rg -q "^run.googleapis.com$"; then
   gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com --project "$PROJECT_ID"
@@ -336,6 +338,12 @@ echo "  API: ${API_URL}"
 echo "  WEB: ${WEB_URL}"
 echo ""
 echo "Custom domains (www/api.kuberaiq.com):"
-echo "  If DNS still points to Azure you will see 'Site Disabled' 403."
-echo "  Fix: ./scripts/check-kuberaiq-dns-gcp.sh && ./scripts/setup-gcp-domains.sh"
+echo "  Runbook: docs/gcp-custom-domains.md"
+echo "  DNS check: ./scripts/check-kuberaiq-dns-gcp.sh"
+echo "  Map domains: ./scripts/setup-gcp-domains.sh"
+if [[ -n "${PUBLIC_WEB_URL:-}" ]]; then
+  echo "  Web build URL: ${PUBLIC_WEB_URL} (PUBLIC_WEB_URL)"
+else
+  echo "  Web build URL: Cloud Run default (set PUBLIC_WEB_URL after DNS cutover)"
+fi
 echo "Azure remains unchanged."
