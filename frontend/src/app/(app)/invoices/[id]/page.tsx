@@ -48,6 +48,7 @@ import {
   CREDIT_NOTE_COPY,
   INVOICE_STATUS_LABELS,
   INVOICE_STATUS_VARIANTS,
+  MSME_SCREEN_COPY,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   ROUTES,
@@ -55,8 +56,12 @@ import {
 } from "@/lib/constants";
 import { buildUpiPayUrl } from "@/lib/upi";
 import { formatDate, formatINR, todayIso } from "@/lib/format";
+import { getPreferredLanguage, screenCopy } from "@/lib/i18n";
 
 export default function InvoiceDetailPage() {
+  const lang = getPreferredLanguage();
+  const paymentCopy = MSME_SCREEN_COPY.payment;
+  const pt = (key: keyof typeof paymentCopy) => screenCopy(paymentCopy[key], lang);
   const params = useParams();
   const id = String(params.id);
   const { data: invoice, isLoading, isError, error } = useInvoice(id);
@@ -223,18 +228,18 @@ export default function InvoiceDetailPage() {
           {canPay && (
             <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">Record payment</Button>
+                <Button variant="outline">{pt("recordTitle")}</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Record payment</DialogTitle>
+                  <DialogTitle>{pt("recordTitle")}</DialogTitle>
                   <DialogDescription>
-                    Outstanding: {formatINR(invoice.amount_due)}
+                    {pt("recordDesc")} · {formatINR(invoice.amount_due)}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="amount">Amount (₹)</Label>
+                    <Label htmlFor="amount">{pt("amount")}</Label>
                     <Input
                       id="amount"
                       type="number"
@@ -245,7 +250,7 @@ export default function InvoiceDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="method">Method</Label>
+                    <Label htmlFor="method">{pt("method")}</Label>
                     <Select
                       id="method"
                       options={PAYMENT_METHODS.map((m) => ({
@@ -257,7 +262,7 @@ export default function InvoiceDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="paid_on">Paid on</Label>
+                    <Label htmlFor="paid_on">{pt("paidOn")}</Label>
                     <Input
                       id="paid_on"
                       type="date"

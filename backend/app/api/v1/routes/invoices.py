@@ -15,8 +15,10 @@ from app.api.deps import (
     get_container,
     get_tenant_context,
     require_msme_roles,
+    require_permission,
     require_tenant_read_roles,
 )
+from app.core.constants import RBAC_PERMISSION_INVOICE_CANCEL
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.gstr import Gstr1ReportResponse, Gstr3bReportResponse
 from app.api.schemas.invoice import (
@@ -404,7 +406,7 @@ async def issue_invoice(
 async def cancel_invoice(
     invoice_id: uuid.UUID,
     body: CancelInvoiceRequest,
-    auth: Annotated[AuthContext, Depends(require_msme_roles(UserRole.OWNER, UserRole.STAFF))],
+    auth: Annotated[AuthContext, Depends(require_permission(RBAC_PERMISSION_INVOICE_CANCEL))],
     container: Annotated[Container, Depends(get_container)],
     request: Request,
 ) -> InvoiceResponse:

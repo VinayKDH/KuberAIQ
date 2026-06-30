@@ -16,8 +16,10 @@ import {
   GST_RATES,
   INVOICE_LINE_MODE,
   INVOICE_UNITS,
+  MSME_SCREEN_COPY,
 } from "@/lib/constants";
 import { addDaysIso, todayIso } from "@/lib/format";
+import { getPreferredLanguage, screenCopy } from "@/lib/i18n";
 
 const emptyLine = (): InvoiceLineInput => ({
   description: "",
@@ -33,6 +35,9 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ onSubmit, isSubmitting }: InvoiceFormProps) {
+  const lang = getPreferredLanguage();
+  const copy = MSME_SCREEN_COPY.invoiceForm;
+  const t = (key: keyof typeof copy) => screenCopy(copy[key], lang);
   const { data: customersData } = useCustomers({ page: 1, page_size: 100 });
   const { data: productsData } = useProducts({ page: 1, page_size: 100, active_only: true });
   const [customerId, setCustomerId] = useState("");
@@ -108,21 +113,21 @@ export function InvoiceForm({ onSubmit, isSubmitting }: InvoiceFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Invoice details</CardTitle>
+          <CardTitle className="text-base">{t("detailsTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="customer">Customer</Label>
+            <Label htmlFor="customer">{t("customer")}</Label>
             <Select
               id="customer"
               options={customerOptions}
-              placeholder="Select customer"
+              placeholder={t("selectCustomer")}
               value={customerId}
               onValueChange={setCustomerId}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="issue_date">Issue date</Label>
+            <Label htmlFor="issue_date">{t("issueDate")}</Label>
             <Input
               id="issue_date"
               type="date"
@@ -132,7 +137,7 @@ export function InvoiceForm({ onSubmit, isSubmitting }: InvoiceFormProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="due_date">Due date</Label>
+            <Label htmlFor="due_date">{t("dueDate")}</Label>
             <Input
               id="due_date"
               type="date"
@@ -158,10 +163,10 @@ export function InvoiceForm({ onSubmit, isSubmitting }: InvoiceFormProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Line items</CardTitle>
+          <CardTitle className="text-base">{t("lineItems")}</CardTitle>
           <Button type="button" variant="outline" size="sm" onClick={addLine}>
             <Plus className="mr-1 h-4 w-4" />
-            Add line
+            {t("addLine")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -265,7 +270,7 @@ export function InvoiceForm({ onSubmit, isSubmitting }: InvoiceFormProps) {
 
       <div className="flex justify-end gap-3">
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : status === "DRAFT" ? "Save draft" : "Create & issue invoice"}
+          {isSubmitting ? t("submitting") : t("submit")}
         </Button>
       </div>
     </form>

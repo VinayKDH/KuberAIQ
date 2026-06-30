@@ -17,6 +17,13 @@ export const I18N_MESSAGES = {
 
 export type AppLanguage = keyof typeof I18N_MESSAGES;
 
+export function screenCopy<T extends { en: string; hi: string }>(
+  block: T,
+  lang: AppLanguage = "en",
+): string {
+  return block[lang] ?? block.en;
+}
+
 export function getPreferredLanguage(): AppLanguage {
   if (typeof window === "undefined") return "en";
   const saved = window.localStorage.getItem("kuberaiq_lang");

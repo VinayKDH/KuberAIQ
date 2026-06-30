@@ -4,6 +4,13 @@ from __future__ import annotations
 import uuid
 
 from app.core.config import settings
+from app.core.constants import (
+    ADMIN_ACTION_TENANT_ACTIVATE,
+    ADMIN_ACTION_TENANT_SUSPEND,
+    ADMIN_ACTION_TENANT_VIEW,
+    ADMIN_AUDIT_ACTOR,
+    ADMIN_DEMO_RESET_ALLOWED_ENVIRONMENTS,
+)
 from app.core.integration_modes import integration_health
 from app.core.errors import ForbiddenError, NotFoundError
 from app.domain.enums import UserRole
@@ -49,6 +56,16 @@ class AdminService:
             sub_status, plan_code = await uow.admin.get_owner_subscription(company_id)
             tokens, sessions = await uow.admin.ai_usage_for_company(company_id)
             owner_email = next((u.email for u in users if u.role == UserRole.OWNER), None)
+            await uow.audit.log(
+                company_id=company_id,
+                actor_user_id=None,
+                entity_type="company",
+                entity_id=company_id,
+                action=ADMIN_ACTION_TENANT_VIEW,
+                before=None,
+                after={"actor": ADMIN_AUDIT_ACTOR, "viewed_by": "admin"},
+            )
+            await uow.commit()
             return {
                 "company": company,
                 "users": users,
@@ -72,9 +89,9 @@ class AdminService:
                 actor_user_id=None,
                 entity_type="company",
                 entity_id=company_id,
-                action="activate" if is_active else "suspend",
+                action=ADMIN_ACTION_TENANT_ACTIVATE if is_active else ADMIN_ACTION_TENANT_SUSPEND,
                 before=None,
-                after={"is_active": is_active},
+                after={"actor": ADMIN_AUDIT_ACTOR, "is_active": is_active},
             )
             await uow.commit()
             return company

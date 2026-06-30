@@ -134,6 +134,23 @@ async def test_admin_audit_logs(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_tenant_view_writes_audit(client: AsyncClient) -> None:
+    detail = await client.get(
+        f"/api/v1/admin/tenants/{DEMO_COMPANY_ID}",
+        headers=admin_headers(),
+    )
+    assert detail.status_code == 200
+    logs = await client.get(
+        "/api/v1/admin/audit-logs",
+        headers=admin_headers(),
+        params={"company_id": str(DEMO_COMPANY_ID)},
+    )
+    assert logs.status_code == 200
+    actions = [item["action"] for item in logs.json()["items"]]
+    assert "ADMIN_TENANT_VIEW" in actions
+
+
+@pytest.mark.asyncio
 async def test_admin_demo_reset_guard(client: AsyncClient, monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setattr("app.application.services.admin_service.settings.environment", "production")
