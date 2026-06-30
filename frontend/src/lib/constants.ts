@@ -91,6 +91,24 @@ export const ROUTES = {
   ADMIN_AUDIT: "/admin/audit",
 } as const;
 
+export const OAUTH_CALLBACK_PATH = ROUTES.AUTH_CALLBACK;
+
+/** OAuth redirect URIs — production custom domain + Cloud Run fallback at runtime. */
+export function getOAuthRedirectUri(): string {
+  if (typeof window !== "undefined" && usesSameOriginApi(window.location.hostname)) {
+    return `${window.location.origin}${OAUTH_CALLBACK_PATH}`;
+  }
+  return (
+    process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI ||
+    `${PUBLIC_WEB_URL}${OAUTH_CALLBACK_PATH}`
+  );
+}
+
+export const OAUTH_REDIRECT_URIS = {
+  production: `${PUBLIC_WEB_URL}${OAUTH_CALLBACK_PATH}`,
+  api: PUBLIC_API_URL,
+} as const;
+
 export const API_PATHS = {
   MOCK_LOGIN: "/auth/mock-login",
   AUTH_CALLBACK: "/auth/callback",

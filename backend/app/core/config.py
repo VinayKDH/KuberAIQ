@@ -106,6 +106,33 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: str | None = None
 
+    # Public URLs (custom domain — used for OAuth redirect validation)
+    public_web_url: str | None = None
+    public_api_url: str | None = None
+    gcp_web_origin: str | None = None
+    gcp_api_origin: str | None = None
+
+    @property
+    def oauth_redirect_uris(self) -> list[str]:
+        uris: list[str] = []
+        if self.public_web_url:
+            uris.append(f"{self.public_web_url.rstrip('/')}/auth/callback")
+        if self.gcp_web_origin:
+            uris.append(f"{self.gcp_web_origin.rstrip('/')}/auth/callback")
+        return uris
+
+    @property
+    def effective_use_mock_whatsapp(self) -> bool:
+        if self.use_mock_whatsapp:
+            return True
+        return not (self.whatsapp_phone_number_id and self.whatsapp_access_token)
+
+    @property
+    def effective_use_mock_llm(self) -> bool:
+        if self.use_mock_llm:
+            return True
+        return not (self.azure_openai_endpoint and self.azure_openai_api_key)
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"

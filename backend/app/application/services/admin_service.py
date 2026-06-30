@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 
 from app.core.config import settings
-from app.core.constants import ADMIN_DEMO_RESET_ALLOWED_ENVIRONMENTS
+from app.core.integration_modes import integration_health
 from app.core.errors import ForbiddenError, NotFoundError
 from app.domain.enums import UserRole
 from app.startup.seed import seed_demo_data
@@ -102,26 +102,9 @@ class AdminService:
             )
 
     def get_system_health(self) -> dict:
-        return {
-            "environment": settings.environment,
-            "auth_mode": "mock" if settings.use_mock_auth else "oauth",
-            "llm_mode": "mock" if settings.use_mock_llm else "azure_openai",
-            "blob_mode": "mock" if settings.use_mock_blob else "azure",
-            "whatsapp_mode": "mock" if settings.use_mock_whatsapp else "live",
-            "billing_mode": "mock" if settings.use_mock_billing else "razorpay",
-            "google_oauth_configured": bool(settings.google_client_id),
-            "entra_oauth_configured": bool(settings.entra_client_id),
-            "azure_openai_configured": bool(
-                settings.azure_openai_endpoint and settings.azure_openai_api_key
-            ),
-            "azure_blob_configured": bool(settings.azure_blob_connection_string),
-            "whatsapp_configured": bool(
-                settings.whatsapp_phone_number_id and settings.whatsapp_access_token
-            ),
-            "razorpay_configured": bool(settings.razorpay_key_id and settings.razorpay_key_secret),
-            "razorpay_webhook_configured": bool(settings.razorpay_webhook_secret),
-            "admin_api_key_configured": bool(settings.admin_api_key),
-        }
+        health = integration_health()
+        health["admin_api_key_configured"] = bool(settings.admin_api_key)
+        return health
 
     async def reset_demo_data(self) -> dict:
         if settings.environment not in ADMIN_DEMO_RESET_ALLOWED_ENVIRONMENTS:

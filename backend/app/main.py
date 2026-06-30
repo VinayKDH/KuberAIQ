@@ -11,6 +11,7 @@ from app.api.middleware import RateLimitMiddleware, RequestIdMiddleware
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.constants import API_V1_PREFIX, APP_NAME, HEALTH_LIVE_PATH, HEALTH_METRICS_PATH, HEALTH_READY_PATH
+from app.core.integration_modes import integration_health
 from app.core.metrics import metrics
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
@@ -70,26 +71,7 @@ def create_app() -> FastAPI:
     @app.get("/health/integrations")
     async def health_integrations() -> dict:
         """Non-secret integration mode summary for deploy verification."""
-        return {
-            "environment": settings.environment,
-            "auth_mode": "mock" if settings.use_mock_auth else "oauth",
-            "llm_mode": "mock" if settings.use_mock_llm else "azure_openai",
-            "blob_mode": "mock" if settings.use_mock_blob else "azure",
-            "whatsapp_mode": "mock" if settings.use_mock_whatsapp else "live",
-            "google_oauth_configured": bool(settings.google_client_id),
-            "entra_oauth_configured": bool(settings.entra_client_id),
-            "azure_openai_configured": bool(
-                settings.azure_openai_endpoint and settings.azure_openai_api_key
-            ),
-            "azure_blob_configured": bool(settings.azure_blob_connection_string),
-            "whatsapp_configured": bool(
-                settings.whatsapp_phone_number_id and settings.whatsapp_access_token
-            ),
-            "whatsapp_app_secret_configured": bool(settings.whatsapp_app_secret),
-            "billing_mode": "mock" if settings.use_mock_billing else "razorpay",
-            "razorpay_configured": bool(settings.razorpay_key_id and settings.razorpay_key_secret),
-            "razorpay_webhook_configured": bool(settings.razorpay_webhook_secret),
-        }
+        return integration_health()
 
     return app
 

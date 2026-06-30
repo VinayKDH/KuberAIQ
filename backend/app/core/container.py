@@ -92,9 +92,9 @@ class Container:
 def build_container() -> Container:
     uow = _uow_factory()
     storage = _build_storage()
-    whatsapp_notifier = MockNotifier() if settings.use_mock_whatsapp else WhatsAppNotifier()
-    sms_notifier = MockSmsNotifier() if settings.use_mock_whatsapp else SmsNotifier()
-    email_notifier = MockEmailNotifier() if settings.use_mock_whatsapp else EmailNotifier()
+    whatsapp_notifier = MockNotifier() if settings.effective_use_mock_whatsapp else WhatsAppNotifier()
+    sms_notifier = MockSmsNotifier() if settings.effective_use_mock_whatsapp else SmsNotifier()
+    email_notifier = MockEmailNotifier() if settings.effective_use_mock_whatsapp else EmailNotifier()
     notifier = NotificationHub(
         whatsapp=whatsapp_notifier,
         sms=sms_notifier,
@@ -107,7 +107,7 @@ def build_container() -> Container:
     ca_service = CaService(uow)
     staff_service = StaffService(uow)
     auth_service = AuthService(uow, entra, google, billing_service)
-    llm = MockLlm() if settings.use_mock_llm else AzureOpenAiLlm()
+    llm = MockLlm() if settings.effective_use_mock_llm else AzureOpenAiLlm()
     graph = CopilotGraph(llm=llm)
 
     customer_service = CustomerService(uow, storage, pdf)

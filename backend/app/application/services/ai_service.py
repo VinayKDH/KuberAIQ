@@ -10,7 +10,7 @@ from app.application.services.collection_service import CollectionService
 from app.application.services.customer_service import CreateCustomerInput, CustomerService
 from app.application.services.dashboard_service import DashboardService
 from app.application.services.invoice_service import CreateInvoiceInput, InvoiceItemInput, InvoiceService
-from app.core.constants import AI_HISTORY_TURNS, AI_SOFT_TOKEN_BUDGET_MONTHLY, AiIntent
+from app.core.constants import AI_HISTORY_TURNS, AI_SOFT_TOKEN_BUDGET_MONTHLY, AI_TOKEN_BUDGET_EXCEEDED_MESSAGE, AiIntent
 from app.infrastructure.ai.conversation_context import is_confirmable_pending
 from app.domain.enums import InvoiceStatus
 from app.infrastructure.ai.graph.build import CopilotGraph
@@ -101,6 +101,17 @@ class AiService:
             history = await uow.ai_sessions.list_recent_turns(
                 sid, company_id=company_id, limit=AI_HISTORY_TURNS
             )
+            monthly = await uow.ai_usage.total_tokens_this_month(company_id)
+        if monthly >= AI_SOFT_TOKEN_BUDGET_MONTHLY:
+            return {
+                "session_id": sid,
+                "intent": AiIntent.CLARIFY,
+                "message": AI_TOKEN_BUDGET_EXCEEDED_MESSAGE,
+                "requires_confirmation": False,
+                "pending_action": None,
+                "data": None,
+                "suggested_actions": [],
+            }
         result = await self._graph.run(
             company_id=str(company_id),
             user_id=str(user_id),

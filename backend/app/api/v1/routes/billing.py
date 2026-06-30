@@ -5,7 +5,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from app.api.deps import AuthContext, get_auth_context, get_container
+from app.api.deps import AuthContext, get_auth_context, get_container, get_verified_auth_context
+from app.core.errors import ForbiddenError
+from app.domain.enums import UserRole
 from app.api.schemas.auth import TokenResponse
 from app.api.schemas.billing import (
     CheckoutResponse,
@@ -30,9 +32,11 @@ async def subscription_status(
 
 @router.post("/checkout", response_model=CheckoutResponse)
 async def create_checkout(
-    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
     container: Annotated[Container, Depends(get_container)],
 ) -> CheckoutResponse:
+    if auth.role != UserRole.OWNER:
+        raise ForbiddenError("Only the business owner can manage billing")
     if settings.use_mock_billing:
         sub = await container.billing_service.ensure_subscription(auth.user_id)
         return CheckoutResponse(

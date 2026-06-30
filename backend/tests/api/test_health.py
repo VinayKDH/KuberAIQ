@@ -27,7 +27,7 @@ async def test_health_integrations(client: AsyncClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["auth_mode"] in {"mock", "oauth"}
-    assert body["llm_mode"] in {"mock", "azure_openai"}
+    assert body["llm_mode"] in {"mock", "live"}
     assert body["whatsapp_mode"] in {"mock", "live"}
 
 

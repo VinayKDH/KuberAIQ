@@ -273,6 +273,16 @@ ACCESS_TOKEN_TTL_MINUTES = 15
 REFRESH_TOKEN_TTL_DAYS = 7
 JWT_ALGORITHM = "HS256"  # RS256 in production with Key Vault keys
 
+# --- Public URLs / OAuth ---------------------------------------------------
+PUBLIC_WEB_URL_DEFAULT = "https://www.kuberaiq.com"
+PUBLIC_API_URL_DEFAULT = "https://api.kuberaiq.com"
+OAUTH_CALLBACK_PATH = "/auth/callback"
+CLOUD_RUN_HOST_SUFFIX = ".run.app"
+OAUTH_REDIRECT_URIS_PRODUCTION: tuple[str, ...] = (
+    f"{PUBLIC_WEB_URL_DEFAULT}{OAUTH_CALLBACK_PATH}",
+)
+# Register Cloud Run service URL in Google/Entra consoles when custom domain is not live.
+
 # --- OAuth providers -------------------------------------------------------
 OAUTH_PROVIDER_MICROSOFT = "microsoft"
 OAUTH_PROVIDER_GOOGLE = "google"
@@ -302,6 +312,12 @@ AI_MAX_TOKENS_CLASSIFY = 256
 AI_MAX_TOKENS_EXTRACT = 512
 AI_MAX_TOKENS_GENERATE = 1024
 AI_SOFT_TOKEN_BUDGET_MONTHLY = 200000
+AI_TOKEN_BUDGET_EXCEEDED_MESSAGE = (
+    "Monthly AI usage limit reached. Upgrade or wait until next month to continue chatting."
+)
+AI_LLM_UNAVAILABLE_MESSAGE = (
+    "AI assistant is temporarily unavailable. Please try again later or contact support."
+)
 
 AI_CUSTOMER_NAME_STOP_WORDS = frozenset(
     {
@@ -416,7 +432,29 @@ ADMIN_API_KEY_HEADER = "X-Admin-Api-Key"
 ADMIN_ENTITY_TYPE_COMPANY = "company"
 ADMIN_ACTION_SUSPEND = "suspend"
 ADMIN_ACTION_ACTIVATE = "activate"
+ADMIN_ACTION_TENANT_VIEW = "ADMIN_TENANT_VIEW"
+ADMIN_ACTION_TENANT_SUSPEND = "ADMIN_TENANT_SUSPEND"
+ADMIN_ACTION_TENANT_ACTIVATE = "ADMIN_TENANT_ACTIVATE"
+ADMIN_AUDIT_ACTOR = "admin"
 ADMIN_DEMO_RESET_ALLOWED_ENVIRONMENTS = frozenset({"local", "dev"})
+ADMIN_IMPERSONATION_ENABLED = False
+
+# --- RBAC permission matrix (MSME tenant routes) ---------------------------
+RBAC_PERMISSION_COMPANY_UPDATE = "company:update"
+RBAC_PERMISSION_INVOICE_CANCEL = "invoice:cancel"
+RBAC_PERMISSION_INVOICE_DELETE = "invoice:delete"
+RBAC_PERMISSION_BILLING_MANAGE = "billing:manage"
+RBAC_PERMISSION_STAFF_MANAGE = "staff:manage"
+RBAC_PERMISSION_ADVISOR_MANAGE = "advisor:manage"
+
+RBAC_MATRIX: dict[str, frozenset[str]] = {
+    RBAC_PERMISSION_COMPANY_UPDATE: frozenset({"OWNER"}),
+    RBAC_PERMISSION_INVOICE_CANCEL: frozenset({"OWNER"}),
+    RBAC_PERMISSION_INVOICE_DELETE: frozenset({"OWNER"}),
+    RBAC_PERMISSION_BILLING_MANAGE: frozenset({"OWNER"}),
+    RBAC_PERMISSION_STAFF_MANAGE: frozenset({"OWNER"}),
+    RBAC_PERMISSION_ADVISOR_MANAGE: frozenset({"OWNER"}),
+}
 
 # --- Health ----------------------------------------------------------------
 HEALTH_LIVE_PATH = "/health"

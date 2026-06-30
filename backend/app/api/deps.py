@@ -9,7 +9,7 @@ from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
-from app.core.constants import AUTH_SCHEME, ADMIN_API_KEY_HEADER
+from app.core.constants import AUTH_SCHEME, ADMIN_API_KEY_HEADER, RBAC_MATRIX
 from app.core.container import Container, build_container
 from app.core.errors import ForbiddenError, UnauthorizedError
 from app.core.security import decode_token
@@ -75,10 +75,30 @@ async def get_subscribed_context(
 
 async def get_tenant_context(
     auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
 ) -> AuthContext:
     if auth.company_id is None:
         raise ForbiddenError("Complete company onboarding first")
+    if not settings.use_mock_billing and auth.role != UserRole.CA:
+        if not await container.billing_service.is_active(auth.user_id):
+            raise ForbiddenError("Active subscription required — renew to continue")
     return auth
+
+
+def require_permission(permission: str):
+    """Enforce RBAC matrix — OWNER always passes MSME permissions."""
+
+    async def _check(auth: Annotated[AuthContext, Depends(get_tenant_context)]) -> AuthContext:
+        allowed = RBAC_MATRIX.get(permission, frozenset())
+        if auth.role == UserRole.OWNER:
+            return auth
+        if auth.role == UserRole.CA:
+            raise ForbiddenError("Insufficient permissions")
+        if auth.role.value not in allowed:
+            raise ForbiddenError("Insufficient permissions")
+        return auth
+
+    return _check
 
 
 async def require_tenant_read_roles(

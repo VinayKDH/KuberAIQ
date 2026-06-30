@@ -1,4 +1,4 @@
-import { API_PATHS, OAUTH_PROVIDER_MICROSOFT, PUBLIC_WEB_URL, ROUTES, usesSameOriginApi } from "@/lib/constants";
+import { API_PATHS, getOAuthRedirectUri, OAUTH_PROVIDER_MICROSOFT } from "@/lib/constants";
 import { apiClient } from "@/lib/api-client";
 import { storeSession, type AuthTokens } from "@/lib/auth";
 import { isGoogleAuthConfigured } from "@/lib/google";
@@ -11,16 +11,6 @@ import {
 
 const ENTRA_CLIENT_ID = process.env.NEXT_PUBLIC_ENTRA_CLIENT_ID ?? "";
 const ENTRA_TENANT_ID = process.env.NEXT_PUBLIC_ENTRA_TENANT_ID ?? "common";
-
-function getEntraRedirectUri(): string {
-  if (typeof window !== "undefined" && usesSameOriginApi(window.location.hostname)) {
-    return `${window.location.origin}${ROUTES.AUTH_CALLBACK}`;
-  }
-  return (
-    process.env.NEXT_PUBLIC_ENTRA_REDIRECT_URI ||
-    `${PUBLIC_WEB_URL}${ROUTES.AUTH_CALLBACK}`
-  );
-}
 
 export function isEntraAuthConfigured(): boolean {
   return Boolean(ENTRA_CLIENT_ID);
@@ -43,7 +33,7 @@ export async function startEntraLogin(): Promise<void> {
   const params = new URLSearchParams({
     client_id: ENTRA_CLIENT_ID,
     response_type: "code",
-    redirect_uri: getEntraRedirectUri(),
+    redirect_uri: getOAuthRedirectUri(),
     response_mode: "query",
     scope: "openid profile email offline_access",
     code_challenge: challenge,
@@ -59,7 +49,7 @@ export async function completeEntraLogin(code: string): Promise<AuthTokens> {
     body: {
       code,
       code_verifier: codeVerifier,
-      redirect_uri: getEntraRedirectUri(),
+      redirect_uri: getOAuthRedirectUri(),
     },
   });
   clearOAuthSession();
