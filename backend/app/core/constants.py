@@ -239,6 +239,12 @@ RAZORPAY_INVOICE_WEBHOOK_EVENTS: tuple[str, ...] = ("payment.captured", "payment
 PAYMENT_SUMMARY_RECENT_LIMIT = 10
 PAYMENT_RECONCILIATION_AMOUNT_TOLERANCE = 1  # rupees
 UPI_DEEP_LINK_STUB_NOTE = "UPI payment — confirm amount and record if not auto-matched"
+PAYMENT_RECEIVED_WEBHOOK_NOTE = "Payment received via Razorpay — invoice marked paid."
+
+# --- Dashboard proactive nudges ----------------------------------------------
+DASHBOARD_NUDGE_OVERDUE = "overdue"
+DASHBOARD_NUDGE_COMPLIANCE = "compliance_due_soon"
+DASHBOARD_NUDGE_LOW_STOCK = "low_stock"
 
 # --- Inventory alerts ------------------------------------------------------
 LOW_STOCK_THRESHOLD_DEFAULT = 10

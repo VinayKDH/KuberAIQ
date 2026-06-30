@@ -22,4 +22,9 @@ async def get_dashboard(
 ) -> DashboardResponse:
     summary = await container.dashboard_service.summary(auth.company_id, from_date, to_date)
     compliance_alert = await container.compliance_service.compliance_alert(auth.company_id)
-    return DashboardResponse(**summary, compliance_alert=compliance_alert)
+    nudges = container.dashboard_service.build_nudges(
+        overdue_count=summary.pop("overdue_count", 0),
+        compliance_due_soon=compliance_alert.get("due_this_week_count", 0),
+        low_stock_count=summary.pop("low_stock_count", 0),
+    )
+    return DashboardResponse(**summary, compliance_alert=compliance_alert, nudges=nudges)

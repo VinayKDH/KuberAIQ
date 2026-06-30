@@ -81,6 +81,8 @@ class CaService:
             if ca_user.role != UserRole.CA:
                 raise ValidationAppError("Invited user is not a CA account")
 
+            await self._ensure_ca_firm(uow, ca_user, ca_firm_name, invited_by)
+
             existing = await uow.ca_assignments.get_by_ca_and_company(ca_user.id, company_id)
             if existing:
                 if existing.status == CaAssignmentStatus.REVOKED:
@@ -99,6 +101,7 @@ class CaService:
                         status=CaAssignmentStatus.PENDING,
                         invited_by=invited_by,
                         ca_firm_name=ca_firm_name,
+                        assigned_advisor_user_id=ca_user.id,
                     )
                 )
             await uow.commit()
@@ -165,12 +168,20 @@ class CaService:
             assignment = await uow.ca_assignments.get_by_ca_and_company(ca_user_id, company_id)
             return assignment is not None and assignment.status == CaAssignmentStatus.ACTIVE
 
-    async def ca_dashboard(self, ca_user_id: uuid.UUID) -> dict:
+    async def ca_dashboard(
+        self, ca_user_id: uuid.UUID, *, advisor_id: uuid.UUID | None = None
+    ) -> dict:
         from app.application.services.compliance_service import ComplianceService
 
         compliance = ComplianceService(self._uow_factory)
         async with self._uow_factory() as uow:
-            assignments = await uow.ca_assignments.list_active_for_ca(ca_user_id)
+            ca_user = await uow.users.get_by_id(ca_user_id)
+            if ca_user and ca_user.ca_firm_id:
+                assignments = await uow.ca_assignments.list_active_for_firm(
+                    ca_user.ca_firm_id, advisor_user_id=advisor_id
+                )
+            else:
+                assignments = await uow.ca_assignments.list_active_for_ca(ca_user_id)
 
         clients: list[dict] = []
         for assignment in assignments:
@@ -217,6 +228,9 @@ class CaService:
                     "company_id": str(assignment.company_id),
                     "company_name": company.legal_name,
                     "gstin": company.gstin,
+                    "assigned_advisor_user_id": str(assignment.assigned_advisor_user_id)
+                    if assignment.assigned_advisor_user_id
+                    else str(assignment.ca_user_id),
                     "upcoming_filings": upcoming,
                     "filing_checklist": filing_checklist,
                     "health_score": health_score,
@@ -237,7 +251,23 @@ class CaService:
             "client_count": len(clients),
             "portfolio": portfolio,
             "filings_due_this_month": filings_due_this_month,
+            "firm_advisors": await self.list_firm_advisors(ca_user_id),
         }
+
+    async def list_firm_advisors(self, ca_user_id: uuid.UUID) -> list[dict]:
+        async with self._uow_factory() as uow:
+            ca_user = await uow.users.get_by_id(ca_user_id)
+            if not ca_user or not ca_user.ca_firm_id:
+                return []
+            members = await uow.ca_firms.list_members(ca_user.ca_firm_id)
+        return [
+            {
+                "id": str(member.id),
+                "email": member.email,
+                "full_name": member.full_name,
+            }
+            for member in members
+        ]
 
     async def complete_client_filing(
         self,
@@ -636,6 +666,18 @@ class CaService:
             "total_overdue": sum(c.get("overdue_total") or 0 for c in clients),
             "filings_due_soon": sum(c.get("filings_due_soon") or 0 for c in clients),
         }
+
+    async def _ensure_ca_firm(self, uow, ca_user: UserRecord, firm_name: str | None, inviter_id: uuid.UUID) -> None:
+        if not firm_name:
+            return
+        firm = await uow.ca_firms.get_by_name(firm_name.strip())
+        if not firm:
+            firm = await uow.ca_firms.create(name=firm_name.strip())
+        if not ca_user.ca_firm_id:
+            await uow.users.assign_ca_firm(ca_user.id, firm.id)
+        inviter = await uow.users.get_by_id(inviter_id)
+        if inviter and inviter.role == UserRole.CA and not inviter.ca_firm_id:
+            await uow.users.assign_ca_firm(inviter_id, firm.id)
 
     @staticmethod
     def _assignment_dict(

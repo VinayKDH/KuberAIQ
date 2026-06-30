@@ -106,6 +106,14 @@ class SqlAlchemyUserRepository:
         await self._session.flush()
         return self._to_record(model)
 
+    async def assign_ca_firm(self, user_id: uuid.UUID, firm_id: uuid.UUID) -> UserRecord:
+        stmt = select(UserModel).where(UserModel.id == user_id, UserModel.deleted_at.is_(None))
+        result = await self._session.execute(stmt)
+        model = result.scalar_one()
+        model.ca_firm_id = firm_id
+        await self._session.flush()
+        return self._to_record(model)
+
     @staticmethod
     def _to_record(model: UserModel) -> UserRecord:
         return UserRecord(
@@ -117,4 +125,5 @@ class SqlAlchemyUserRepository:
             full_name=model.full_name,
             role=UserRole(model.role),
             whatsapp_phone=model.whatsapp_phone,
+            ca_firm_id=model.ca_firm_id,
         )

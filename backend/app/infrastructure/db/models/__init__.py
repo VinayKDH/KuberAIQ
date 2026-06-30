@@ -3,6 +3,7 @@ from app.infrastructure.db.models.audit import AuditLogModel
 from app.infrastructure.db.models.ai_session import AiSessionModel, AiSessionTurnModel
 from app.infrastructure.db.models.ai_usage_log import AiUsageLogModel
 from app.infrastructure.db.models.company import CompanyModel, InvoiceCounterModel
+from app.infrastructure.db.models.ca_firm import CaFirmModel
 from app.infrastructure.db.models.ca_client_assignment import CaClientAssignmentModel
 from app.infrastructure.db.models.ca_client_task import CaClientTaskModel
 from app.infrastructure.db.models.compliance import CompanyComplianceStatusModel, ComplianceObligationModel
@@ -26,6 +27,7 @@ __all__ = [
     "AiUsageLogModel",
     "CaClientAssignmentModel",
     "CaClientTaskModel",
+    "CaFirmModel",
     "ExpenseModel",
     "CompanyComplianceStatusModel",
     "ComplianceObligationModel",

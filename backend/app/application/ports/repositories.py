@@ -327,6 +327,7 @@ class UserRecord:
         entra_oid: str | None = None,
         google_sub: str | None = None,
         whatsapp_phone: str | None = None,
+        ca_firm_id: uuid.UUID | None = None,
     ):
         self.id = id
         self.company_id = company_id
@@ -336,6 +337,7 @@ class UserRecord:
         self.entra_oid = entra_oid
         self.google_sub = google_sub
         self.whatsapp_phone = whatsapp_phone
+        self.ca_firm_id = ca_firm_id
 
 
 class SubscriptionRecord:
@@ -383,6 +385,9 @@ class CaClientAssignmentRepository(Protocol):
     ) -> "CaClientAssignmentRecord | None": ...
     async def list_for_ca(self, ca_user_id: uuid.UUID) -> list["CaClientAssignmentRecord"]: ...
     async def list_active_for_ca(self, ca_user_id: uuid.UUID) -> list["CaClientAssignmentRecord"]: ...
+    async def list_active_for_firm(
+        self, firm_id: uuid.UUID, *, advisor_user_id: uuid.UUID | None = None
+    ) -> list["CaClientAssignmentRecord"]: ...
     async def list_for_company(self, company_id: uuid.UUID) -> list["CaClientAssignmentRecord"]: ...
     async def update(self, record: "CaClientAssignmentRecord") -> "CaClientAssignmentRecord": ...
 
@@ -397,6 +402,7 @@ class CaClientAssignmentRecord:
         status: "CaAssignmentStatus",
         invited_by: uuid.UUID,
         ca_firm_name: str | None = None,
+        assigned_advisor_user_id: uuid.UUID | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
     ):
@@ -406,6 +412,7 @@ class CaClientAssignmentRecord:
         self.status = status
         self.invited_by = invited_by
         self.ca_firm_name = ca_firm_name
+        self.assigned_advisor_user_id = assigned_advisor_user_id or ca_user_id
         self.created_at = created_at
         self.updated_at = updated_at
 

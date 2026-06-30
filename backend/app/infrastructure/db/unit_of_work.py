@@ -11,6 +11,7 @@ from app.infrastructure.db.repositories.admin_repository import SqlAlchemyAdminR
 from app.infrastructure.db.repositories.ca_client_assignment_repository import (
     SqlAlchemyCaClientAssignmentRepository,
 )
+from app.infrastructure.db.repositories.ca_firm_repository import SqlAlchemyCaFirmRepository
 from app.infrastructure.db.repositories.ca_client_task_repository import (
     SqlAlchemyCaClientTaskRepository,
 )
@@ -50,6 +51,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.subscriptions = SqlAlchemySubscriptionRepository(session)
         self.compliance = SqlAlchemyComplianceRepository(session)
         self.ca_assignments = SqlAlchemyCaClientAssignmentRepository(session)
+        self.ca_firms = SqlAlchemyCaFirmRepository(session)
         self.ca_tasks = SqlAlchemyCaClientTaskRepository(session)
         self.ai_sessions = SqlAlchemyAiSessionRepository(session)
         self.staff_invitations = SqlAlchemyStaffInvitationRepository(session)

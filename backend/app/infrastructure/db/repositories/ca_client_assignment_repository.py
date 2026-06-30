@@ -23,6 +23,7 @@ class SqlAlchemyCaClientAssignmentRepository:
             status=record.status,
             invited_by=record.invited_by,
             ca_firm_name=record.ca_firm_name,
+            assigned_advisor_user_id=record.assigned_advisor_user_id or record.ca_user_id,
         )
         self._session.add(model)
         await self._session.flush()
@@ -63,6 +64,26 @@ class SqlAlchemyCaClientAssignmentRepository:
         result = await self._session.execute(stmt)
         return [self._to_record(m) for m in result.scalars().all()]
 
+    async def list_active_for_firm(
+        self, firm_id: uuid.UUID, *, advisor_user_id: uuid.UUID | None = None
+    ) -> list[CaClientAssignmentRecord]:
+        from app.infrastructure.db.models.user import UserModel
+
+        stmt = (
+            select(CaClientAssignmentModel)
+            .join(UserModel, CaClientAssignmentModel.ca_user_id == UserModel.id)
+            .where(
+                UserModel.ca_firm_id == firm_id,
+                CaClientAssignmentModel.status == CaAssignmentStatus.ACTIVE,
+            )
+        )
+        if advisor_user_id is not None:
+            stmt = stmt.where(
+                CaClientAssignmentModel.assigned_advisor_user_id == advisor_user_id
+            )
+        result = await self._session.execute(stmt)
+        return [self._to_record(m) for m in result.scalars().all()]
+
     async def list_for_company(self, company_id: uuid.UUID) -> list[CaClientAssignmentRecord]:
         stmt = (
             select(CaClientAssignmentModel)
@@ -81,6 +102,8 @@ class SqlAlchemyCaClientAssignmentRepository:
         model = result.scalar_one()
         model.status = record.status
         model.ca_firm_name = record.ca_firm_name
+        if record.assigned_advisor_user_id is not None:
+            model.assigned_advisor_user_id = record.assigned_advisor_user_id
         await self._session.flush()
         await self._session.refresh(model)
         return self._to_record(model)
@@ -94,6 +117,7 @@ class SqlAlchemyCaClientAssignmentRepository:
             status=CaAssignmentStatus(model.status),
             invited_by=model.invited_by,
             ca_firm_name=model.ca_firm_name,
+            assigned_advisor_user_id=model.assigned_advisor_user_id,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

@@ -6,6 +6,7 @@ import { AgingChart } from "@/components/dashboard/aging-chart";
 import { CashflowChart } from "@/components/dashboard/cashflow-chart";
 import { CashflowForecastChart } from "@/components/dashboard/cashflow-forecast-chart";
 import { ComplianceAlertCard } from "@/components/dashboard/compliance-alert-card";
+import { DashboardNudgesCard } from "@/components/dashboard/dashboard-nudges-card";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { PaymentAnalyticsCard } from "@/components/dashboard/payment-analytics-card";
 import { PaymentSummaryCard } from "@/components/dashboard/payment-summary-card";
@@ -69,6 +70,8 @@ export default function DashboardPage() {
       </div>
 
       <MsmeQuickStartCard />
+
+      <DashboardNudgesCard nudges={data?.nudges} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <MsmeComplianceTipsCard />

@@ -64,10 +64,18 @@ export interface CaBulkGstrResponse {
   }>;
 }
 
+export interface CaFirmAdvisor {
+  id: string;
+  email: string;
+  full_name?: string | null;
+}
+
 export interface CaDashboardResponse {
   clients: CaDashboardClient[];
   client_count: number;
   portfolio?: CaPortfolioSummary | null;
+  filings_due_this_month?: number;
+  firm_advisors?: CaFirmAdvisor[];
 }
 
 export interface AdvisorsResponse {

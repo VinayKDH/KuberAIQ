@@ -9,6 +9,8 @@ from decimal import Decimal
 import csv
 from io import StringIO
 
+import structlog
+
 from app.application.ports.repositories import PaymentRecord
 from app.core.config import settings
 from app.core.constants import (
@@ -17,6 +19,7 @@ from app.core.constants import (
     ErrorCode,
     PAYMENT_RECONCILIATION_AMOUNT_TOLERANCE,
     PAYMENT_SUMMARY_RECENT_LIMIT,
+    PAYMENT_RECEIVED_WEBHOOK_NOTE,
     RAZORPAY_INVOICE_REFERENCE_PREFIX,
     RAZORPAY_INVOICE_WEBHOOK_EVENTS,
     RAZORPAY_PAYMENT_REFERENCE_PREFIX,
@@ -27,6 +30,8 @@ from app.domain.enums import PaymentMethod
 from app.domain.exceptions import PaymentExceedsDue
 from app.domain.value_objects.money import Money
 from app.infrastructure.billing.razorpay_client import RazorpayClient
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -106,6 +111,17 @@ class PaymentService:
             )
             if commit:
                 await uow.commit()
+            if actor_id is None and data.reference and data.reference.startswith(
+                RAZORPAY_PAYMENT_REFERENCE_PREFIX
+            ):
+                logger.info(
+                    "payment_reconciled_webhook",
+                    company_id=str(company_id),
+                    invoice_id=str(invoice_id),
+                    amount=str(data.amount),
+                    reference=data.reference,
+                    message=PAYMENT_RECEIVED_WEBHOOK_NOTE,
+                )
             return saved_payment
 
     async def reverse(

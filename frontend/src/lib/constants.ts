@@ -167,6 +167,7 @@ export const API_PATHS = {
   COMPLIANCE_ALERTS_PREVIEW: "/compliance/alerts/preview",
   CA_CLIENTS: "/ca/clients",
   CA_DASHBOARD: "/ca/dashboard",
+  CA_FIRM_ADVISORS: "/ca/firm/advisors",
   CA_ACCEPT_INVITE: (id: string) => `/ca/invitations/${id}/accept` as const,
   CA_CONTEXT: "/ca/context",
   CA_CONTEXT_CLEAR: "/ca/context/clear",
@@ -233,7 +234,7 @@ export const QUERY_KEYS = {
   COMPLIANCE_OBLIGATIONS: ["compliance", "obligations"] as const,
   COMPLIANCE_CALENDAR: (days?: number) => ["compliance", "calendar", days] as const,
   CA_CLIENTS: ["ca", "clients"] as const,
-  CA_DASHBOARD: ["ca", "dashboard"] as const,
+  CA_DASHBOARD: (advisorId?: string) => ["ca", "dashboard", advisorId ?? "all"] as const,
   CA_CLIENT_TASKS: (companyId: string) => ["ca", "tasks", companyId] as const,
   ADVISORS: ["advisors"] as const,
   CA_GSTR1_BULK: (from: string, to: string, companyIds?: string[]) =>
@@ -614,6 +615,8 @@ export const CA_COPY = {
   PORTFOLIO_HEALTH: "Avg compliance health",
   PORTFOLIO_AT_RISK: "Clients at risk",
   OPEN_CLIENT_WORKSPACE: "Open workspace",
+  FILTER_BY_ADVISOR: "Filter by advisor",
+  ALL_ADVISORS: "All advisors",
 } as const;
 
 export const CA_OVERDUE_ALERT_THRESHOLD = 10_000;

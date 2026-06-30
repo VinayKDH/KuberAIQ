@@ -10,6 +10,11 @@ from app.core.constants import (
     AGING_BUCKETS,
     CASHFLOW_BUFFER_DEFAULT,
     CASHFLOW_FORECAST_DAYS,
+    COMPLIANCE_DUE_SOON_DAYS,
+    DASHBOARD_NUDGE_COMPLIANCE,
+    DASHBOARD_NUDGE_LOW_STOCK,
+    DASHBOARD_NUDGE_OVERDUE,
+    LOW_STOCK_THRESHOLD_DEFAULT,
     TOP_CUSTOMERS_LIMIT,
     TOP_PRODUCTS_LIMIT,
 )
@@ -31,6 +36,7 @@ class DashboardService:
             revenue = Decimal("0")
             pending = Decimal("0")
             overdue = Decimal("0")
+            overdue_count = 0
             aging: dict[str, dict] = {
                 b: {"bucket": b, "invoices": 0, "outstanding": Decimal("0")} for b in AGING_BUCKETS
             }
@@ -56,6 +62,8 @@ class DashboardService:
                 if inv.status in {InvoiceStatus.OVERDUE, InvoiceStatus.PARTIALLY_PAID} and inv.amount_due.amount > 0:
                     if inv.due_date < today:
                         overdue += inv.amount_due.amount
+                        if inv.status == InvoiceStatus.OVERDUE:
+                            overdue_count += 1
                     days = (today - inv.due_date).days
                     bucket = "90+" if days > 90 else "61-90" if days > 60 else "31-60" if days > 30 else "0-30"
                     aging[bucket]["invoices"] += 1
@@ -67,6 +75,9 @@ class DashboardService:
 
             payment_summary = await self._payment_summary(uow, company_id, today)
             payment_analytics = await self._payment_analytics(uow, company_id, today)
+            low_stock = await uow.products.list_low_stock(
+                company_id, threshold=LOW_STOCK_THRESHOLD_DEFAULT
+            )
 
             top_customers = sorted(
                 [
@@ -112,7 +123,46 @@ class DashboardService:
                 "top_products": top_products,
                 "payment_summary": payment_summary,
                 "payment_analytics": payment_analytics,
+                "overdue_count": overdue_count,
+                "low_stock_count": len(low_stock),
             }
+
+    def build_nudges(
+        self,
+        *,
+        overdue_count: int,
+        compliance_due_soon: int,
+        low_stock_count: int,
+    ) -> list[dict]:
+        nudges: list[dict] = []
+        if overdue_count > 0:
+            nudges.append(
+                {
+                    "type": DASHBOARD_NUDGE_OVERDUE,
+                    "count": overdue_count,
+                    "label": f"{overdue_count} overdue invoice(s)",
+                    "href": "/collections",
+                }
+            )
+        if compliance_due_soon > 0:
+            nudges.append(
+                {
+                    "type": DASHBOARD_NUDGE_COMPLIANCE,
+                    "count": compliance_due_soon,
+                    "label": f"{compliance_due_soon} compliance item(s) due soon",
+                    "href": "/compliance",
+                }
+            )
+        if low_stock_count > 0:
+            nudges.append(
+                {
+                    "type": DASHBOARD_NUDGE_LOW_STOCK,
+                    "count": low_stock_count,
+                    "label": f"{low_stock_count} product(s) low on stock",
+                    "href": "/products",
+                }
+            )
+        return nudges
 
     async def _payment_summary(self, uow, company_id: uuid.UUID, today: date) -> dict:
         from app.core.constants import PAYMENT_SUMMARY_RECENT_LIMIT

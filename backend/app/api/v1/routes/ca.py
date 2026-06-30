@@ -50,10 +50,21 @@ async def list_ca_clients(
 async def ca_dashboard(
     auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
     container: Annotated[Container, Depends(get_container)],
+    advisor_id: uuid.UUID | None = Query(None),
 ) -> CaDashboardResponse:
     _require_ca(auth)
-    data = await container.ca_service.ca_dashboard(auth.user_id)
+    data = await container.ca_service.ca_dashboard(auth.user_id, advisor_id=advisor_id)
     return CaDashboardResponse(**data)
+
+
+@router.get("/firm/advisors")
+async def list_firm_advisors(
+    auth: Annotated[AuthContext, Depends(get_verified_auth_context)],
+    container: Annotated[Container, Depends(get_container)],
+) -> dict:
+    _require_ca(auth)
+    advisors = await container.ca_service.list_firm_advisors(auth.user_id)
+    return {"items": advisors}
 
 
 @router.post("/invitations/{assignment_id}/accept", response_model=CaClientsResponse)

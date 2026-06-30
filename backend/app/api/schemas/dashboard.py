@@ -44,6 +44,13 @@ class TopProduct(BaseModel):
     share_pct: float
 
 
+class DashboardNudge(BaseModel):
+    type: str
+    count: int
+    label: str
+    href: str
+
+
 class DashboardResponse(BaseModel):
     revenue: float
     pending: float
@@ -57,3 +64,4 @@ class DashboardResponse(BaseModel):
     top_products: list[TopProduct]
     payment_summary: CollectionSummaryResponse | None = None
     payment_analytics: PaymentAnalyticsResponse | None = None
+    nudges: list[DashboardNudge] = []

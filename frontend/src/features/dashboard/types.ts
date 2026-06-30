@@ -74,6 +74,12 @@ export interface DashboardData {
   top_products: TopProduct[];
   payment_summary?: PaymentSummary | null;
   payment_analytics?: PaymentAnalytics | null;
+  nudges?: Array<{
+    type: string;
+    count: number;
+    label: string;
+    href: string;
+  }>;
 }
 
 export interface DashboardParams {

@@ -19,7 +19,8 @@ import { formatDate, formatINR } from "@/lib/format";
 type RiskFilter = "all" | "at-risk" | "healthy";
 
 export default function CaDashboardPage() {
-  const { data, isLoading } = useCaDashboard();
+  const [advisorId, setAdvisorId] = useState<string>("");
+  const { data, isLoading } = useCaDashboard(advisorId || undefined);
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
   const [dueBefore, setDueBefore] = useState("");
   const allClients = data?.clients ?? [];
@@ -62,6 +63,29 @@ export default function CaDashboardPage() {
         portfolio={data?.portfolio}
         loading={isLoading}
       />
+
+      {!isLoading && (data?.firm_advisors?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">{CA_COPY.FILTER_BY_ADVISOR}</span>
+          <Button
+            size="sm"
+            variant={advisorId === "" ? "default" : "outline"}
+            onClick={() => setAdvisorId("")}
+          >
+            {CA_COPY.ALL_ADVISORS}
+          </Button>
+          {data?.firm_advisors?.map((advisor) => (
+            <Button
+              key={advisor.id}
+              size="sm"
+              variant={advisorId === advisor.id ? "default" : "outline"}
+              onClick={() => setAdvisorId(advisor.id)}
+            >
+              {advisor.full_name ?? advisor.email}
+            </Button>
+          ))}
+        </div>
+      )}
 
       {!isLoading && allClients.length > 0 && <CaBulkGstrPanel clients={allClients} />}
 

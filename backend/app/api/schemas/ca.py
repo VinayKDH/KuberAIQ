@@ -39,10 +39,17 @@ class CaFilingChecklistItem(BaseModel):
     period_key: str | None = None
 
 
+class CaFirmAdvisorItem(BaseModel):
+    id: str
+    email: str
+    full_name: str | None = None
+
+
 class CaDashboardClient(BaseModel):
     company_id: str
     company_name: str
     gstin: str | None = None
+    assigned_advisor_user_id: str | None = None
     upcoming_filings: list[CaUpcomingFiling]
     filing_checklist: list[CaFilingChecklistItem] = []
     health_score: int | None = None
@@ -66,6 +73,7 @@ class CaDashboardResponse(BaseModel):
     client_count: int
     portfolio: CaPortfolioSummary | None = None
     filings_due_this_month: int = 0
+    firm_advisors: list[CaFirmAdvisorItem] = []
 
 
 class CaFilingActionRequest(BaseModel):

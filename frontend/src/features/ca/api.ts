@@ -16,8 +16,9 @@ export function fetchCaClients() {
   return apiClient<CaClientsResponse>(API_PATHS.CA_CLIENTS);
 }
 
-export function fetchCaDashboard() {
-  return apiClient<CaDashboardResponse>(API_PATHS.CA_DASHBOARD);
+export function fetchCaDashboard(advisorId?: string) {
+  const query = advisorId ? `?advisor_id=${encodeURIComponent(advisorId)}` : "";
+  return apiClient<CaDashboardResponse>(`${API_PATHS.CA_DASHBOARD}${query}`);
 }
 
 export function acceptCaInvite(assignmentId: string) {

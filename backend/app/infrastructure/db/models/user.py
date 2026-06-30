@@ -26,6 +26,9 @@ class UserModel(Base):
         Enum(UserRole, name="user_role", native_enum=False), default=UserRole.STAFF
     )
     whatsapp_phone: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    ca_firm_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("ca_firms.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -34,3 +37,4 @@ class UserModel(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     company: Mapped["CompanyModel"] = relationship(back_populates="users")  # noqa: F821
+    ca_firm: Mapped["CaFirmModel | None"] = relationship(back_populates="members")  # noqa: F821

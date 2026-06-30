@@ -31,10 +31,10 @@ export function useCaClients() {
   });
 }
 
-export function useCaDashboard() {
+export function useCaDashboard(advisorId?: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.CA_DASHBOARD,
-    queryFn: fetchCaDashboard,
+    queryKey: QUERY_KEYS.CA_DASHBOARD(advisorId),
+    queryFn: () => fetchCaDashboard(advisorId),
   });
 }
 
@@ -44,7 +44,7 @@ export function useAcceptCaInvite() {
     mutationFn: acceptCaInvite,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_CLIENTS });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_DASHBOARD });
+      queryClient.invalidateQueries({ queryKey: ["ca", "dashboard"] });
     },
   });
 }
@@ -123,7 +123,7 @@ export function useCaCompleteFiling() {
       periodKey?: string | null;
     }) => completeCaClientFiling(companyId, obligationId, periodKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_DASHBOARD });
+      queryClient.invalidateQueries({ queryKey: ["ca", "dashboard"] });
     },
   });
 }
@@ -141,7 +141,7 @@ export function useCaSkipFiling() {
       periodKey?: string | null;
     }) => skipCaClientFiling(companyId, obligationId, periodKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_DASHBOARD });
+      queryClient.invalidateQueries({ queryKey: ["ca", "dashboard"] });
     },
   });
 }
@@ -151,7 +151,7 @@ export function useCaBulkCompleteFilings() {
   return useMutation({
     mutationFn: bulkCompleteCaFilings,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CA_DASHBOARD });
+      queryClient.invalidateQueries({ queryKey: ["ca", "dashboard"] });
     },
   });
 }
